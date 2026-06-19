@@ -1,0 +1,19 @@
+req_id,title,department,location,country,opened_date,stage,recruiter,hiring_manager,pipeline,last_update,priority,status
+REQ-1001,Senior Backend Engineer,Engineering,Austin,US,2025-09-20,Onsite,Dana Lopez,Arjun Mehta,4,2026-01-12,P1,open
+REQ-1002,Frontend Engineer,Engineering,Remote,US,2025-11-02,Screen,Dana Lopez,Arjun Mehta,7,2026-01-10,P2,open
+REQ-1003,Engineering Manager,Engineering,London,UK,2025-10-15,Onsite,Priya Nair,Sofia Rossi,3,2025-12-20,P1,open
+REQ-1004,Product Manager,Product,San Francisco,US,2025-12-01,Sourcing,Sam Carter,Liam O'Brien,5,2026-01-13,P2,open
+REQ-1005,Senior Product Designer,Product,Remote,US,2025-12-10,Screen,Sam Carter,Liam O'Brien,2,2026-01-08,P1,open
+REQ-1006,Account Executive,Sales,New York,US,2026-01-05,Sourcing,Wei Zhang,Hannah Kim,9,2026-01-14,P2,open
+REQ-1007,Account Executive,Sales,Berlin,Germany,2025-12-18,Sourcing,Wei Zhang,Klaus Bauer,6,2026-01-11,P3,open
+REQ-1008,Sales Engineer,Sales,Remote,US,2025-08-28,Offer,Wei Zhang,Hannah Kim,1,2025-12-22,P1,open
+REQ-1009,Customer Success Manager,Customer Success,Austin,US,2025-11-20,Screen,Priya Nair,Maria Garcia,5,2026-01-09,P2,open
+REQ-1010,Marketing Manager,Marketing,London,UK,2025-12-05,Onsite,Sam Carter,Sofia Rossi,4,2026-01-06,P2,open
+REQ-1011,Data Analyst,G&A,Bengaluru,India,2025-10-30,Screen,Priya Nair,Rahul Verma,8,2025-12-28,P3,open
+REQ-1012,Recruiter,G&A,Remote,US,2026-01-08,Sourcing,Dana Lopez,Nina Patel,3,2026-01-14,P2,open
+REQ-1013,Staff Software Engineer,Engineering,Bengaluru,India,2025-09-05,Onsite,Priya Nair,Rahul Verma,2,2025-12-29,P1,open
+REQ-1014,Solutions Architect,Engineering,Remote,US,2025-12-22,Sourcing,Dana Lopez,Arjun Mehta,4,2026-01-13,P2,open
+REQ-1015,HR Business Partner,G&A,San Francisco,US,2025-11-10,Offer,Sam Carter,Nina Patel,2,2026-01-07,P2,open
+REQ-1016,Sales Development Rep,Sales,Austin,US,2025-12-15,Sourcing,Wei Zhang,Hannah Kim,11,2026-01-12,P3,open
+REQ-1017,Senior Data Engineer,Engineering,London,UK,2025-10-01,Screen,Priya Nair,Sofia Rossi,3,2025-12-18,P1,open
+REQ-1018,Content Marketer,Marketing,Remote,US,2025-12-28,Sourcing,Sam Carter,Sofia Rossi,5,2026-01-10,P3,on-hold

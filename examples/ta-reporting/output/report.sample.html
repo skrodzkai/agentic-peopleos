@@ -1,0 +1,77 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>Acme Corp — TA Operating Report</title><style>
+:root{--bg:#000;--text:#eef7ff;--muted:#8db1ce;--soft:#6d8294;--cyan:#1ba7ff;--cyan2:#48c7ff;
+--green:#43d477;--red:#ff4d4f;--amber:#f7b955;--line:rgba(27,167,255,.46);--line-soft:rgba(27,167,255,.22);
+--hair:rgba(141,177,206,.20);--track:rgba(255,255,255,.06);}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;}
+.wrap{max-width:920px;margin:0 auto;padding:28px 26px 40px;}
+.mono{font-family:'JetBrains Mono','SFMono-Regular',Consolas,ui-monospace,monospace;}
+.brand-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:2px solid var(--cyan);margin-bottom:22px;}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px;color:#fff;letter-spacing:.2px;}
+.brand .os{color:var(--cyan);}
+.status{border:1px solid rgba(247,185,85,.5);color:var(--amber);background:rgba(247,185,85,.12);font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+.kicker{color:var(--cyan);text-transform:uppercase;font-size:11px;letter-spacing:.1em;font-weight:800;}
+h1{margin:6px 0 4px;font-size:25px;line-height:1.1;color:#fff;font-weight:800;}
+.date{color:var(--muted);font-size:13px;}
+.callout{margin:18px 0 4px;background:rgba(27,167,255,.06);border:1px solid var(--line-soft);border-left:3px solid var(--cyan);border-radius:0 8px 8px 0;padding:12px 15px;}
+.callout .label{color:var(--cyan2);text-transform:uppercase;font-size:10.5px;font-weight:800;letter-spacing:.06em;}
+.callout p{margin:4px 0 0;color:var(--text);font-size:14px;line-height:1.5;}
+.meter{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:20px 0 6px;}
+.metric{background:#000;border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+.metric strong{display:block;font-size:26px;font-weight:700;color:#fff;line-height:1.05;}
+.metric span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-top:4px;}
+.section-title{color:var(--cyan);text-transform:uppercase;font-size:13px;font-weight:900;letter-spacing:.05em;margin:26px 0 10px;}
+.cols{display:flex;gap:26px;flex-wrap:wrap;}
+.col{flex:1;min-width:250px;}
+.row{display:flex;align-items:center;gap:9px;margin:6px 0;}
+.lbl{width:74px;font-size:12px;color:var(--muted);}
+.bar{flex:1;background:var(--track);border-radius:4px;height:13px;overflow:hidden;}
+.bar>div{height:13px;border-radius:4px;}
+.val{width:18px;text-align:right;font-size:12px;color:var(--text);}
+table.data{width:100%;border-collapse:collapse;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12.5px;}
+table.data th{text-align:left;color:var(--cyan);background:#07101a;padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;}
+table.data td{padding:7px 8px;border-top:1px solid var(--hair);color:var(--text);}
+table.data td.c,table.data th.c{text-align:center;}
+.flagrow{display:flex;align-items:center;gap:7px;font-size:12.5px;margin:6px 0;flex-wrap:wrap;}
+.flagrow .req{min-width:172px;color:var(--text);}
+.pill{padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;white-space:nowrap;}
+.pill.warn{background:rgba(247,185,85,.15);color:var(--amber);}
+.pill.bad{background:rgba(255,77,79,.15);color:var(--red);}
+.watch{font-size:12.5px;color:var(--text);margin:5px 0;}
+.watch b{color:#fff;}
+.watch .d{color:var(--red);}
+.footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:26px;border-top:1px solid #193044;padding-top:14px;color:var(--soft);font-size:11px;}
+</style></head><body><div class="wrap">
+  <div class="brand-row">
+    <span class="brand"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.4" fill="#1ba7ff"/><circle cx="18" cy="7" r="2.4" fill="#1ba7ff"/><circle cx="12" cy="17" r="2.4" fill="#48c7ff"/><path d="M6 7 L12 17 L18 7" stroke="#1e88e5" stroke-width="1.4" fill="none"/></svg>Agentic People<span class="os">OS</span></span>
+    <span class="status">Draft · awaiting publish approval</span>
+  </div>
+  <div class="kicker">Talent Acquisition</div>
+  <h1>Operating Report</h1>
+  <div class="date">Acme Corp &middot; as of Jan 15, 2026 &middot; synthetic data</div>
+
+  <div class="callout"><div class="label">What needs attention</div><p>5 of 17 open reqs have aged past 90 days, concentrated in Engineering (4 of 5) — the clearest risk to hiring plans. Priya Nair carries 4 of the 7 at-risk reqs — the highest-leverage place to rebalance load.</p></div>
+
+  <div class="meter"><div class="metric" style="border-color:var(--line)"><strong class="mono" style="color:#fff">17</strong><span>Open reqs</span></div><div class="metric" style="border-color:rgba(255,77,79,.5)"><strong class="mono" style="color:var(--red)">7</strong><span>At risk</span></div><div class="metric" style="border-color:var(--line)"><strong class="mono" style="color:#fff">64</strong><span>Avg days open</span></div><div class="metric" style="border-color:var(--line)"><strong class="mono" style="color:#fff">4</strong><span>Median pipeline</span></div><div class="metric" style="border-color:var(--line)"><strong class="mono" style="color:#fff">1</strong><span>On hold</span></div></div>
+
+  <div class="cols">
+    <div class="col">
+      <div class="section-title">Pipeline by stage</div><div class="row"><div class="lbl" style="width:74px">Sourcing</div><div class="bar"><div style="width:100%;background:var(--cyan);"></div></div><div class="val mono">6</div></div><div class="row"><div class="lbl" style="width:74px">Screen</div><div class="bar"><div style="width:83%;background:var(--cyan);"></div></div><div class="val mono">5</div></div><div class="row"><div class="lbl" style="width:74px">Onsite</div><div class="bar"><div style="width:67%;background:var(--cyan);"></div></div><div class="val mono">4</div></div><div class="row"><div class="lbl" style="width:74px">Offer</div><div class="bar"><div style="width:33%;background:var(--cyan);"></div></div><div class="val mono">2</div></div>
+      <div class="section-title">Requisition age</div><div class="row"><div class="lbl" style="width:74px">0–30</div><div class="bar"><div style="width:80%;background:var(--cyan);"></div></div><div class="val mono">4</div></div><div class="row"><div class="lbl" style="width:74px">31–60</div><div class="bar"><div style="width:100%;background:var(--cyan);"></div></div><div class="val mono">5</div></div><div class="row"><div class="lbl" style="width:74px">61–90</div><div class="bar"><div style="width:60%;background:var(--cyan);"></div></div><div class="val mono">3</div></div><div class="row"><div class="lbl" style="width:74px">90+</div><div class="bar"><div style="width:100%;background:var(--red);"></div></div><div class="val mono">5</div></div>
+      <div class="section-title">Open reqs by location</div><div class="row"><div class="lbl" style="width:74px">US</div><div class="bar"><div style="width:100%;background:var(--cyan);"></div></div><div class="val mono">11</div></div><div class="row"><div class="lbl" style="width:74px">UK</div><div class="bar"><div style="width:27%;background:var(--cyan);"></div></div><div class="val mono">3</div></div><div class="row"><div class="lbl" style="width:74px">India</div><div class="bar"><div style="width:18%;background:var(--cyan);"></div></div><div class="val mono">2</div></div><div class="row"><div class="lbl" style="width:74px">Germany</div><div class="bar"><div style="width:9%;background:var(--cyan);"></div></div><div class="val mono">1</div></div>
+    </div>
+    <div class="col">
+      <div class="section-title">Open reqs by department</div><div class="row"><div class="lbl" style="width:92px">Engineering</div><div class="bar"><div style="width:100%;background:var(--cyan);"></div></div><div class="val mono">6</div></div><div class="row"><div class="lbl" style="width:92px">Sales</div><div class="bar"><div style="width:67%;background:var(--cyan);"></div></div><div class="val mono">4</div></div><div class="row"><div class="lbl" style="width:92px">G&amp;A</div><div class="bar"><div style="width:50%;background:var(--cyan);"></div></div><div class="val mono">3</div></div><div class="row"><div class="lbl" style="width:92px">Product</div><div class="bar"><div style="width:33%;background:var(--cyan);"></div></div><div class="val mono">2</div></div><div class="row"><div class="lbl" style="width:92px">Customer Success</div><div class="bar"><div style="width:17%;background:var(--cyan);"></div></div><div class="val mono">1</div></div><div class="row"><div class="lbl" style="width:92px">Marketing</div><div class="bar"><div style="width:17%;background:var(--cyan);"></div></div><div class="val mono">1</div></div>
+      <div class="section-title">Recruiter scorecard</div>
+      <table class="data"><thead><tr><th>Recruiter</th><th class="c">Reqs</th><th class="c">Avg&nbsp;days</th><th class="c">At&nbsp;risk</th><th class="c">Pipeline</th></tr></thead><tbody><tr><td>Priya Nair</td><td class="c mono">5</td><td class="c mono">93</td><td class="c mono" style="color:var(--red)">4</td><td class="c mono">21</td></tr><tr><td>Dana Lopez</td><td class="c mono">4</td><td class="c mono">56</td><td class="c mono" style="color:var(--red)">1</td><td class="c mono">18</td></tr><tr><td>Sam Carter</td><td class="c mono">4</td><td class="c mono">47</td><td class="c mono" style="color:var(--red)">1</td><td class="c mono">13</td></tr><tr><td>Wei Zhang</td><td class="c mono">4</td><td class="c mono">52</td><td class="c mono" style="color:var(--red)">1</td><td class="c mono">27</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div class="section-title">Top risk flags</div><div class="flagrow"><span class="req">REQ-1008 Sales Engineer</span><span class="pill warn">AGING</span><span class="pill bad">STALE</span><span class="pill bad">THIN PIPELINE</span></div><div class="flagrow"><span class="req">REQ-1013 Staff Software Engineer</span><span class="pill warn">AGING</span><span class="pill bad">STALE</span><span class="pill bad">THIN PIPELINE</span></div><div class="flagrow"><span class="req">REQ-1003 Engineering Manager</span><span class="pill warn">AGING</span><span class="pill bad">STALE</span></div><div class="flagrow"><span class="req">REQ-1017 Senior Data Engineer</span><span class="pill warn">AGING</span><span class="pill bad">STALE</span></div><div class="flagrow"><span class="req">REQ-1001 Senior Backend Engineer</span><span class="pill warn">AGING</span></div><div class="flagrow"><span class="req">REQ-1005 Senior Product Designer</span><span class="pill bad">THIN PIPELINE</span></div><div class="flagrow"><span class="req">REQ-1011 Data Analyst</span><span class="pill bad">STALE</span></div>
+  <div class="section-title">Update-recency watchlist</div><div class="watch"><b>REQ-1017</b> Senior Data Engineer — <span class="d">no update for 28 days</span></div><div class="watch"><b>REQ-1003</b> Engineering Manager — <span class="d">no update for 26 days</span></div><div class="watch"><b>REQ-1008</b> Sales Engineer — <span class="d">no update for 24 days</span></div><div class="watch"><b>REQ-1011</b> Data Analyst — <span class="d">no update for 18 days</span></div><div class="watch"><b>REQ-1013</b> Staff Software Engineer — <span class="d">no update for 17 days</span></div>
+
+  <div class="footer">
+    <span>Generated by the <b style="color:var(--muted)">ta-reporting</b> agent &middot; Agentic PeopleOS</span>
+    <span>Human-in-the-loop: agent recommends, a named human approves before publish</span>
+  </div>
+</div></body></html>
