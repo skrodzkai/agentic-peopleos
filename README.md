@@ -2,6 +2,8 @@
 
 **Operating discipline for agent-run People functions.**
 
+[![CI](https://github.com/skrodzkai/agentic-peopleos/actions/workflows/ci.yml/badge.svg)](https://github.com/skrodzkai/agentic-peopleos/actions/workflows/ci.yml)
+
 Most of an HR back office is judgment applied to repeatable process — sourcing, screening,
 onboarding, comp analysis, performance paperwork, policy questions, compliance. That's work a
 well-governed fleet of AI agents can do. Agentic PeopleOS is the operating layer that makes it
