@@ -29,6 +29,7 @@ Each HR function becomes one or more agents. The agent does the work; a human ow
 | Performance | drafts reviews, surfaces calibration gaps | ratings & promotions |
 | Policy & employee Q&A | answers from policy, escalates edge cases | the policy itself |
 | Compliance & audit | watches every action, keeps the record | the risk posture |
+| People analytics & reporting | compiles operating reports, flags risks, ties metrics to action | the decision, and what's published |
 
 ---
 
@@ -72,9 +73,10 @@ See [`docs/architecture.md`](docs/architecture.md) for the full model.
 
 ## Examples
 
-- **[Talent Acquisition reporting agent](examples/ta-reporting/)** — a complete, runnable
-  agent (synthetic data, standard library only). It reads open requisitions, computes the
-  weekly operating report, drafts a Day-1 digest, and **stops at a human publish gate**.
+- **[Talent Acquisition reporting agent](examples/ta-reporting/)** — the **People analytics
+  & reporting** module, applied to the recruiting pipeline. A complete, runnable agent
+  (synthetic data, standard library only): it reads open requisitions, computes the weekly
+  operating report, drafts a Day-1 digest, and **stops at a human publish gate**.
   Run it: `cd examples/ta-reporting && python run.py`.
 
 ---
