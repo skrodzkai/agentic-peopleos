@@ -1,0 +1,21 @@
+# Tools the TA reporting agent is allowed to use.
+# Note what's deliberately ABSENT: there is no "send" or "publish" tool.
+# Publishing is a human action behind the publish gate (see SPEC.md).
+
+tools:
+  - name: ats_read
+    access: read-only
+    description: >
+      Reads open requisitions from the Applicant Tracking System.
+      Vendor-agnostic; this example reads data/requisitions.sample.csv instead
+      of calling a real ATS. Swap in your own adapter behind the same interface.
+
+  - name: report_writer
+    access: write-local
+    description: >
+      Renders the operating report (HTML) and the Day-1 digest (Markdown)
+      to the local output/ directory. Produces drafts only.
+
+# Intentionally NOT granted:
+#   - email / Slack / "publish" — a human owns distribution (publish gate)
+#   - any write access to the ATS or HRIS — this agent only reads source data

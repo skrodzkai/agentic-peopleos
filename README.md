@@ -70,6 +70,15 @@ See [`docs/architecture.md`](docs/architecture.md) for the full model.
 
 ---
 
+## Examples
+
+- **[Talent Acquisition reporting agent](examples/ta-reporting/)** — a complete, runnable
+  agent (synthetic data, standard library only). It reads open requisitions, computes the
+  weekly operating report, drafts a Day-1 digest, and **stops at a human publish gate**.
+  Run it: `cd examples/ta-reporting && python run.py`.
+
+---
+
 ## Design principles
 
 1. **Identity is immutable, behavior is not.** Every agent has a marked, unchangeable
