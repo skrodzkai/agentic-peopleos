@@ -1,0 +1,22 @@
+{
+  "agent": "comp-reporting",
+  "domain": "total-rewards",
+  "budget": {
+    "period": "monthly",
+    "limit_usd": 2.00,
+    "default_model_tier": "tier-0",
+    "escalation_allowed": true,
+    "notes": "The report itself is deterministic and needs no model (tier-0). A model is only used to write the narrative digest, and only at the cheapest tier that produces acceptable prose. No model is ever used to decide pay."
+  },
+  "usage": {
+    "period_start": "2026-01-01",
+    "spend_usd": 0.0,
+    "calls": 0,
+    "by_tier": {
+      "tier-0": { "calls": 0, "spend_usd": 0.0 },
+      "tier-1": { "calls": 0, "spend_usd": 0.0 },
+      "tier-2": { "calls": 0, "spend_usd": 0.0 },
+      "tier-3": { "calls": 0, "spend_usd": 0.0 }
+    }
+  }
+}

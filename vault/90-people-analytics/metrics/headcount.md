@@ -1,0 +1,24 @@
+---
+type: reference
+owner: People Analytics
+status: approved
+last-reviewed: 2026-06-20
+---
+
+# Headcount & Workforce metrics
+
+Generated from `metrics.registry.json` — the single source of truth. Do not edit by hand.
+
+Each metric is tagged **Core KPI**, **Diagnostic**, or **Operational alert**. The Formula cell also carries the group/aggregate form (where it differs) and the implementation protocol.
+
+| Metric | Definition | Formula / group / protocol | Grain | Decision it supports | Agent may / must-not |
+|---|---|---|---|---|---|
+| **Headcount**<br><sub>Core KPI</sub> | Active worker count at the as-of date (point-in-time), including employees on protected leave. | `count(workers where worker_type = 'employee' and status in active_like_statuses)`<br>_protocol:_ Active_like includes protected leave (LOA/parental/disability); state treatment of interns/fixed-term. | point_in_time | Workforce size and plan tracking. | ✓ calculate, trend, segment, draft_summary<br>✗ alter_record |
+| **FTE**<br><sub>Core KPI</sub> | Full-time-equivalent count, weighting each assignment by scheduled hours against the region's full-time standard. | `sum(scheduled_hours / standard_full_time_hours_region)`<br>_protocol:_ standard_full_time_hours is region-aware; cap individual FTE at 1.0 for headcount-equivalent (uncapped only for cost/capacity with OT). | point_in_time | Cost and capacity modeling. | ✓ calculate, trend, draft_summary<br>✗ alter_record |
+| **Net headcount growth**<br><sub>Core KPI</sub> | Change in active headcount over a period, defined as ending minus beginning (reconciles exactly). | `ending_active_headcount - beginning_active_headcount`<br>_group:_ `bridge: ending = beginning + hires + conversions + rehires + returns_from_leave - voluntary_exits - involuntary_exits +/- net_transfers`<br>_protocol:_ Headline is ending - beginning; publish the bridge = hires + conversions + rehires + returns - voluntary - involuntary +/- net_transfers. | period | Plan vs. actual growth. | ✓ calculate, trend, segment, draft_summary<br>✗ alter_record |
+| **Span of control**<br><sub>Core KPI</sub> | Average number of direct reports per people-manager (counts every manager, including managers of managers). | `count(workers_with_a_manager) / count(distinct_people_managers)`<br>_group:_ `report mean AND median span, plus the full distribution`<br>_protocol:_ Equivalently, the mean of each manager's direct-report count; report median and the distribution, not a lone mean. | org_unit | Org-design and layer reduction. | ✓ calculate, segment, flag_outliers, draft_summary<br>✗ alter_record |
+| **Span outlier rate**<br><sub>Diagnostic</sub> | Share of people-managers whose span falls outside the target band (sub-scale or overloaded). | `count(managers with span &lt; low_band OR span &gt; high_band) / count(people_managers)`<br>_protocol:_ Report sub-scale (&lt; low_band) and overloaded (&gt; high_band) separately; sub-scale managers are the delayering signal. | org_unit | Delayering and org-design decisions. | ✓ calculate, segment, flag_outliers, draft_summary<br>✗ alter_record |
+| **Management layers**<br><sub>Diagnostic</sub> | Reporting depth from the top executive to individual contributors, reported as a distribution (not just the deepest chain). | `distribution(depth_in_reporting_tree); headline = median depth-to-IC`<br>_group:_ `employees per depth level (layer distribution) + median depth-to-IC; max(depth) as a secondary stat`<br>_protocol:_ State the CEO index convention (CEO = layer 0 or 1); keep max as one stat but headline the layer distribution + median depth. | org | Flattening and decision-speed initiatives. | ✓ calculate, draft_summary<br>✗ alter_record |
+| **Vacancy rate**<br><sub>Core KPI</sub> | Approved open positions as a share of total budgeted establishment. | `approved_open_positions / (filled_approved_positions + approved_open_positions)`<br>_protocol:_ Denominator = budgeted establishment (filled + approved-open positions), not req counts; optionally time-weight over the period. | org_unit | Coverage risk by team. | ✓ calculate, flag_outliers, draft_summary<br>✗ alter_record |
+| **Contingent-workforce ratio**<br><sub>Diagnostic</sub> | Contractors as a share of the blended workforce. | `contractors / (employees + contractors)`<br>_protocol:_ Define 'contractor' (SOW vs staff-aug vs 1099) consistently with how the HRIS classifies worker_type. | point_in_time | Blended-workforce shape and risk. | ✓ calculate, trend, segment, draft_summary<br>✗ alter_record |
+| **Headcount plan attainment**<br><sub>Core KPI</sub> | Actual headcount against the approved plan. | `actual_headcount / planned_headcount`<br>_protocol:_ Pin the plan version and the basis (FTE vs people); state the as-of date. | org_unit | Ties People execution to FP&A. | ✓ calculate, trend, segment, draft_summary<br>✗ alter_record |

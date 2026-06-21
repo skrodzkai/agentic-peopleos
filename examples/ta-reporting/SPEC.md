@@ -65,6 +65,11 @@ python run.py --publish --approved-by "Dana Lopez"   # records who approved
 
 There is no email/Slack/send tool in `tools.yaml` by design — the human owns distribution.
 
+> Note: this example uses a simple **named-approver** gate — `--approved-by` records *who*
+> approved, not *whether they were entitled*. The full **role-scoped approval registry**
+> (entitled pools, channel ACLs, and ledger re-verification) is demonstrated in
+> [`examples/visible-handoff`](../visible-handoff/).
+
 ## Escalation & fail-closed behavior
 
 - Source data missing, empty, or contract-violating → the agent **fails closed**: it writes

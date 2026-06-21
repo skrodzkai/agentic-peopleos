@@ -1,0 +1,2037 @@
+{
+  "schema_version": "1.0",
+  "note": "Canonical People Analytics metric registry (ISO 30414-aligned). One definition per metric, so the numbers an agent reports are the numbers everyone trusts. Agents READ and CITE this file; they never redefine metrics. metric_class separates Core KPIs from Diagnostics and Operational Alerts; protocol carries the implementation rule; aggregate_formula gives the correct group/portfolio form where it differs from the per-unit formula. agent_forbidden_actions make this a measurement-GOVERNANCE system.",
+  "metric_classes": [
+    "core_kpi",
+    "diagnostic",
+    "operational_alert"
+  ],
+  "metrics": [
+    {
+      "id": "open_reqs",
+      "name": "Open requisitions",
+      "domain": "talent_acquisition",
+      "definition": "Count of approved, active requisitions at the as-of date (open-approved only, not drafts).",
+      "formula": "count(reqs where status = 'open' and approved = true and on_hold = false)",
+      "grain": "point_in_time",
+      "unit": "count",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "drafts / pending-approval reqs; on-hold, filled, and closed reqs",
+      "common_misuse": "Treating open reqs as demand without netting against approved headcount, or counting drafts as demand.",
+      "decision_supported": "Where to focus sourcing capacity this week.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Point-in-time count of distinct req_ids; report open-approved as the headline, drafts separately.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ],
+      "aggregate_formula": "openings_remaining = sum(openings_approved - openings_filled) when a req carries multiple openings"
+    },
+    {
+      "id": "time_to_fill",
+      "name": "Time to fill",
+      "domain": "talent_acquisition",
+      "definition": "Calendar days from requisition APPROVED to offer accepted (recruiter-controllable clock).",
+      "formula": "median(offer_accepted_date - req_approved_date)",
+      "grain": "per_req",
+      "unit": "days",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "cancelled reqs; clock pauses during on-hold intervals",
+      "common_misuse": "Reporting a lone mean on a right-skewed distribution; starting the clock at req-created so HM/finance approval latency is charged to recruiters; dropping never-filled reqs (survivorship) so the hard searches are invisible.",
+      "decision_supported": "Capacity planning and hiring-plan commit dates.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Report p50 AND p90 (never a lone mean); clock starts at req-approved; segment by job family/level/geo; pair with open-req aging so the unfilled tail stays visible.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ],
+      "aggregate_formula": "report p50 and p90 by segment; track 'approval latency' (created->approved) and 'time to start' (req_approved->start_date) as companions"
+    },
+    {
+      "id": "time_to_hire",
+      "name": "Time to hire",
+      "domain": "talent_acquisition",
+      "definition": "Calendar days from a candidate's first touch to offer accepted (candidate-experience clock).",
+      "formula": "median(offer_accepted_date - first_touch_date)",
+      "grain": "per_hire",
+      "unit": "days",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "non-hired candidates (only resolvable for accepted candidates)",
+      "common_misuse": "Confusing time-to-hire (candidate clock) with time-to-fill (req clock); excluding sourced candidates by keying only on application_date, which hides the fastest passive-talent hires.",
+      "decision_supported": "Candidate-experience and process-speed improvements.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "first_touch = min(application_date, first_recruiter_contact_date); report p50 and p90 over hired candidates.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ]
+    },
+    {
+      "id": "requisition_aging",
+      "name": "Requisition aging",
+      "domain": "talent_acquisition",
+      "definition": "A requisition is 'aging' when it has been open (from approved) longer than a self-calibrating threshold; the example agent uses a flat fallback.",
+      "formula": "days_open(from approved) > k * median_time_to_fill(job_family, level, geo)   (flat fallback: days_open > aging_threshold_days)",
+      "grain": "per_req",
+      "unit": "boolean",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "on-hold reqs (clock pauses during on-hold)",
+      "common_misuse": "Using one flat threshold across markets with very different natural fill times.",
+      "decision_supported": "Which searches need intervention or re-scoping.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "operational_alert",
+      "protocol": "Self-calibrating k ~= 1.5 x segment median TTF is preferred; flat aging_threshold_days is a documented fallback the ta-reporting example uses.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ],
+      "params": {
+        "aging_threshold_days": 90,
+        "k": 1.5
+      }
+    },
+    {
+      "id": "requisition_stale",
+      "name": "Requisition staleness",
+      "domain": "talent_acquisition",
+      "definition": "A requisition is 'stale' when it has had no SUBSTANTIVE human pipeline activity for longer than the stale threshold.",
+      "formula": "days_since_substantive_update > stale_threshold_days",
+      "grain": "per_req",
+      "unit": "boolean",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "on-hold reqs; automated/system status writes do not count as updates",
+      "common_misuse": "Counting automated status pings or candidate self-updates as recruiter 'updates'.",
+      "decision_supported": "Recruiter follow-up / pipeline hygiene.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "operational_alert",
+      "protocol": "Substantive update = candidate added, stage change, interview scheduled, or recruiter note; exclude automated syncs.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ],
+      "params": {
+        "stale_threshold_days": 14
+      }
+    },
+    {
+      "id": "thin_pipeline",
+      "name": "Thin pipeline",
+      "domain": "talent_acquisition",
+      "definition": "A high-priority (P1) requisition whose stage-weighted expected hires fall below a safety factor; the example agent uses a flat active-candidate count.",
+      "formula": "priority = 'P1' AND expected_hires < safety_factor   where expected_hires = sum_stage(count_at_stage * passthrough(stage->hire))   (flat fallback: pipeline_depth < thin_threshold)",
+      "grain": "per_req",
+      "unit": "boolean",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "non-P1 reqs (triage scope, not a measurement limit)",
+      "common_misuse": "Treating raw pipeline count as quality without stage weighting (3 at 'applied' != 3 at 'onsite').",
+      "decision_supported": "Where to add sourcing before a search stalls.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "operational_alert",
+      "protocol": "Stage-weighted expected-yield is preferred; flat thin_threshold on active (post-screen, not dispositioned) candidates is the ta-reporting fallback.",
+      "agent_allowed_actions": [
+        "calculate",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ],
+      "params": {
+        "thin_threshold": 3,
+        "safety_factor": 1.5
+      }
+    },
+    {
+      "id": "offer_acceptance_rate",
+      "name": "Offer acceptance rate",
+      "domain": "talent_acquisition",
+      "definition": "Share of resolved written offers that were accepted, over a closed offer cohort.",
+      "formula": "offers_accepted / (offers_accepted + offers_declined)",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "company-rescinded offers; offers still pending (not counted as declines)",
+      "common_misuse": "Counting unresolved-pending offers as declines, or mismatching numerator/denominator across period boundaries; reading a low rate as comp-only.",
+      "decision_supported": "Comp competitiveness and closing effectiveness.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Closed cohort: offers extended in the window, measured once each reaches a final disposition; 'extended' = written offer.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision",
+        "recommend_pay_change"
+      ]
+    },
+    {
+      "id": "pass_through_rate",
+      "name": "Stage pass-through rate",
+      "domain": "talent_acquisition",
+      "definition": "Share of candidates advancing from one funnel stage to the next, over a matured stage cohort.",
+      "formula": "advanced_to_next_stage / candidates_with_final_outcome_from_stage",
+      "grain": "per_stage",
+      "unit": "percent",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "candidates still in stage (no final outcome yet)",
+      "common_misuse": "Comparing pass-through across roles with different bars; reporting stage-local rates without the cumulative funnel yield.",
+      "decision_supported": "Where the funnel leaks.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Mature stage-entry cohort; handle re-entry/skips/same-day transitions explicitly.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ],
+      "aggregate_formula": "cumulative funnel yield = hires / top_of_funnel_candidates (app -> offer -> hire)"
+    },
+    {
+      "id": "quality_of_hire",
+      "name": "Quality of hire",
+      "domain": "talent_acquisition",
+      "definition": "Composite, indexed 0-100, of post-hire success: early performance, first-year retention, hiring-manager satisfaction, and time to productivity.",
+      "formula": "weighted_index(early_performance, twelve_month_retention, hiring_manager_satisfaction, time_to_productivity)",
+      "grain": "hire_cohort",
+      "unit": "index",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "cohorts too recent to observe the component signals",
+      "common_misuse": "Optimizing for speed/cost while quality silently drops; using an unweighted average of incomparable sub-scores.",
+      "decision_supported": "Whether faster/cheaper hiring is still good hiring.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Composite indexed 0-100: each component is normalized 0-100 then combined with the params.weights (sum=1.0); publish the weights; score only matured cohorts.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ],
+      "params": {
+        "weights": {
+          "early_performance": 0.3,
+          "twelve_month_retention": 0.3,
+          "hiring_manager_satisfaction": 0.25,
+          "time_to_productivity": 0.15
+        },
+        "scale": "0-100",
+        "components_normalized": "each component scaled 0-100 before weighting"
+      }
+    },
+    {
+      "id": "cost_per_hire",
+      "name": "Cost per hire",
+      "domain": "talent_acquisition",
+      "definition": "Fully loaded recruiting cost per hire (ANSI/SHRM-2012 standard).",
+      "formula": "(total_internal_recruiting_cost + total_external_recruiting_cost) / number_of_hires",
+      "grain": "cohort",
+      "unit": "currency",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "non-recruiting costs; relocation/sign-on (report separately)",
+      "common_misuse": "Counting only external (agency) spend and omitting internal cost, or vice-versa.",
+      "decision_supported": "TA efficiency and budget tradeoffs.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Use the ANSI/SHRM-2012 definition verbatim; state the period and the internal-cost components included.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ]
+    },
+    {
+      "id": "source_channel_effectiveness",
+      "name": "Source-channel effectiveness",
+      "domain": "talent_acquisition",
+      "definition": "Yield (and downstream quality) of each recruiting source.",
+      "formula": "hires_from_source / candidates_from_source",
+      "grain": "per_channel",
+      "unit": "percent",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "untracked / referral-of-referral attribution gaps",
+      "common_misuse": "Ranking channels on volume alone without quality-of-hire or cost per channel.",
+      "decision_supported": "Where to allocate sourcing spend.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Pair yield with quality_of_hire and cost per channel; state the attribution model (first-touch vs last-touch).",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ],
+      "aggregate_formula": "pair yield with quality_of_hire_by_source = mean(quality_of_hire | source) and cost_per_hire_by_source; rank channels on quality-adjusted yield, not raw yield"
+    },
+    {
+      "id": "recruiter_capacity",
+      "name": "Recruiter capacity",
+      "domain": "talent_acquisition",
+      "definition": "Active open-approved requisitions carried per recruiter.",
+      "formula": "count(open_approved_reqs) / count(active_recruiters)",
+      "grain": "point_in_time",
+      "unit": "ratio",
+      "source_system": "ATS",
+      "owner": "Talent Acquisition",
+      "refresh_cadence": "weekly",
+      "exclusions": "reqs on hold; non-requisition work",
+      "common_misuse": "Reading a single load number without role-mix difficulty (a senior eng search != a high-volume role).",
+      "decision_supported": "TA staffing and load-balancing decisions.",
+      "downstream": [
+        "ta-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Report distribution, not just the mean; weight by role difficulty where possible.",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision"
+      ]
+    },
+    {
+      "id": "headcount",
+      "name": "Headcount",
+      "domain": "headcount",
+      "definition": "Active worker count at the as-of date (point-in-time), including employees on protected leave.",
+      "formula": "count(workers where worker_type = 'employee' and status in active_like_statuses)",
+      "grain": "point_in_time",
+      "unit": "count",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "contractors (counted separately); pending-starts (until start date); terminated workers",
+      "common_misuse": "Mixing point-in-time headcount with average headcount when annualizing; excluding employees on protected leave.",
+      "decision_supported": "Workforce size and plan tracking.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Active_like includes protected leave (LOA/parental/disability); state treatment of interns/fixed-term.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "fte",
+      "name": "FTE",
+      "domain": "headcount",
+      "definition": "Full-time-equivalent count, weighting each assignment by scheduled hours against the region's full-time standard.",
+      "formula": "sum(scheduled_hours / standard_full_time_hours_region)",
+      "grain": "point_in_time",
+      "unit": "fte",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "contractors",
+      "common_misuse": "Reporting FTE as headcount in finance reconciliations; using one global full-time-hours constant across regions.",
+      "decision_supported": "Cost and capacity modeling.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "standard_full_time_hours is region-aware; cap individual FTE at 1.0 for headcount-equivalent (uncapped only for cost/capacity with OT).",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "net_headcount_growth",
+      "name": "Net headcount growth",
+      "domain": "headcount",
+      "definition": "Change in active headcount over a period, defined as ending minus beginning (reconciles exactly).",
+      "formula": "ending_active_headcount - beginning_active_headcount",
+      "grain": "period",
+      "unit": "count",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "n/a (the bridge accounts for every component)",
+      "common_misuse": "Reporting hires - exits as the headline: it won't tie to the roster because it misses conversions, rehires, returns from leave, and net transfers.",
+      "decision_supported": "Plan vs. actual growth.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Headline is ending - beginning; publish the bridge = hires + conversions + rehires + returns - voluntary - involuntary +/- net_transfers.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ],
+      "aggregate_formula": "bridge: ending = beginning + hires + conversions + rehires + returns_from_leave - voluntary_exits - involuntary_exits +/- net_transfers"
+    },
+    {
+      "id": "span_of_control",
+      "name": "Span of control",
+      "domain": "headcount",
+      "definition": "Average number of direct reports per people-manager (counts every manager, including managers of managers).",
+      "formula": "count(workers_with_a_manager) / count(distinct_people_managers)",
+      "grain": "org_unit",
+      "unit": "ratio",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "dotted-line reports",
+      "common_misuse": "Using count(ICs)/count(managers), which drops managers who report to managers and makes the org look flatter than it is; reporting the mean alone.",
+      "decision_supported": "Org-design and layer reduction.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Equivalently, the mean of each manager's direct-report count; report median and the distribution, not a lone mean.",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ],
+      "aggregate_formula": "report mean AND median span, plus the full distribution"
+    },
+    {
+      "id": "span_outlier_rate",
+      "name": "Span outlier rate",
+      "domain": "headcount",
+      "definition": "Share of people-managers whose span falls outside the target band (sub-scale or overloaded).",
+      "formula": "count(managers with span < low_band OR span > high_band) / count(people_managers)",
+      "grain": "org_unit",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "non-people-managers",
+      "common_misuse": "Watching only the average span; the outliers (sub-scale managers) are what actually drive delayering.",
+      "decision_supported": "Delayering and org-design decisions.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Report sub-scale (< low_band) and overloaded (> high_band) separately; sub-scale managers are the delayering signal.",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ],
+      "params": {
+        "low_band": 3,
+        "high_band": 10
+      }
+    },
+    {
+      "id": "management_layers",
+      "name": "Management layers",
+      "domain": "headcount",
+      "definition": "Reporting depth from the top executive to individual contributors, reported as a distribution (not just the deepest chain).",
+      "formula": "distribution(depth_in_reporting_tree); headline = median depth-to-IC",
+      "grain": "org",
+      "unit": "count",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "vacant manager nodes",
+      "common_misuse": "Reporting max(depth) alone -- one outlier chain is a 'tallest point', not an org-health read.",
+      "decision_supported": "Flattening and decision-speed initiatives.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "State the CEO index convention (CEO = layer 0 or 1); keep max as one stat but headline the layer distribution + median depth.",
+      "agent_allowed_actions": [
+        "calculate",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ],
+      "aggregate_formula": "employees per depth level (layer distribution) + median depth-to-IC; max(depth) as a secondary stat"
+    },
+    {
+      "id": "vacancy_rate",
+      "name": "Vacancy rate",
+      "domain": "headcount",
+      "definition": "Approved open positions as a share of total budgeted establishment.",
+      "formula": "approved_open_positions / (filled_approved_positions + approved_open_positions)",
+      "grain": "org_unit",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "unapproved/pipeline positions",
+      "common_misuse": "Counting reqs without an approved position behind them; using just-vacant rather than total establishment as the denominator.",
+      "decision_supported": "Coverage risk by team.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Denominator = budgeted establishment (filled + approved-open positions), not req counts; optionally time-weight over the period.",
+      "agent_allowed_actions": [
+        "calculate",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "contingent_workforce_ratio",
+      "name": "Contingent-workforce ratio",
+      "domain": "headcount",
+      "definition": "Contractors as a share of the blended workforce.",
+      "formula": "contractors / (employees + contractors)",
+      "grain": "point_in_time",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "n/a",
+      "common_misuse": "Excluding contractors from every other metric without one measure that tracks the blended workforce shape.",
+      "decision_supported": "Blended-workforce shape and risk.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Define 'contractor' (SOW vs staff-aug vs 1099) consistently with how the HRIS classifies worker_type.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "headcount_plan_attainment",
+      "name": "Headcount plan attainment",
+      "domain": "headcount",
+      "definition": "Actual headcount against the approved plan.",
+      "formula": "actual_headcount / planned_headcount",
+      "grain": "org_unit",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "n/a",
+      "common_misuse": "Comparing actual to a stale plan version; mixing FTE-based plans with people-based actuals.",
+      "decision_supported": "Ties People execution to FP&A.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Pin the plan version and the basis (FTE vs people); state the as-of date.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "compa_ratio",
+      "name": "Compa-ratio",
+      "domain": "total_rewards",
+      "definition": "Base salary divided by the midpoint of the salary range for the employee's job profile, level, and location.",
+      "formula": "base_salary / range_midpoint",
+      "grain": "employee_snapshot",
+      "unit": "ratio",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "employees with no mapped band; variable/commission pay",
+      "common_misuse": "Comparing across roles/geographies without controlling for range structure; reporting mean-of-ratios as the group figure; assuming midpoint = market when midpoints lag.",
+      "decision_supported": "Identify pay-positioning patterns and outliers.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "FTE-normalize part-time base before the ratio; for groups use the aggregate form, not the mean of individual ratios; pair with a market ratio when midpoints may be stale.",
+      "agent_allowed_actions": [
+        "calculate",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary"
+      ],
+      "aggregate_formula": "group compa-ratio = sum(base) / sum(midpoint)  (NOT mean(base_i/midpoint_i)); market ratio = base / market_p50"
+    },
+    {
+      "id": "range_penetration",
+      "name": "Range penetration",
+      "domain": "total_rewards",
+      "definition": "Position within the band: where base salary sits between range min and max.",
+      "formula": "(base_salary - range_min) / (range_max - range_min)",
+      "grain": "employee_snapshot",
+      "unit": "percent",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "unbanded roles; degenerate (zero-width) ranges",
+      "common_misuse": "Using penetration where compa-ratio (midpoint comparison) was intended; reporting mean-of-ratios for groups.",
+      "decision_supported": "Where employees sit in band; merit headroom.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "With a symmetric range, compa-ratio 1.0 == 50% penetration; they diverge with asymmetric ranges or varying spreads. Use the aggregate form for group views.",
+      "agent_allowed_actions": [
+        "calculate",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary"
+      ],
+      "aggregate_formula": "group penetration = sum(base - min) / sum(max - min)"
+    },
+    {
+      "id": "out_of_band_rate",
+      "name": "Out-of-band rate",
+      "domain": "total_rewards",
+      "definition": "Share of banded employees whose base salary falls outside their band, split below-min vs above-max.",
+      "formula": "below_min_rate = count(base < range_min)/count(banded);  above_max_rate = count(base > range_max)/count(banded);  combined = below + above",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "unbanded roles; red-circled with a documented exception (reported as a sub-population)",
+      "common_misuse": "Reporting one combined rate that masks direction (below-min = compression/equity; above-max = red-circle/promo/band design); flagging above-max without checking for approved exceptions.",
+      "decision_supported": "Comp governance and annual-comp-review planning.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Report below_min_rate and above_max_rate separately, plus combined; boundary inclusive (base == min/max is in band); track red-circled-with-exception as a reported sub-population (needed for true-up budget).",
+      "agent_allowed_actions": [
+        "calculate",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary"
+      ]
+    },
+    {
+      "id": "merit_increase",
+      "name": "Merit increase %",
+      "domain": "total_rewards",
+      "definition": "Percentage base-pay increase awarded in the merit cycle; headline is the dollar-weighted spend, not the average of percents.",
+      "formula": "individual: (new_base - old_base) / old_base",
+      "grain": "per_employee_event",
+      "unit": "percent",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "promotions and market adjustments (separate events); sub-threshold new hires and ineligible/LOA per policy",
+      "common_misuse": "Blending merit with promotion increases; reporting the average of individual percents (mis-weights by salary mix) as the budget figure.",
+      "decision_supported": "Merit-budget design and calibration.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Separate three numbers people conflate: budget (planned), spend (actual), and average increase per recipient; define the eligible population.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary"
+      ],
+      "aggregate_formula": "merit_spend% = sum(merit_$) / sum(eligible_base)  (WorldatWork merit-budget convention)"
+    },
+    {
+      "id": "comp_exception_rate",
+      "name": "Compensation exception rate",
+      "domain": "total_rewards",
+      "definition": "Share of guideline-eligible comp actions that REQUIRED an out-of-guideline exception (approved + denied), by action type.",
+      "formula": "exceptions_requested / guideline_eligible_actions",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "auto-approved within-guideline actions; actions not subject to guideline review",
+      "common_misuse": "Counting approved-only (which conflates request volume with approval leniency); using one denominator across offer/merit/promo/adjustment so the band misfit is hidden.",
+      "decision_supported": "Whether bands/guidelines match the market.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Numerator = exceptions requested (approved + denied); report separately for offers, merit, promo, market adjustments.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary"
+      ]
+    },
+    {
+      "id": "benefits_enrollment_rate",
+      "name": "Benefits enrollment rate",
+      "domain": "total_rewards",
+      "definition": "Take-up: share of eligible employees enrolled in a given benefit.",
+      "formula": "enrolled / eligible",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "ineligible populations; employees still inside a waiting period",
+      "common_misuse": "Using enrolled/total-employees instead of enrolled/eligible; treating auto-enroll defaults as active engagement.",
+      "decision_supported": "Benefits design and communication.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Distinguish active elections from auto-enroll defaults; pair with waiver_rate; for 401(k) report participation + average deferral %.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "adjusted_pay_gap",
+      "name": "Adjusted pay gap (pay equity)",
+      "domain": "total_rewards",
+      "definition": "Regression-adjusted residual pay difference between demographic groups after controlling for legitimate factors.",
+      "formula": "exp(coef_on_demographic in regression of ln(pay) ~ demographic + level + job + location + tenure + performance) - 1",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "groups too small for a stable estimate (report suppressed, not zero)",
+      "common_misuse": "Reading raw/unadjusted gaps as discrimination, or treating compa-ratio as a pay-equity metric; omitting legitimate controls or over-controlling with tainted variables.",
+      "decision_supported": "Pay-equity risk and remediation budgeting.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Report alongside the raw gap; document the controls; never expose an individual's residual; minimum cell sizes enforced.",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary",
+        "identify_individual_publicly"
+      ]
+    },
+    {
+      "id": "raw_pay_gap",
+      "name": "Raw (unadjusted) pay gap",
+      "domain": "total_rewards",
+      "definition": "Unadjusted median pay difference between two demographic groups.",
+      "formula": "median_pay(group_a) / median_pay(group_b) - 1",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "groups below the minimum reportable size",
+      "common_misuse": "Presenting the raw gap as evidence of discrimination without the adjusted analysis, or hiding it because it looks worse than adjusted.",
+      "decision_supported": "Transparency context for the adjusted analysis.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Always report with the adjusted_pay_gap; state the pay measure (base vs total cash).",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary",
+        "identify_individual_publicly"
+      ]
+    },
+    {
+      "id": "ceo_pay_ratio",
+      "name": "CEO pay ratio",
+      "domain": "total_rewards",
+      "definition": "Ratio of CEO total compensation to the median employee's annual total compensation.",
+      "formula": "ceo_total_comp / median_employee_annual_total_comp",
+      "grain": "annual",
+      "unit": "ratio",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "annual",
+      "exclusions": "the CEO from the median calculation; per SEC methodology",
+      "common_misuse": "Comparing the ratio across companies with different workforce mixes as if it were a like-for-like figure.",
+      "decision_supported": "Required US public-company disclosure (Dodd-Frank 953(b)) and governance.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Follow the SEC pay-ratio methodology for identifying the median employee; annual cadence.",
+      "agent_allowed_actions": [
+        "calculate",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary"
+      ]
+    },
+    {
+      "id": "total_cash_comp",
+      "name": "Total cash compensation (TCC)",
+      "domain": "total_rewards",
+      "definition": "Base salary plus target (or actual) cash variable.",
+      "formula": "base_salary + target_bonus + target_commission",
+      "grain": "employee_snapshot",
+      "unit": "currency",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "equity/LTI (see total direct comp); benefits",
+      "common_misuse": "Benchmarking competitiveness on base alone, which understates rewards in bonus-heavy roles.",
+      "decision_supported": "Cash-competitiveness benchmarking.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "State target vs actual; FTE-normalize; benchmark at TCC, not base.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary"
+      ],
+      "aggregate_formula": "TCC positioning = TCC / market_reference_point (e.g. market p50)"
+    },
+    {
+      "id": "bonus_target_attainment",
+      "name": "Bonus / target attainment",
+      "domain": "total_rewards",
+      "definition": "Actual variable pay relative to target, and pool funding.",
+      "formula": "actual_bonus_paid / target_bonus",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "employees not on a bonus plan; prorated new hires (handle explicitly)",
+      "common_misuse": "Reading attainment without pool funding %, or blending plans with different target structures.",
+      "decision_supported": "Governance of variable spend.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Report alongside pool_funding% = funded_pool / target_pool; segment by plan.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary"
+      ]
+    },
+    {
+      "id": "labor_cost_per_fte",
+      "name": "Labor cost per FTE",
+      "domain": "total_rewards",
+      "definition": "Total workforce labor cost per FTE.",
+      "formula": "total_labor_cost / average_fte",
+      "grain": "period",
+      "unit": "currency",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "non-labor opex",
+      "common_misuse": "Mixing fully-loaded cost (with benefits/taxes) and base-only cost across reports; using headcount instead of average FTE.",
+      "decision_supported": "Workforce-cost governance (ISO 30414 workforce-cost area).",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "State what 'labor cost' includes (base, variable, benefits, employer taxes); also report as % of revenue/opex.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary"
+      ]
+    },
+    {
+      "id": "benefits_cost_per_employee",
+      "name": "Benefits cost per employee",
+      "domain": "total_rewards",
+      "definition": "Employer benefits spend per employee.",
+      "formula": "total_employer_benefits_spend / average_headcount",
+      "grain": "period",
+      "unit": "currency",
+      "source_system": "HRIS + comp bands",
+      "owner": "Total Rewards",
+      "refresh_cadence": "monthly",
+      "exclusions": "employee-paid contributions",
+      "common_misuse": "Comparing spend without enrollment/utilization context; mixing per-employee and per-enrolled denominators.",
+      "decision_supported": "Benefits cost management.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "State whether the denominator is all employees or the enrolled population; pair with enrollment + utilization.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary"
+      ]
+    },
+    {
+      "id": "voluntary_attrition",
+      "name": "Voluntary attrition",
+      "domain": "attrition",
+      "definition": "Annualized rate of employee-initiated departures.",
+      "formula": "(voluntary_exits_in_window / average_headcount_in_window) * (12 / months_in_window)",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "involuntary exits (RIF, for-cause); end-of-contract; internal transfers; deaths (conventionally excluded)",
+      "common_misuse": "Using point-in-time instead of average headcount; leaving the annualization method unstated; compounding instead of simple scaling.",
+      "decision_supported": "Retention focus and risk.",
+      "downstream": [
+        "attrition-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "SIMPLE annualization x(12/months), NO compounding; average_headcount = mean of monthly actives; voluntary = employee-initiated only.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "recommend_termination"
+      ]
+    },
+    {
+      "id": "regrettable_attrition",
+      "name": "Regrettable attrition",
+      "domain": "attrition",
+      "definition": "Annualized rate of voluntary departures the company would have preferred to keep (criteria-based, not manager discretion).",
+      "formula": "(regrettable_voluntary_exits_in_window / average_headcount_in_window) * (12 / months_in_window)",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "non-regrettable and involuntary exits",
+      "common_misuse": "Inconsistent 'regrettable' tagging across managers makes trends unreliable; leaving annualization unstated.",
+      "decision_supported": "Targeted retention of high performers.",
+      "downstream": [
+        "attrition-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Replace manager discretion with a calibrated rule (performance >= threshold and/or critical role and/or high potential); same simple annualization.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "recommend_termination"
+      ],
+      "aggregate_formula": "regrettable_share_of_voluntary = regrettable_voluntary_exits / voluntary_exits"
+    },
+    {
+      "id": "total_turnover_rate",
+      "name": "Total turnover rate",
+      "domain": "attrition",
+      "definition": "Annualized rate of all separations (voluntary + involuntary). The ISO 30414 headline turnover figure.",
+      "formula": "(all_separations_in_window / average_headcount_in_window) * (12 / months_in_window)",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "internal transfers",
+      "common_misuse": "Reporting voluntary attrition without total turnover, so voluntary can't be contextualized.",
+      "decision_supported": "Overall workforce stability.",
+      "downstream": [
+        "attrition-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Same simple annualization and average-headcount denominator as voluntary; voluntary and involuntary are sub-cuts of this.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "recommend_termination"
+      ]
+    },
+    {
+      "id": "involuntary_turnover_rate",
+      "name": "Involuntary turnover rate",
+      "domain": "attrition",
+      "definition": "Annualized rate of company-initiated separations (RIF, for-cause).",
+      "formula": "(involuntary_exits_in_window / average_headcount_in_window) * (12 / months_in_window)",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "voluntary exits; end-of-contract",
+      "common_misuse": "Folding involuntary into a single turnover number so workforce actions are invisible.",
+      "decision_supported": "Workforce-action and performance-management context.",
+      "downstream": [
+        "attrition-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Same annualization; keep distinct from voluntary so total = voluntary + involuntary.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "recommend_termination"
+      ]
+    },
+    {
+      "id": "new_hire_attrition",
+      "name": "New-hire attrition",
+      "domain": "attrition",
+      "definition": "Share of a MATURED hire cohort who left within their first 12 months.",
+      "formula": "exits_within_12mo_of_hire / hires_in_matured_cohort",
+      "grain": "hire_cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "internal transfers; cohorts hired < 12 months ago (not yet matured)",
+      "common_misuse": "Including immature cohorts (hired < 12 months ago) which mechanically understates; mixing voluntary and involuntary first-year exits.",
+      "decision_supported": "Hiring quality and onboarding effectiveness.",
+      "downstream": [
+        "attrition-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Restrict to cohorts hired >= 12 months ago (or use survival analysis); split voluntary vs involuntary.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "recommend_termination"
+      ]
+    },
+    {
+      "id": "early_attrition_90d",
+      "name": "Early attrition (90-day)",
+      "domain": "attrition",
+      "definition": "Share of a matured hire cohort who left within 90 days -- a mis-sell/onboarding leading indicator.",
+      "formula": "exits_within_90d_of_hire / hires_in_matured_cohort",
+      "grain": "hire_cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "cohorts hired < 90 days ago",
+      "common_misuse": "Treating a 90-day exit the same as a 12-month exit -- the causes (mis-sell, bad onboarding) differ.",
+      "decision_supported": "Onboarding and offer-accuracy fixes.",
+      "downstream": [
+        "attrition-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Companion to new_hire_attrition; matured (>= 90 days) cohorts only; split voluntary vs involuntary.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "recommend_termination"
+      ]
+    },
+    {
+      "id": "twelve_month_retention",
+      "name": "12-month retention",
+      "domain": "attrition",
+      "definition": "Share of a matured hire cohort still employed 12 months later.",
+      "formula": "still_active_at_day_365 / matured_hire_cohort_size",
+      "grain": "hire_cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "cohorts not yet 12 months matured",
+      "common_misuse": "Assuming retention and attrition sum to 100% across different denominators or exit definitions.",
+      "decision_supported": "Cohort durability.",
+      "downstream": [
+        "attrition-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Clean complement of new_hire_attrition only under identical denominators + exit definitions; transfers count as retained at company level.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly"
+      ]
+    },
+    {
+      "id": "internal_mobility_rate",
+      "name": "Internal mobility rate",
+      "domain": "attrition",
+      "definition": "Share of EMPLOYEES who made at least one qualifying internal role change in the period (person-rate).",
+      "formula": "count(distinct employees with >= 1 qualifying internal move) / average_headcount",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "title-only changes with no role change; reorg re-mappings",
+      "common_misuse": "Counting moves instead of distinct movers (one person moving twice double-counts); counting reorg re-mappings as mobility.",
+      "decision_supported": "Career-growth and retention levers.",
+      "downstream": [
+        "attrition-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Person-rate: distinct movers / average headcount. Publish the event-rate and the TA-side internal_fill_rate separately.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly"
+      ],
+      "aggregate_formula": "event-rate = internal_moves / average_headcount (report separately, clearly labeled)"
+    },
+    {
+      "id": "internal_fill_rate",
+      "name": "Internal fill rate",
+      "domain": "attrition",
+      "definition": "Share of filled vacancies filled by an internal candidate (the build-vs-buy view).",
+      "formula": "internal_fills / total_fills",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "monthly",
+      "exclusions": "contractor conversions (state treatment)",
+      "common_misuse": "Conflating the employee-experience mobility rate with the TA build-vs-buy fill rate.",
+      "decision_supported": "Build-vs-buy and internal-talent-market health.",
+      "downstream": [
+        "attrition-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Distinct from internal_mobility_rate (which is person-based); this is vacancy-based.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly"
+      ]
+    },
+    {
+      "id": "promotion_rate",
+      "name": "Promotion rate",
+      "domain": "performance",
+      "definition": "Share of the eligible population promoted in the period, cut by level.",
+      "formula": "count(distinct promoted_employees in level) / promotion_eligible_population in level",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "Talent module",
+      "owner": "Talent Management",
+      "refresh_cadence": "annual",
+      "exclusions": "lateral moves; top-of-track and sub-tenure (excluded from the eligible denominator)",
+      "common_misuse": "Reporting one blended rate across levels (P2->P3 common, Dir->VP rare) so the number is near-meaningless; ignoring the level pyramid.",
+      "decision_supported": "Advancement equity and calibration.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Always cut by level/band; use a promotion-eligible denominator; enable demographic cuts for advancement equity.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "change_rating",
+        "recommend_termination"
+      ],
+      "aggregate_formula": "enterprise rate = distinct promoted / average_headcount; fairness rate = distinct promoted / average_eligible_population"
+    },
+    {
+      "id": "promotion_velocity",
+      "name": "Promotion velocity (time in level)",
+      "domain": "performance",
+      "definition": "Median time employees spend in a level before promotion.",
+      "formula": "median(promotion_date - level_entry_date)",
+      "grain": "per_event",
+      "unit": "months",
+      "source_system": "Talent module",
+      "owner": "Talent Management",
+      "refresh_cadence": "annual",
+      "exclusions": "employees who haven't been promoted (use survival methods if needed)",
+      "common_misuse": "Reporting a mean on a right-skewed duration; comparing across levels with different natural tenures.",
+      "decision_supported": "Career-pathing and advancement-equity diagnostics.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Report median (and p90); cut by level; enable demographic cuts to surface advancement-equity gaps.",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "change_rating",
+        "recommend_termination"
+      ]
+    },
+    {
+      "id": "rating_distribution",
+      "name": "Performance rating distribution",
+      "domain": "performance",
+      "definition": "Distribution of performance ratings across the rated population for a cycle.",
+      "formula": "count(by rating) / total_rated",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "Talent module",
+      "owner": "Talent Management",
+      "refresh_cadence": "annual",
+      "exclusions": "unrated (new hires, leave) -- reported as a companion share, not silently dropped",
+      "common_misuse": "Forcing a distribution and reading the shape as performance truth; hiding the unrated share so the cycle looks healthier.",
+      "decision_supported": "Calibration health.",
+      "downstream": [
+        "comp-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Report unrated_share = unrated / total_in_scope alongside; the value is in the cuts (by manager, level, demographic).",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "change_rating",
+        "recommend_termination"
+      ]
+    },
+    {
+      "id": "case_volume",
+      "name": "Case volume",
+      "domain": "people_ops",
+      "definition": "Count of distinct People Ops cases opened in the period, also reported per capita.",
+      "formula": "count(distinct case_id where opened_in_period)",
+      "grain": "period",
+      "unit": "count",
+      "source_system": "HR case management",
+      "owner": "People Operations",
+      "refresh_cadence": "weekly",
+      "exclusions": "spam/duplicate cases; inbound messages (count cases, not messages)",
+      "common_misuse": "Reading raw volume as failure rather than adoption; not normalizing per capita as headcount changes.",
+      "decision_supported": "Staffing and self-service investment.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Count distinct case_id, not messages; segment by category (the mix matters more than the total).",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ],
+      "aggregate_formula": "per-capita = cases per 100 FTE"
+    },
+    {
+      "id": "sla_attainment",
+      "name": "SLA attainment",
+      "domain": "people_ops",
+      "definition": "Share of SLA-due cases resolved within their SLA target, counting open-but-breached cases against the rate.",
+      "formula": "cases_within_sla / (resolved_cases + open_past_sla)",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HR case management",
+      "owner": "People Operations",
+      "refresh_cadence": "weekly",
+      "exclusions": "cases without an SLA target",
+      "common_misuse": "Using within_sla/resolved only -- it ignores open cases that already breached, so it overstates and is gameable (leave breached cases open).",
+      "decision_supported": "Service quality and capacity.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Denominator includes open-and-breached; or use a due-based cohort evaluated at resolution or breach (whichever first); pair with reopen_rate.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "time_to_resolution",
+      "name": "Time to resolution",
+      "domain": "people_ops",
+      "definition": "Wall-clock elapsed time from case open to resolved.",
+      "formula": "median(resolved_at - opened_at)  + p90",
+      "grain": "per_case",
+      "unit": "hours",
+      "source_system": "HR case management",
+      "owner": "People Operations",
+      "refresh_cadence": "weekly",
+      "exclusions": "n/a (state reopened-time treatment explicitly)",
+      "common_misuse": "Reporting a lone mean on skewed data; using wall-clock that penalizes after-hours/weekend cases.",
+      "decision_supported": "Where to automate or add staff.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Report median + p90 on WALL-CLOCK elapsed time (the reference engine computes resolved_at - opened_at); a production deployment refines this to an SLA/business-hours calendar. Segment by type/priority; pick one canonical reopen treatment (full lifecycle = truth).",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "self_service_deflection",
+      "name": "Self-service deflection",
+      "domain": "people_ops",
+      "definition": "Share of inquiries genuinely resolved via self-service (with a resolution signal), excluding those that became human cases.",
+      "formula": "self_service_resolutions_with_signal / (self_service_resolutions_with_signal + human_cases_from_tracked_inquiries)",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HR case management",
+      "owner": "People Operations",
+      "refresh_cadence": "weekly",
+      "exclusions": "sessions that bypass tracked channels; sessions followed by a human case (no double-count)",
+      "common_misuse": "Counting a KB view with no follow-up as 'resolved' -- the person may have abandoned or gone to Slack; inflating via channel leakage.",
+      "decision_supported": "ROI of self-service and agents.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Require a resolution signal (explicit 'this helped' OR no follow-up case from the same user on the same topic within N days); state channel-coverage limits.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "reopen_rate",
+      "name": "Reopen rate",
+      "domain": "people_ops",
+      "definition": "Share of resolved cases that were reopened -- the guard against SLA gaming and premature closure.",
+      "formula": "reopened_cases / resolved_cases",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HR case management",
+      "owner": "People Operations",
+      "refresh_cadence": "weekly",
+      "exclusions": "cases reopened for unrelated new issues (state the window)",
+      "common_misuse": "Hitting SLA by closing cases prematurely; this metric is the counterweight that exposes it.",
+      "decision_supported": "Quality check on SLA attainment and resolution.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Define the reopen window (e.g. reopened within N days of resolution); pair with sla_attainment and time_to_resolution.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "first_contact_resolution",
+      "name": "First-contact resolution (FCR)",
+      "domain": "people_ops",
+      "definition": "Share of resolved cases closed on the first touch with no follow-up.",
+      "formula": "cases_resolved_first_touch / resolved_cases",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HR case management",
+      "owner": "People Operations",
+      "refresh_cadence": "weekly",
+      "exclusions": "cases requiring inherently multi-step handling (segment separately)",
+      "common_misuse": "Driving FCR so hard that agents close-and-reopen; read it with reopen_rate.",
+      "decision_supported": "Service quality and efficiency.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Read alongside reopen_rate so 'first-touch closes' aren't gamed via reopens.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "case_csat",
+      "name": "Case CSAT",
+      "domain": "people_ops",
+      "definition": "Satisfaction with resolved People Ops cases.",
+      "formula": "satisfied_responses / total_responses",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HR case management",
+      "owner": "People Operations",
+      "refresh_cadence": "weekly",
+      "exclusions": "cases with no survey response (note response-rate bias)",
+      "common_misuse": "Reading an SLA hit as a satisfied employee; ignoring low survey response rates.",
+      "decision_supported": "Employee experience of HR service, beyond speed.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Report response rate alongside; an SLA hit != a satisfied employee.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "open_case_backlog",
+      "name": "Open-case backlog / aging",
+      "domain": "people_ops",
+      "definition": "Open cases bucketed by age, with breached cases highlighted.",
+      "formula": "count(open cases) by age_bucket; breached = open and past SLA",
+      "grain": "point_in_time",
+      "unit": "count",
+      "source_system": "HR case management",
+      "owner": "People Operations",
+      "refresh_cadence": "weekly",
+      "exclusions": "resolved/closed cases",
+      "common_misuse": "Watching only inflow/throughput while an aging breached backlog grows unseen.",
+      "decision_supported": "Where the queue is silting up; feeds the SLA-attainment denominator.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "operational_alert",
+      "protocol": "This open-and-breached population is exactly what sla_attainment's corrected denominator needs.",
+      "agent_allowed_actions": [
+        "calculate",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "recordable_incident_rate",
+      "name": "Recordable incident rate (TRIR)",
+      "domain": "health_safety",
+      "definition": "OSHA-style total recordable incident rate per 100 FTE-years.",
+      "formula": "(recordable_incidents * 200000) / total_hours_worked",
+      "grain": "period",
+      "unit": "rate",
+      "source_system": "EHS + HRIS",
+      "owner": "People Operations",
+      "refresh_cadence": "monthly",
+      "exclusions": "first-aid-only events below the recordable threshold",
+      "common_misuse": "Comparing TRIR across industries with different baseline risk; using headcount instead of hours worked.",
+      "decision_supported": "Workplace-safety governance (ISO 30414 health & safety).",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "200,000 = 100 FTE x 2,000 hours; use actual hours worked as the base.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record",
+        "identify_individual_publicly"
+      ]
+    },
+    {
+      "id": "lost_time_injury_rate",
+      "name": "Lost-time injury rate (LTIFR)",
+      "domain": "health_safety",
+      "definition": "Lost-time injuries per 1,000,000 hours worked (LTIFR, ILO convention).",
+      "formula": "(lost_time_injuries * 1000000) / total_hours_worked",
+      "grain": "period",
+      "unit": "rate",
+      "source_system": "EHS + HRIS",
+      "owner": "People Operations",
+      "refresh_cadence": "monthly",
+      "exclusions": "recordable injuries with no lost time",
+      "common_misuse": "Conflating TRIR (all recordables) with LTIFR (lost-time only).",
+      "decision_supported": "Severity-weighted safety view.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Per 1,000,000 hours worked (LTIFR). Distinct from the OSHA recordable rate (TRIR), which is per 200,000 hours — keep the two bases separate and consistent across periods.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record",
+        "identify_individual_publicly"
+      ]
+    },
+    {
+      "id": "absence_rate",
+      "name": "Absence rate",
+      "domain": "health_safety",
+      "definition": "Share of scheduled work time lost to unplanned absence.",
+      "formula": "absence_days / scheduled_workdays",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "EHS + HRIS",
+      "owner": "People Operations",
+      "refresh_cadence": "monthly",
+      "exclusions": "approved planned leave (PTO/vacation); company holidays",
+      "common_misuse": "Folding planned PTO into 'absence'; not normalizing by scheduled (not calendar) days.",
+      "decision_supported": "Workforce health, capacity, and cost.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Unplanned absence only; denominator = scheduled workdays; segment by org unit.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record",
+        "identify_individual_publicly"
+      ]
+    },
+    {
+      "id": "grievance_rate",
+      "name": "Grievance rate",
+      "domain": "compliance_ethics",
+      "definition": "Formal employee grievances per 100 FTE in the period.",
+      "formula": "(formal_grievances * 100) / average_fte",
+      "grain": "period",
+      "unit": "rate",
+      "source_system": "ER case management + ethics hotline",
+      "owner": "People Operations",
+      "refresh_cadence": "quarterly",
+      "exclusions": "informal concerns not filed as formal grievances",
+      "common_misuse": "Reading a rising rate as deteriorating culture vs rising trust in the process; comparing across very different reporting cultures.",
+      "decision_supported": "ER risk and culture signal (ISO 30414 compliance & ethics).",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Per 100 FTE; segment by type; pair with resolution time and substantiation rate.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "alter_record"
+      ]
+    },
+    {
+      "id": "disciplinary_action_rate",
+      "name": "Disciplinary action rate",
+      "domain": "compliance_ethics",
+      "definition": "Formal disciplinary actions per 100 FTE in the period.",
+      "formula": "(disciplinary_actions * 100) / average_fte",
+      "grain": "period",
+      "unit": "rate",
+      "source_system": "ER case management + ethics hotline",
+      "owner": "People Operations",
+      "refresh_cadence": "quarterly",
+      "exclusions": "informal coaching/feedback",
+      "common_misuse": "Treating volume alone as a culture verdict without severity or substantiation context.",
+      "decision_supported": "Workforce-conduct and consistency oversight.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Per 100 FTE; segment by severity and outcome; watch for inconsistency across managers/groups.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "alter_record"
+      ]
+    },
+    {
+      "id": "ethics_hotline_cases",
+      "name": "Ethics-hotline cases",
+      "domain": "compliance_ethics",
+      "definition": "Ethics/whistleblower reports per 100 FTE, with substantiation rate.",
+      "formula": "(hotline_reports * 100) / average_fte",
+      "grain": "period",
+      "unit": "rate",
+      "source_system": "ER case management + ethics hotline",
+      "owner": "People Operations",
+      "refresh_cadence": "quarterly",
+      "exclusions": "spam/non-actionable contacts",
+      "common_misuse": "Reading low report volume as a healthy culture (it often signals low trust in the channel).",
+      "decision_supported": "Speak-up culture and compliance risk.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Per 100 FTE; report substantiation rate and time-to-close; protect reporter anonymity (never identify).",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "alter_record"
+      ]
+    },
+    {
+      "id": "training_hours_per_fte",
+      "name": "Training hours per FTE",
+      "domain": "learning_development",
+      "definition": "Average formal learning hours per FTE in the period.",
+      "formula": "total_training_hours / average_fte",
+      "grain": "period",
+      "unit": "hours",
+      "source_system": "LMS",
+      "owner": "Talent Management",
+      "refresh_cadence": "quarterly",
+      "exclusions": "untracked informal learning",
+      "common_misuse": "Treating hours as outcomes; volume of training != capability gained.",
+      "decision_supported": "L&D investment and capability building (ISO 30414).",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Per FTE; pair with completion and capability/skill outcomes, not hours alone.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "training_completion_rate",
+      "name": "Training completion rate",
+      "domain": "learning_development",
+      "definition": "Share of assigned learning that was completed.",
+      "formula": "completed_assignments / assigned_assignments",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "LMS",
+      "owner": "Talent Management",
+      "refresh_cadence": "quarterly",
+      "exclusions": "optional/self-directed content not assigned",
+      "common_misuse": "Counting click-through completion as competence; ignoring overdue assignments.",
+      "decision_supported": "Compliance and capability follow-through.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Separate mandatory/compliance completion from development completion.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "critical_skill_coverage",
+      "name": "Critical-skill coverage",
+      "domain": "learning_development",
+      "definition": "Share of critical-skill seat demand met by employees assessed at the required proficiency.",
+      "formula": "employees_at_required_proficiency / required_critical_skill_seats",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "LMS",
+      "owner": "Talent Management",
+      "refresh_cadence": "quarterly",
+      "exclusions": "non-critical skills",
+      "common_misuse": "Self-assessed proficiency inflating coverage; defining 'critical skill' inconsistently.",
+      "decision_supported": "Build-vs-buy and workforce-capability planning.",
+      "downstream": [
+        "people-ops-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Denominator = required_critical_skill_seats (the sum of seat demand across critical skills), not a vague headcount; define the critical-skill taxonomy and the proficiency bar; avoid self-assessed proficiency inflating coverage.",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "alter_record"
+      ]
+    },
+    {
+      "id": "succession_coverage",
+      "name": "Succession coverage (bench strength)",
+      "domain": "succession",
+      "definition": "Share of critical roles with at least one identified, ready successor.",
+      "formula": "critical_roles_with_ready_successor / total_critical_roles",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "Talent module",
+      "owner": "Talent Management",
+      "refresh_cadence": "quarterly",
+      "exclusions": "non-critical roles",
+      "common_misuse": "Counting a named-but-not-ready successor as coverage; defining 'critical role' too broadly.",
+      "decision_supported": "Key-person risk and talent-pipeline credibility (ISO 30414 succession).",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Split ready-now vs ready-later (see successor_readiness); state the critical-role definition.",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "alter_record"
+      ]
+    },
+    {
+      "id": "successor_readiness",
+      "name": "Successor readiness mix",
+      "domain": "succession",
+      "definition": "Distribution of identified successors by readiness (ready-now / 1-2 yrs / 3+ yrs).",
+      "formula": "count(successors by readiness_band) / total_identified_successors",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "Talent module",
+      "owner": "Talent Management",
+      "refresh_cadence": "quarterly",
+      "exclusions": "critical roles with no identified successor (captured by succession_coverage)",
+      "common_misuse": "Reporting coverage without readiness, so a bench of all 'ready-later' looks as safe as ready-now.",
+      "decision_supported": "Depth and timing of the succession bench.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Companion to succession_coverage; readiness bands defined consistently with the talent review.",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "alter_record"
+      ]
+    },
+    {
+      "id": "representation_by_level",
+      "name": "Representation by level",
+      "domain": "diversity",
+      "definition": "Demographic-group share of the population at each level.",
+      "formula": "count(group at level) / total_at_level",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "quarterly",
+      "exclusions": "groups below the minimum reportable cell size (suppressed)",
+      "common_misuse": "Reading a single org-wide percentage without the by-level view that shows where representation narrows.",
+      "decision_supported": "DEI strategy, board reporting, regulatory context.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Always cut by level; enforce minimum cell sizes; never expose individuals.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "make_hiring_decision"
+      ]
+    },
+    {
+      "id": "leadership_diversity",
+      "name": "Leadership diversity",
+      "domain": "diversity",
+      "definition": "Demographic-group share among people-leaders / senior levels.",
+      "formula": "count(group in leadership) / total_in_leadership",
+      "grain": "cohort",
+      "unit": "percent",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "quarterly",
+      "exclusions": "below-threshold cells (suppressed)",
+      "common_misuse": "Citing overall diversity while leadership lags; small-N volatility at senior levels.",
+      "decision_supported": "Advancement equity and board credibility.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Define the leadership scope (people-managers vs senior band); minimum cell sizes; pair with promotion_rate equity cuts.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "identify_individual_publicly",
+        "make_hiring_decision"
+      ]
+    },
+    {
+      "id": "adverse_impact_ratio",
+      "name": "Adverse-impact ratio (4/5ths)",
+      "domain": "diversity",
+      "definition": "Selection rate of a group relative to the highest-selected reference group (EEOC four-fifths rule).",
+      "formula": "selection_rate(group) / selection_rate(reference_group)",
+      "grain": "cohort",
+      "unit": "ratio",
+      "source_system": "HRIS",
+      "owner": "People Analytics",
+      "refresh_cadence": "quarterly",
+      "exclusions": "stages/decisions with no structured selection step; below-threshold cells",
+      "common_misuse": "Treating < 0.80 as automatic proof of discrimination (it is a screening flag, not a verdict); ignoring it where automated screening is used.",
+      "decision_supported": "Selection-fairness monitoring, especially with automated screening.",
+      "downstream": [
+        "headcount-reporting"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Flag when the ratio < 0.80; minimum cell sizes; this is a flag for investigation, not a legal conclusion.",
+      "agent_allowed_actions": [
+        "calculate",
+        "segment",
+        "flag_outliers",
+        "draft_summary"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision",
+        "identify_individual_publicly"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "actors": {
+    "agent.coordinator": {
+      "display": "Coordinator",
+      "kind": "agent",
+      "role": "coordinator"
+    },
+    "agent.ta-reporting": {
+      "display": "TA Reporting",
+      "kind": "agent",
+      "role": "reporter"
+    },
+    "hr.business-partner": {
+      "display": "People Business Partner",
+      "kind": "human",
+      "role": "hr_approver"
+    },
+    "hr.total-rewards": {
+      "display": "Total Rewards Partner",
+      "kind": "human",
+      "role": "hr_approver"
+    },
+    "hr.people-ops": {
+      "display": "People Ops Lead",
+      "kind": "human",
+      "role": "hr_approver"
+    },
+    "obs.engineering": {
+      "display": "Engineering Observer",
+      "kind": "human",
+      "role": "viewer"
+    }
+  },
+  "roles": {
+    "hr_approver": [
+      "hr.business-partner",
+      "hr.total-rewards",
+      "hr.people-ops"
+    ],
+    "viewer": [
+      "obs.engineering"
+    ],
+    "coordinator": [
+      "agent.coordinator"
+    ],
+    "reporter": [
+      "agent.ta-reporting"
+    ]
+  },
+  "scopes": {
+    "publish.ta_report": "hr_approver",
+    "publish.comp_summary": "hr_approver",
+    "publish.operating_review": "hr_approver"
+  },
+  "channels": {
+    "people-analytics": {
+      "members": [
+        "agent.coordinator",
+        "agent.ta-reporting",
+        "hr.business-partner",
+        "hr.total-rewards",
+        "hr.people-ops",
+        "obs.engineering"
+      ]
+    }
+  }
+}

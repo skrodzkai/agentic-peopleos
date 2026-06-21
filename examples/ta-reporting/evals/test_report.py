@@ -71,6 +71,11 @@ ok(run.COMPANY in page and "Agentic People" in page, "html carries brand")
 ok("What needs attention" in page and report["narrative"][:20] in page, "html carries narrative")
 ok("Draft" in page or "DRAFT" in page, "html carries draft gate")
 ok("Publish gate" in run.render_digest(report), "digest carries publish gate")
+# The report cites the canonical metric registry (definitions not redefined by the agent).
+ok(run.METRICS is not None, "ta-reporting loaded the metric registry")
+ok("metrics.registry.json" in page and "Metric definitions" in page, "report cites the metric registry")
+ok(run.AGING_DAYS == run.METRICS.param("requisition_aging", "aging_threshold_days"),
+   "aging threshold is sourced from the registry, not hardcoded")
 
 # ---------- fail-closed: data contract ----------
 
@@ -85,6 +90,22 @@ ok(_raises(HEADER + "\n" + GOOD.replace(",open", ",weird")), "bad status fails c
 ok(_raises(HEADER + "\n" + GOOD.replace(",Screen,", ",Coffee,")), "bad stage fails closed")
 ok(_raises(HEADER + "\n" + GOOD.replace("2025-12-01", "not-a-date")), "bad date fails closed")
 ok(_raises(HEADER + "\n" + GOOD.replace("Eng,Engineering", ",Engineering")), "empty text field fails closed")
+
+# ---------- strict header contract (parity with comp-reporting) ----------
+ok(_raises(HEADER + ",extra\n" + GOOD + ",x"), "unexpected extra column fails closed")
+ok(_raises(HEADER.replace(",status", ",title") + "\n" + GOOD), "duplicate header fails closed")
+ok(_raises(HEADER + "\n" + GOOD + ",ragged"), "ragged row (too many fields) fails closed")
+
+# ---------- adversarial: STRUCTURAL markdown/control-character injection is blocked ----------
+# A quoted newline in title/recruiter would otherwise become a new markdown bullet; the strict
+# ingest charset blocks newlines, control chars, and markdown/HTML metacharacters. (This is a
+# STRUCTURAL guarantee — it does not claim to detect instruction-like prose semantically.)
+ok(_raises(HEADER + "\n" + GOOD.replace(",Eng,", ',"Eng\n- another bullet",')),
+   "newline injection in title is rejected at ingest")
+ok(_raises(HEADER + "\n" + GOOD.replace("Dana Lopez", "Dana\n- another bullet")),
+   "newline injection in recruiter is rejected at ingest")
+ok(_raises(HEADER + "\n" + GOOD.replace(",Eng,", ",Eng|`<b>x</b>`,")),
+   "markdown/HTML metacharacters are rejected at ingest")
 
 # ---------- main(): exit codes, side effects, clean failure (redirected to temp) ----------
 
@@ -119,14 +140,36 @@ try:
     ok(run.main(["--publish", "--data", str(run.DATA)]) == 2, "publish gate without approver exits 2")
     ok(not run.REPORT.exists(), "publish gate refuses before writing")
 
-    # publish with approver records approval locally
+    # publish with approver records approval locally (structured JSON)
     _set_out()
     ok(run.main(["--publish", "--approved-by", "Dana Lopez", "--data", str(run.DATA)]) == 0, "publish with approver exits 0")
-    ok((run.OUT / "PUBLISHED.txt").exists(), "approval recorded locally")
+    ok((run.OUT / "PUBLISHED.json").exists(), "approval recorded locally (JSON)")
+    import json as _json
+    ok(_json.loads((run.OUT / "PUBLISHED.json").read_text())["approved_by"] == "Dana Lopez",
+       "approval record is structured JSON")
+
+    # an approver name with control characters is refused by the gate
+    _set_out()
+    ok(run.main(["--publish", "--approved-by", "Bad\n- inject", "--data", str(run.DATA)]) == 2,
+       "publish gate refuses an approver name with control characters")
 
     # as-of earlier than the data fails closed
     _set_out()
     ok(run.main(["--as-of", "2020-01-01", "--data", str(run.DATA)]) == 1, "as-of before data fails closed")
+
+    # registry unavailable -> fail closed (no uncited report on un-governed thresholds)
+    _set_out()
+    _sm, _se = run.METRICS, run.REGISTRY_ERROR
+    run.METRICS, run.REGISTRY_ERROR = None, "metric registry unavailable: (simulated)"
+    try:
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            rc = run.main(["--data", str(run.DATA)])
+        ok(rc == 1, "missing registry fails closed (exit 1)")
+        ok(not run.REPORT.exists(), "missing registry writes no report")
+        ok(err.getvalue().strip().startswith("FAIL CLOSED:"), "missing registry prints one clean line")
+    finally:
+        run.METRICS, run.REGISTRY_ERROR = _sm, _se
 finally:
     run.OUT, run.REPORT, run.DIGEST = _orig
 

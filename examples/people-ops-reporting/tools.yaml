@@ -1,0 +1,14 @@
+# Tools the people-ops-reporting agent is allowed to use.
+tools:
+  - name: metric_engine_read
+    access: read-only
+    description: >
+      Reads computed People Ops metrics from the shared MetricEngine (foundation/compute/engine.py),
+      which recomputes SLA/TTR/backlog from raw case timestamps and is registry-bound. No math here.
+  - name: report_writer
+    access: write-local
+    description: Renders the service-desk dashboard (HTML) + Day-1 digest (Markdown) to output/. Drafts only.
+# Intentionally NOT granted:
+#   - email / Slack / "publish" — a human owns distribution (publish gate)
+#   - any write to the case system — reads computed aggregates only
+#   - any "alter record" / "decide" capability — the agent reports; humans decide

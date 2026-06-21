@@ -13,10 +13,24 @@ People lead       - routing, human interface, escalation
       └── Specialist agents - recruiting, comp, onboarding, policy ... (do the work)
 
 Cross-cutting (watch everyone):
-   Auditor             - system of record + circuit breakers
+   Auditor             - maintains the decision ledger + circuit breakers
    Performance coach   - weekly calibration / review
    Cost governor       - budgets + model-tier enforcement
 ```
+
+## Three sources of record (used consistently across this repo)
+
+The system deliberately keeps three records separate, each authoritative for one thing:
+
+- **Decisions, actions, approvals → the decision ledger** ([event-log](../governance/event-log.md)),
+  maintained by the auditor. Tamper-evident and replayable.
+- **Employee & candidate data → the HRIS/ATS** (the data system of record). The only store that
+  holds PII; the only one an erasure request mutates ([data-retention-and-erasure](../governance/data-retention-and-erasure.md)).
+- **The conversation → the chat surface.** Human-readable, but never the authority for a
+  decision — that lives in the ledger.
+
+The agent registry/manifest below is a fourth, narrower record: the source of truth for *which
+agents exist*, not for what they decided.
 
 ## The seven primitives
 
@@ -35,9 +49,10 @@ stamps out the required files so every agent in the fleet is structurally identi
 `SOUL.md`, a `run` entrypoint, a `cost_tracker.json`, and a registry entry.
 
 ### 3. Headcount — the registry + manifest
-A single registry file is the source of truth for who exists, what domain they belong
-to, and who owns them. A manifest summarizes the whole org. If the filesystem and the
-manifest disagree, that **drift** is surfaced before anything is reconciled.
+A single registry file is the source of truth for *which agents exist*, what domain they
+belong to, and who owns them (not for what they decided — that's the ledger). A manifest
+summarizes the whole org. If the filesystem and the manifest disagree, that **drift** is
+surfaced before anything is reconciled.
 
 ### 4. Performance reviews — the coach
 A dedicated "coach" agent reads frozen performance snapshots on a weekly cadence and
@@ -49,15 +64,18 @@ Every agent is on a budget and uses the cheapest model tier that can do its job.
 See [cost-governance.md](cost-governance.md).
 
 ### 6. Compliance — the auditor
-A continuously running auditor is the system of record: it logs what every agent did,
-reconciles state, and runs a **circuit breaker** that can automatically pause any agent
-that violates a hard rule. Agents fail *closed* — when they can't confirm the world is
-safe, they stop instead of acting blind.
+A continuously running auditor maintains the **decision ledger** (the source of record for
+decisions, actions, and approvals): it logs what every agent did and reconciles state. The
+fail-closed behavior is implemented in the example agents and their evals. In production the
+auditor also runs a **circuit breaker** that automatically pauses any agent that violates a hard
+rule — that breaker is a documented design pattern here, not runnable code in this reference.
 
 ### 7. Offboarding — retirement
 Decommissioned agents aren't deleted; they're **retired**: execution is blocked via kill
-switches, the code is archived, and the registry records the retirement. This keeps
-history intact and makes re-enabling a single, auditable step.
+switches, the code is archived, and the registry records the retirement. This keeps history
+intact and makes re-enabling a single, auditable step. *(Like the circuit breaker, the
+retirement registry / kill switches are a documented design pattern — a production extension,
+not runnable code in this reference repo.)*
 
 ## A note on change control
 

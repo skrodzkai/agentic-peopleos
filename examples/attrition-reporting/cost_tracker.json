@@ -1,0 +1,9 @@
+{
+  "agent": "attrition-reporting",
+  "domain": "people-analytics",
+  "budget": {"period": "monthly", "limit_usd": 1.00, "default_model_tier": "tier-0",
+    "escalation_allowed": false,
+    "notes": "Deterministic arithmetic + templates over the shared engine. No model is used."},
+  "usage": {"period_start": "2026-01-01", "spend_usd": 0.0, "calls": 0,
+    "by_tier": {"tier-0": {"calls": 0, "spend_usd": 0.0}}}
+}
