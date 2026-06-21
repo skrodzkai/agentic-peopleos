@@ -1,0 +1,7 @@
+# Python
+__pycache__/
+*.pyc
+
+# Runtime artifacts that must never masquerade as committed output
+**/output/PUBLISHED.txt
+**/output/*.stale

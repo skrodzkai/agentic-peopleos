@@ -6,21 +6,131 @@ on:
   pull_request:
 
 jobs:
-  ta-reporting:
-    name: ta-reporting example
+  tests:
+    name: tests (py ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.9", "3.12"]
-    defaults:
-      run:
-        working-directory: examples/ta-reporting
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Compile
-        run: python -m py_compile run.py evals/test_report.py
-      - name: Run eval (happy path + fail-closed contract + publish gate)
+        run: >
+          python -m py_compile
+          core/*.py core/tests/*.py tools/*.py
+          foundation/data/generate.py foundation/compute/engine.py foundation/compute/tests/test_engine.py
+          foundation/render/dashboard.py foundation/render/tests/test_dashboard.py
+          examples/headcount-reporting/run.py examples/headcount-reporting/evals/test_headcount.py
+          examples/attrition-reporting/run.py examples/attrition-reporting/evals/test_attrition.py
+          examples/people-ops-reporting/run.py examples/people-ops-reporting/evals/test_people_ops.py
+          examples/operating-review/run.py examples/operating-review/evals/test_operating_review.py
+          examples/ta-reporting/run.py examples/ta-reporting/evals/test_report.py
+          examples/comp-reporting/run.py examples/comp-reporting/evals/test_comp.py
+          examples/visible-handoff/run.py examples/visible-handoff/evals/test_handoff.py
+          examples/visible-handoff/scenarios.py examples/visible-handoff/render_view.py
+
+      - name: Public-safety PII scan (ALL committed text, BEFORE generators run)
+        run: python tools/pii_scan.py .   # whole repo (README/docs/governance/yml/scripts); tests+evals excluded
+
+      - name: Preflight — CI/doc-linked paths exist + nothing required is untracked
+        run: python tools/preflight.py
+
+      - name: Core spine evals
+        run: |
+          python core/tests/test_event_log.py
+          python core/tests/test_approval_registry.py
+          python core/tests/test_content.py
+          python core/tests/test_messaging.py
+          python core/tests/test_metrics.py
+
+      - name: Data foundation is deterministic + engine reconciles
+        run: |
+          python foundation/data/generate.py
+          git diff --exit-code -- foundation/data/acme \
+            || (echo "::error::Acme dataset is stale — run foundation/data/generate.py and commit" && exit 1)
+          python foundation/compute/tests/test_engine.py
+
+      - name: Shared dashboard renderer eval
+        run: python foundation/render/tests/test_dashboard.py
+
+      - name: Metric registry validates
+        run: python -m core.metrics validate vault/90-people-analytics/metrics/metrics.registry.json
+
+      - name: Glossary is in sync with the registry
+        run: |
+          python tools/render_glossary.py
+          git diff --exit-code -- vault/90-people-analytics/metrics vault/90-people-analytics/metrics-glossary.md \
+            || (echo "::error::metrics glossary is stale — run tools/render_glossary.py and commit" && exit 1)
+
+      - name: Analytics arm — headcount-reporting eval
+        working-directory: examples/headcount-reporting
+        run: python evals/test_headcount.py
+
+      - name: Analytics arm — attrition / people-ops / operating-review evals
+        run: |
+          (cd examples/attrition-reporting && python evals/test_attrition.py)
+          (cd examples/people-ops-reporting && python evals/test_people_ops.py)
+          (cd examples/operating-review && python evals/test_operating_review.py)
+
+      - name: Analytics arm dashboards are in sync with the engine (deterministic)
+        run: |
+          (cd examples/headcount-reporting && python run.py)
+          (cd examples/attrition-reporting && python run.py)
+          (cd examples/people-ops-reporting && python run.py)
+          (cd examples/operating-review && python run.py --publish --approved-by hr.business-partner)
+          git diff --exit-code -- \
+            examples/headcount-reporting/output/report.sample.html examples/headcount-reporting/output/day1-digest.sample.md \
+            examples/attrition-reporting/output/report.sample.html examples/attrition-reporting/output/day1-digest.sample.md \
+            examples/people-ops-reporting/output/report.sample.html examples/people-ops-reporting/output/day1-digest.sample.md \
+            examples/operating-review/output/report.sample.html examples/operating-review/output/day1-digest.sample.md \
+            examples/operating-review/output/decision.sample.events.jsonl \
+            || (echo "::error::an Analytics-arm dashboard/ledger is stale — run the agents and commit" && exit 1)
+
+      - name: Operating-review decision ledger validates (registry-backed)
+        run: |
+          python -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
+            --registry examples/visible-handoff/approval_registry.json
+
+      - name: TA reporting eval
+        working-directory: examples/ta-reporting
         run: python evals/test_report.py
+
+      - name: Comp reporting eval
+        working-directory: examples/comp-reporting
+        run: python evals/test_comp.py
+
+      - name: Visible-handoff eval
+        working-directory: examples/visible-handoff
+        run: python evals/test_handoff.py
+
+      - name: Ledger validates on replay (approval registry re-verified)
+        run: |
+          (cd examples/visible-handoff && python run.py)
+          python -m core.event_log validate examples/visible-handoff/output/events.jsonl \
+            --registry examples/visible-handoff/approval_registry.json
+
+      - name: Both handoff outcomes validate (approved + denied)
+        run: |
+          (cd examples/visible-handoff && python scenarios.py)
+          python -m core.event_log validate examples/visible-handoff/output/denied.events.sample.jsonl \
+            --registry examples/visible-handoff/approval_registry.json
+
+      - name: Rendered ledger view is in sync with the ledger
+        run: |
+          (cd examples/visible-handoff && python render_view.py)
+          git diff --exit-code -- examples/visible-handoff/output/ledger.sample.html \
+            || (echo "::error::ledger.sample.html is stale — run examples/visible-handoff/render_view.py and commit" && exit 1)
+
+      - name: Vault lint
+        run: python tools/vault_lint.py vault
+
+      - name: Public-safety PII scan (committed data/outputs/vault)
+        run: |
+          python tools/pii_scan.py \
+            examples/ta-reporting/output examples/ta-reporting/data \
+            examples/comp-reporting/output examples/comp-reporting/data \
+            examples/visible-handoff/output foundation/data vault

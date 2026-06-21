@@ -1,0 +1,17 @@
+# Tools the operating-review composer is allowed to use.
+tools:
+  - name: metric_engine_read
+    access: read-only
+    description: Reads headline metrics + per-domain coverage from the shared MetricEngine. No math here.
+  - name: approval_ledger
+    access: append-only
+    description: >
+      Records the publish decision in the hash-chained decision ledger (core/event_log.py), adjudicated
+      and re-verified by the approval registry (core/approval_registry.py). Append-only; never edits.
+  - name: report_writer
+    access: write-local
+    description: Renders the operating-review dashboard (HTML) + digest (Markdown) to output/. Drafts only.
+# Intentionally NOT granted:
+#   - email / Slack / external "send" — distribution is a human action behind the ledger-backed gate
+#   - any write to a system of record — reads computed aggregates only
+#   - any "decide" capability — the composer reports; an entitled human approves publication

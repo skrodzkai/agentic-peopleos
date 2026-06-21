@@ -1,0 +1,15 @@
+# Tools the attrition-reporting agent is allowed to use.
+tools:
+  - name: metric_engine_read
+    access: read-only
+    description: >
+      Reads computed attrition/retention metrics from the shared MetricEngine
+      (foundation/compute/engine.py), which is read-only over the data foundation and registry-bound.
+      The agent does no metric math of its own.
+  - name: report_writer
+    access: write-local
+    description: Renders the attrition dashboard (HTML) + Day-1 digest (Markdown) to output/. Drafts only.
+# Intentionally NOT granted:
+#   - email / Slack / "publish" — a human owns distribution (publish gate)
+#   - any write to the HRIS — reads computed aggregates only
+#   - any "recommend termination" / "decide" capability — the agent reports; humans decide

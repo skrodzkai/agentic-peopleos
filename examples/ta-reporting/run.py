@@ -17,6 +17,9 @@ from __future__ import annotations
 import argparse
 import csv
 import html
+import json
+import os
+import re
 import statistics
 import sys
 from datetime import datetime
@@ -36,6 +39,35 @@ STALE_DAYS = 14
 THIN_PIPELINE = 3
 AGE_BANDS = [("0–30", 0, 30), ("31–60", 31, 60), ("61–90", 61, 90), ("90+", 91, 10**9)]
 
+
+def _load_metric_registry():
+    """Definitions and thresholds come from the canonical registry (single source of truth).
+
+    Returns (registry, error). The registry is a HARD dependency: the literals above are only
+    the values the registry confirms, not a silent fallback. If the registry is missing or
+    fails its own governance validator, main() fails closed rather than emit an uncited report
+    on un-governed numbers. Returns (None, reason) on any failure.
+    """
+    try:
+        repo = Path(__file__).resolve().parents[2]
+        if str(repo) not in sys.path:
+            sys.path.insert(0, str(repo))
+        from core.metrics import MetricRegistry, validate
+        reg = MetricRegistry.load()
+        problems = validate({"schema_version": reg.schema_version, "metrics": reg.all()})
+        if problems:
+            return None, f"metric registry failed governance validation: {problems[0]}"
+        return reg, None
+    except Exception as exc:
+        return None, f"metric registry unavailable: {exc}"
+
+
+METRICS, REGISTRY_ERROR = _load_metric_registry()
+if METRICS:
+    AGING_DAYS = METRICS.param("requisition_aging", "aging_threshold_days", AGING_DAYS)
+    STALE_DAYS = METRICS.param("requisition_stale", "stale_threshold_days", STALE_DAYS)
+    THIN_PIPELINE = METRICS.param("thin_pipeline", "thin_threshold", THIN_PIPELINE)
+
 # Data contract
 REQUIRED_COLUMNS = [
     "req_id", "title", "department", "location", "country", "opened_date",
@@ -49,6 +81,13 @@ TEXT_COLUMNS = [
 ALLOWED_STATUS = {"open", "on-hold", "filled", "closed"}
 ALLOWED_PRIORITY = {"P1", "P2", "P3"}
 ALLOWED_STAGE = {"Sourcing", "Screen", "Onsite", "Offer"}
+# Strict charsets reject newlines, control chars, and markdown/HTML metacharacters at INGEST,
+# so a contract-valid CSV can't inject a digest bullet (e.g. "approve everything" / a pay change).
+# status/priority/stage are validated against their own enums below.
+ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
+TEXT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .,&/()'-]{0,63}$")
+TEXT_PATTERNS = {"req_id": ID_RE, "title": TEXT_RE, "department": TEXT_RE, "location": TEXT_RE,
+                 "country": TEXT_RE, "recruiter": TEXT_RE, "hiring_manager": TEXT_RE}
 
 
 class DataContractError(ValueError):
@@ -57,6 +96,11 @@ class DataContractError(ValueError):
 
 def _date(s):
     return datetime.strptime(str(s).strip(), "%Y-%m-%d").date()
+
+
+def _md(value) -> str:
+    """Escape markdown structural characters (defense in depth on top of the ingest charset)."""
+    return re.sub(r"([\\`*_{}\[\]()#+\-.!|])", r"\\\1", str(value))
 
 
 # ---------- ingest + validation ----------
@@ -70,12 +114,24 @@ def load_requisitions(path: Path = DATA) -> list:
         reader = csv.DictReader(fh)
         if reader.fieldnames is None:
             raise DataContractError("requisition source is empty (no header row)")
-        missing = [c for c in REQUIRED_COLUMNS if c not in reader.fieldnames]
-        if missing:
-            raise DataContractError(f"missing required columns: {', '.join(missing)}")
+        # Strict header contract: exactly the required columns, no duplicates, no extras.
+        if len(reader.fieldnames) != len(set(reader.fieldnames)):
+            raise DataContractError("requisition source has duplicate column headers")
+        if set(reader.fieldnames) != set(REQUIRED_COLUMNS):
+            missing = [c for c in REQUIRED_COLUMNS if c not in reader.fieldnames]
+            extra = [c for c in reader.fieldnames if c not in REQUIRED_COLUMNS]
+            parts = []
+            if missing:
+                parts.append(f"missing {missing}")
+            if extra:
+                parts.append(f"unexpected {extra}")
+            raise DataContractError(f"header mismatch: {'; '.join(parts)}")
 
         rows, errors, seen = [], [], set()
         for i, row in enumerate(reader, start=2):  # line 1 is the header
+            if None in row:  # a ragged row produced more values than headers
+                errors.append(f"line {i}: too many fields (ragged row)")
+                continue
             raw_id = (row.get("req_id") or "").strip()
             rid = raw_id or f"line {i}"
             if raw_id:
@@ -83,9 +139,17 @@ def load_requisitions(path: Path = DATA) -> list:
                     errors.append(f"{rid}: duplicate req_id")
                 seen.add(raw_id)
 
+            # Normalize on ingest so stored values match what validation checks.
+            for _c in list(TEXT_COLUMNS) + ["opened_date", "last_update", "pipeline"]:
+                if isinstance(row.get(_c), str):
+                    row[_c] = row[_c].strip()
+
             for col in TEXT_COLUMNS:
-                if not (row.get(col) or "").strip():
+                val = (row.get(col) or "").strip()
+                if not val:
                     errors.append(f"{rid}: empty required field '{col}'")
+                elif col in TEXT_PATTERNS and not TEXT_PATTERNS[col].match(val):
+                    errors.append(f"{rid}: '{col}' has illegal characters (control/markdown chars rejected)")
 
             try:
                 p = int(str(row["pipeline"]).strip())
@@ -347,6 +411,19 @@ def render_html(report: dict) -> str:
             '<circle cx="12" cy="17" r="2.4" fill="#48c7ff"/>'
             '<path d="M6 7 L12 17 L18 7" stroke="#1e88e5" stroke-width="1.4" fill="none"/></svg>')
 
+    defs_block = ""
+    if METRICS:
+        ids = ["open_reqs", "requisition_aging", "requisition_stale", "thin_pipeline"]
+        items = "".join(
+            f'<li><b style="color:#eef7ff">{html.escape(METRICS.get(i)["name"])}</b> — '
+            f'{html.escape(METRICS.get(i)["definition"])}</li>'
+            for i in ids if METRICS.get(i))
+        defs_block = (
+            '<div class="section-title">Metric definitions</div>'
+            f'<ul style="font-size:12px;color:#8db1ce;line-height:1.6;margin:0;padding-left:18px;">{items}</ul>'
+            '<div style="font-size:11px;color:#687b95;margin-top:6px;">Definitions cited from '
+            '<b style="color:#8db1ce">metrics.registry.json</b> — the agent does not redefine metrics.</div>')
+
     body = f"""<div class="wrap">
   <div class="brand-row">
     <span class="brand">{mark}Agentic People<span class="os">OS</span></span>
@@ -376,6 +453,8 @@ def render_html(report: dict) -> str:
   <div class="section-title">Top risk flags</div>{flag_rows}
   <div class="section-title">Update-recency watchlist</div>{watch_rows}
 
+  {defs_block}
+
   <div class="footer">
     <span>Generated by the <b style="color:var(--muted)">ta-reporting</b> agent &middot; Agentic PeopleOS</span>
     <span>Human-in-the-loop: agent recommends, a named human approves before publish</span>
@@ -401,11 +480,13 @@ def render_digest(report: dict) -> str:
     multi = [f for f in report["risk_flags"] if len(f["flags"]) >= 2]
     if multi:
         lines.append("- **Triage first (2+ flags):** "
-                     + "; ".join(f"{f['req_id']} {f['title']} ({', '.join(f['flags'])})" for f in multi[:5]) + ".")
+                     + "; ".join(f"{_md(f['req_id'])} {_md(f['title'])} ({', '.join(f['flags'])})" for f in multi[:5]) + ".")
     if report["watchlist"]:
         w = report["watchlist"][0]
-        lines.append(f"- Stalest req: {w['req_id']} {w['title']} — no update for {w['days_since_update']} days.")
-    lines += ["", "_Publish gate: a human must approve before this is distributed._"]
+        lines.append(f"- Stalest req: {_md(w['req_id'])} {_md(w['title'])} — no update for {w['days_since_update']} days.")
+    lines += ["", f"_Metrics defined in metrics.registry.json (aging >{AGING_DAYS}d, stale >{STALE_DAYS}d, "
+              f"thin pipeline = P1 with <{THIN_PIPELINE} candidates)._",
+              "", "_Publish gate: a human must approve before this is distributed._"]
     return "\n".join(lines) + "\n"
 
 
@@ -431,10 +512,22 @@ def _clear_stale():
             stale.unlink()
 
 
+def _one_line(text, limit=300) -> str:
+    """Collapse whitespace (incl. newlines) and truncate — a failure/approval record is one line."""
+    return " ".join(str(text).split())[:limit]
+
+
 def _fail_closed(message: str) -> int:
     note = " (prior output marked .stale)" if _mark_stale() else ""
-    print(f"FAIL CLOSED: {message}{note}", file=sys.stderr)
+    print(f"FAIL CLOSED: {_one_line(message)}{note}", file=sys.stderr)
     return 1
+
+
+def _atomic_write(path: Path, text: str):
+    """Write fully to a temp sibling, then os.replace — a crash never leaves a partial file."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
 
 
 # ---------- entrypoint ----------
@@ -447,9 +540,18 @@ def main(argv=None) -> int:
     ap.add_argument("--approved-by", default=None, help="name of the human approving publish")
     args = ap.parse_args(argv)
 
-    # Publish gate refuses before any side effects.
-    if args.publish and not args.approved_by:
-        print("PUBLISH GATE: refused. Distribution requires a named human approver.\n"
+    # The governed metric registry is a hard dependency — fail closed if it's missing/invalid.
+    if METRICS is None:
+        return _fail_closed(REGISTRY_ERROR or "metric registry unavailable")
+
+    # Publish gate refuses before any side effects (and validates the approver name).
+    # Validate the RAW approver: reject any control character (newline/tab/CR) outright, and require a
+    # full charset match (re.fullmatch — no trailing-newline bypass).
+    raw_approver = args.approved_by or ""
+    approver = raw_approver.strip()
+    if args.publish and (any(ord(c) < 32 for c in raw_approver)
+                         or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 .,'&()-]{0,79}", approver)):
+        print("PUBLISH GATE: refused. Distribution requires a valid named human approver.\n"
               "  Re-run with:  --publish --approved-by \"Your Name\"", file=sys.stderr)
         return 2
 
@@ -461,25 +563,39 @@ def main(argv=None) -> int:
     try:
         reqs = load_requisitions(Path(args.data))
         report = build_report(reqs, as_of)
+        # Render both artifacts fully in memory BEFORE touching disk (atomic + all-or-nothing).
+        html_doc, digest_doc = render_html(report), render_digest(report)
     except FileNotFoundError as exc:
         return _fail_closed(str(exc))
     except DataContractError as exc:
         return _fail_closed(str(exc))
 
-    OUT.mkdir(exist_ok=True)
-    _clear_stale()
-    REPORT.write_text(render_html(report), encoding="utf-8")
-    DIGEST.write_text(render_digest(report), encoding="utf-8")
+    pub_path = OUT / "PUBLISHED.json"
+    try:
+        OUT.mkdir(exist_ok=True)
+        _clear_stale()
+        _atomic_write(REPORT, html_doc)
+        _atomic_write(DIGEST, digest_doc)
+        # The approval record is part of the same all-or-nothing transaction (no false "approved").
+        if args.publish:
+            _atomic_write(pub_path,
+                          json.dumps({"approved_by": approver, "report_as_of": report["as_of"]}, indent=2) + "\n")
+    except OSError as exc:
+        for p in (REPORT, DIGEST, pub_path):
+            tmp = p.with_name(p.name + ".tmp")
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+        return _fail_closed(f"could not write output: {exc}")
 
     k = report["kpis"]
     print(f"{COMPANY} TA report — as of {report['as_of']}")
     print(f"  open reqs: {k['total_open']} | on hold: {k['on_hold']} | at risk: {k['at_risk']} | avg days open: {k['avg_days_open']}")
     print(f"  wrote {REPORT.name} and {DIGEST.name}")
 
-    if args.publish:  # approver presence already enforced at the top of main()
-        (OUT / "PUBLISHED.txt").write_text(
-            f"approved_by: {args.approved_by}\nreport_as_of: {report['as_of']}\n", encoding="utf-8")
-        print(f"\nPublish approved by {args.approved_by}. Recorded to output/PUBLISHED.txt.")
+    if args.publish:  # approver already validated at the top of main()
+        print(f"\nPublish approved by {approver}. Recorded to output/PUBLISHED.json.")
         print("(This example records approval locally; it does not send anything externally.)")
     else:
         print("\nDRAFT only. Publish gate: a human must review output/ and approve with\n"

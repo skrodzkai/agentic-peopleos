@@ -1,0 +1,38 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>Acme Corp — Compensation Report</title><style>
+:root{--bg:#000;--text:#eef7ff;--muted:#8db1ce;--soft:#6d8294;--cyan:#1ba7ff;--cyan2:#48c7ff;
+--green:#43d477;--red:#ff4d4f;--amber:#f7b955;--line:rgba(27,167,255,.46);--track:rgba(255,255,255,.06);}
+*{box-sizing:border-box;}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;}
+.wrap{max-width:920px;margin:0 auto;padding:28px 26px 40px;}.mono{font-family:'JetBrains Mono',ui-monospace,monospace;}
+.brand-row{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--cyan);padding-bottom:14px;margin-bottom:22px;}
+.brand{font-weight:800;font-size:17px;color:#fff;}.brand .os{color:var(--cyan);}
+.status{border:1px solid rgba(247,185,85,.5);color:var(--amber);background:rgba(247,185,85,.12);font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;text-transform:uppercase;}
+.kicker{color:var(--cyan);text-transform:uppercase;font-size:11px;letter-spacing:.1em;font-weight:800;}
+h1{margin:6px 0 4px;font-size:25px;color:#fff;font-weight:800;}.date{color:var(--muted);font-size:13px;}
+.callout{margin:18px 0 4px;background:rgba(27,167,255,.06);border:1px solid rgba(27,167,255,.22);border-left:3px solid var(--cyan);border-radius:0 8px 8px 0;padding:12px 15px;}
+.callout .label{color:var(--cyan2);text-transform:uppercase;font-size:10.5px;font-weight:800;letter-spacing:.06em;}.callout p{margin:4px 0 0;font-size:14px;}
+.meter{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:20px 0 6px;}
+.metric{background:#000;border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+.metric strong{display:block;font-size:24px;font-weight:700;color:#fff;}.metric span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;margin-top:4px;}
+.section-title{color:var(--cyan);text-transform:uppercase;font-size:13px;font-weight:900;letter-spacing:.05em;margin:24px 0 10px;}
+.row{display:flex;align-items:center;gap:9px;margin:6px 0;}.lbl{width:90px;font-size:12px;color:var(--muted);}
+.bar{flex:1;background:var(--track);border-radius:4px;height:13px;overflow:hidden;}.bar>div{height:13px;border-radius:4px;}.val{width:18px;text-align:right;font-size:12px;}
+table.data{width:100%;border-collapse:collapse;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12.5px;}
+table.data th{text-align:left;color:var(--cyan);background:#07101a;padding:7px 8px;font-size:10px;text-transform:uppercase;font-weight:800;}
+table.data td{padding:7px 8px;border-top:1px solid rgba(141,177,206,.20);}table.data .c{text-align:center;}
+.footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:24px;border-top:1px solid #193044;padding-top:14px;color:var(--soft);font-size:11px;}
+</style></head><body><div class="wrap">
+  <div class="brand-row"><span class="brand">Agentic People<span class="os">OS</span></span>
+    <span class="status">Draft · awaiting publish approval</span></div>
+  <div class="kicker">Total Rewards</div><h1>Compensation Report</h1>
+  <div class="date">Acme Corp &middot; as of Jan 2026 &middot; synthetic data</div>
+  <div class="callout"><div class="label">What needs attention</div><p>Average compa-ratio is 0.98 across 14 employees. 2 sit outside their band; 1 of those have NO documented exception — the governance gap to close.</p></div>
+  <div class="meter"><div class="metric"><strong class="mono">14</strong><span>Employees</span></div><div class="metric"><strong class="mono">0.98</strong><span>Avg compa-ratio</span></div><div class="metric" style="border-color:rgba(255,77,79,.5)"><strong class="mono" style="color:var(--red)">2</strong><span>Out of band</span></div><div class="metric" style="border-color:rgba(255,77,79,.5)"><strong class="mono" style="color:var(--red)">1</strong><span>OOB · no exception</span></div><div class="metric"><strong class="mono">1</strong><span>Documented exceptions</span></div></div>
+  <div class="section-title">Compa-ratio distribution</div><div class="row"><div class="lbl">&lt;0.80</div><div class="bar"><div style="width:10%;background:#ff4d4f;"></div></div><div class="val mono">1</div></div><div class="row"><div class="lbl">0.80–0.90</div><div class="bar"><div style="width:10%;background:#1ba7ff;"></div></div><div class="val mono">1</div></div><div class="row"><div class="lbl">0.90–1.10</div><div class="bar"><div style="width:100%;background:#1ba7ff;"></div></div><div class="val mono">10</div></div><div class="row"><div class="lbl">1.10–1.20</div><div class="bar"><div style="width:20%;background:#1ba7ff;"></div></div><div class="val mono">2</div></div><div class="row"><div class="lbl">&gt;1.20</div><div class="bar"><div style="width:0%;background:#ff4d4f;"></div></div><div class="val mono">0</div></div>
+  <div class="section-title">By level</div>
+  <table class="data"><thead><tr><th>Level</th><th class="c">Employees</th><th class="c">Avg compa</th><th class="c">Out of band</th></tr></thead><tbody><tr><td>L3</td><td class="c mono">2</td><td class="c mono">0.79</td><td class="c mono" style="color:var(--red)">1</td></tr><tr><td>L4</td><td class="c mono">4</td><td class="c mono">0.93</td><td class="c mono" style="color:var(--text)">0</td></tr><tr><td>L5</td><td class="c mono">5</td><td class="c mono">1.04</td><td class="c mono" style="color:var(--red)">1</td></tr><tr><td>L6</td><td class="c mono">3</td><td class="c mono">1.07</td><td class="c mono" style="color:var(--text)">0</td></tr></tbody></table>
+  <div class="section-title">Out-of-band flags</div>
+  <table class="data"><thead><tr><th>Employee</th><th>Role</th><th>Base</th><th>Band</th><th>Direction</th><th class="c">Exception</th></tr></thead><tbody><tr><td class="mono">E-111</td><td>L3 Sales</td><td class="mono">70,000</td><td class="mono">80,000–110,000</td><td style="color:var(--red)">below min</td><td class="c">✗ none</td></tr><tr><td class="mono">E-110</td><td>L5 Engineering</td><td class="mono">250,000</td><td class="mono">180,000–240,000</td><td style="color:var(--red)">above max</td><td class="c">✓</td></tr></tbody></table>
+  <div class="section-title">Metric definitions</div><ul style="font-size:12px;color:#8db1ce;line-height:1.6;margin:0;padding-left:18px;"><li><b style="color:#eef7ff">Compa-ratio</b> — Base salary divided by the midpoint of the salary range for the employee&#x27;s job profile, level, and location.</li><li><b style="color:#eef7ff">Range penetration</b> — Position within the band: where base salary sits between range min and max.</li><li><b style="color:#eef7ff">Out-of-band rate</b> — Share of banded employees whose base salary falls outside their band, split below-min vs above-max.</li><li><b style="color:#eef7ff">Compensation exception rate</b> — Share of guideline-eligible comp actions that REQUIRED an out-of-guideline exception (approved + denied), by action type.</li></ul><div style="font-size:11px;color:#687b95;margin-top:6px;">Cited from <b style="color:#8db1ce">metrics.registry.json</b>. Per the registry, this agent may calculate and flag — it must <b style="color:#8db1ce">never recommend or change pay</b>.</div>
+  <div class="footer"><span>Generated by the <b style="color:var(--muted)">comp-reporting</b> agent &middot; Agentic PeopleOS</span>
+    <span>Human-in-the-loop: agent flags; Total Rewards owns every pay decision</span></div>
+</div></body></html>
