@@ -1,0 +1,27 @@
+# Tools the people-intelligence agent is allowed to use.
+# Note what's ABSENT: no "send"/"publish" tool, and no write access to any system of record.
+
+tools:
+  - name: metric_engine_read
+    access: read-only
+    description: >
+      Reads computed metrics (and point-in-time quarterly history via series_multi) from the shared
+      MetricEngine (foundation/compute/engine.py), which is itself read-only over the synthetic data
+      foundation and bound to the metric registry. The agent performs no metric math of its own.
+
+  - name: chart_toolkit
+    access: pure-render
+    description: >
+      Draws the dashboard with the deterministic, stdlib SVG toolkit (foundation/render/charts.py).
+      Pure functions string -> SVG; no data access, no IO, no network.
+
+  - name: report_writer
+    access: write-local
+    description: >
+      Renders the executive dashboard (HTML) and the digest (Markdown) to the local output/
+      directory. Produces drafts only.
+
+# Intentionally NOT granted:
+#   - email / Slack / "publish" — a human owns distribution (publish gate)
+#   - any write access to the HRIS / finance system — this agent only reads computed aggregates
+#   - any "decide" capability — the agent reports; humans decide

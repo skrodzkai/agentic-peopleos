@@ -54,7 +54,7 @@ DOMAIN_TITLES = {"talent_acquisition": "Talent Acquisition", "headcount": "Headc
                  "performance": "Performance & Talent", "people_ops": "People Operations",
                  "health_safety": "Health & Safety", "compliance_ethics": "Compliance & Ethics",
                  "learning_development": "Learning & Development", "succession": "Succession",
-                 "diversity": "Diversity"}
+                 "diversity": "Diversity", "business_linkage": "Business Linkage"}
 
 
 class ReportError(RuntimeError):

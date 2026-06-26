@@ -111,10 +111,17 @@ The **People Analytics & reporting** arm is a set of agents that turn the metric
 governed operating dashboards. They share one design: a **shared compute engine**
 ([`foundation/compute/engine.py`](foundation/compute/engine.py)) is the single source of math over a
 [synthetic data foundation](foundation/data/), a **shared dark renderer**
-([`foundation/render/dashboard.py`](foundation/render/dashboard.py)) draws every dashboard, and each
-agent is **presentation + governance only** — it does no metric math, cites the registry, shows
+([`foundation/render/dashboard.py`](foundation/render/dashboard.py)) plus a deterministic
+[SVG chart toolkit](foundation/render/charts.py) draw every dashboard, and each agent is
+**presentation + governance only** — it does no metric math, cites the registry, shows
 not-yet-instrumented metrics **honestly** as `data_pending`, fails closed, and stops at a publish gate.
 
+- **[People Intelligence — Executive View](examples/people-intelligence/)** ⭐ *the marquee* — a
+  one-page executive dashboard led by the **People↔Finance linkage** (Revenue/FTE on an *illustrative*
+  SaaS benchmark, operating leverage), with KPI sparklines, a headcount bridge, a range-penetration pay
+  distribution, **attrition by team** (retention hotspots), the **org-shape diamond** (managers vs ICs
+  by level), and a 9-box talent grid — every number engine-computed, every trend point the same engine
+  re-run at a past quarter-end.
 - **[Headcount & Workforce](examples/headcount-reporting/)** — headcount, FTE, span of control,
   management layers, the headcount bridge, representation by level, leadership diversity.
 - **[Attrition & Retention](examples/attrition-reporting/)** — annualized turnover (voluntary,

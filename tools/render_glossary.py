@@ -23,13 +23,13 @@ TITLES = {"talent_acquisition": "Talent Acquisition", "headcount": "Headcount & 
           "people_ops": "People Operations", "performance": "Performance & Talent",
           "health_safety": "Health & Safety", "compliance_ethics": "Compliance & Ethics",
           "learning_development": "Learning & Development", "succession": "Succession",
-          "diversity": "Diversity"}
+          "diversity": "Diversity", "business_linkage": "Business Linkage (People & Finance)"}
 OWNERS = {"talent_acquisition": "Talent Acquisition", "headcount": "People Analytics",
           "total_rewards": "Total Rewards", "attrition": "People Analytics",
           "people_ops": "People Operations", "performance": "Talent Management",
           "health_safety": "People Operations", "compliance_ethics": "People Operations",
           "learning_development": "Talent Management", "succession": "Talent Management",
-          "diversity": "People Analytics"}
+          "diversity": "People Analytics", "business_linkage": "People Analytics + Finance"}
 CLASS_LABEL = {"core_kpi": "Core KPI", "diagnostic": "Diagnostic", "operational_alert": "Operational alert"}
 
 

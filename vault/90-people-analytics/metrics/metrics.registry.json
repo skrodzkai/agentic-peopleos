@@ -827,20 +827,20 @@
       "name": "Adjusted pay gap (pay equity)",
       "domain": "total_rewards",
       "definition": "Regression-adjusted residual pay difference between demographic groups after controlling for legitimate factors.",
-      "formula": "exp(coef_on_demographic in regression of ln(pay) ~ demographic + level + job + location + tenure + performance) - 1",
+      "formula": "exp(coef_on_demographic in regression of ln(pay) ~ demographic + level + job_family + location + tenure) - 1",
       "grain": "cohort",
       "unit": "percent",
       "source_system": "HRIS + comp bands",
       "owner": "Total Rewards",
       "refresh_cadence": "monthly",
-      "exclusions": "groups too small for a stable estimate (report suppressed, not zero)",
+      "exclusions": "Groups with fewer than 10 members on either side of a contrast (estimate suppressed, not zero); performance rating (excluded as a potentially biased control).",
       "common_misuse": "Reading raw/unadjusted gaps as discrimination, or treating compa-ratio as a pay-equity metric; omitting legitimate controls or over-controlling with tainted variables.",
       "decision_supported": "Pay-equity risk and remediation budgeting.",
       "downstream": [
         "comp-reporting"
       ],
       "metric_class": "core_kpi",
-      "protocol": "Report alongside the raw gap; document the controls; never expose an individual's residual; minimum cell sizes enforced.",
+      "protocol": "Report alongside the raw gap; document the controls; never expose an individual's residual. Performance rating is deliberately NOT a control (it can carry the same bias being measured - over-controlling masks discrimination). A minimum focal-cell size (>=10 per side) is enforced; smaller groups are suppressed, not reported.",
       "agent_allowed_actions": [
         "calculate",
         "segment",
@@ -2031,6 +2031,133 @@
       "agent_forbidden_actions": [
         "make_hiring_decision",
         "identify_individual_publicly"
+      ]
+    },
+    {
+      "id": "revenue_per_fte",
+      "name": "Revenue per FTE",
+      "domain": "business_linkage",
+      "definition": "Trailing-twelve-month revenue divided by current full-time-equivalent headcount.",
+      "formula": "ttm_revenue / current_fte",
+      "grain": "period",
+      "unit": "currency",
+      "source_system": "Finance (revenue) + HRIS (FTE)",
+      "owner": "People Analytics + Finance",
+      "refresh_cadence": "quarterly",
+      "exclusions": "Contractors excluded from FTE; non-recurring revenue noted separately.",
+      "common_misuse": "Comparing across companies of different stage/GTM; reading one quarter instead of the trend; using headcount instead of FTE.",
+      "decision_supported": "Workforce-efficiency and headcount-investment decisions (the People<->Finance bridge).",
+      "downstream": [
+        "people-intelligence"
+      ],
+      "metric_class": "core_kpi",
+      "protocol": "Trailing-12-month revenue over current FTE; benchmark only against similar stage/GTM and the company's own multi-year trend (RPE is a lagging indicator).",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary",
+        "surface_to_human"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision",
+        "recommend_termination",
+        "change_salary"
+      ]
+    },
+    {
+      "id": "operating_leverage",
+      "name": "Operating leverage (revenue/FTE growth)",
+      "domain": "business_linkage",
+      "definition": "Year-over-year change in revenue per FTE - whether each FTE produces more revenue over time.",
+      "formula": "(revenue_per_fte_now - revenue_per_fte_year_ago) / revenue_per_fte_year_ago",
+      "grain": "period",
+      "unit": "percent",
+      "source_system": "Finance (revenue) + HRIS (FTE)",
+      "owner": "People Analytics + Finance",
+      "refresh_cadence": "quarterly",
+      "exclusions": "One-off revenue; M&A-driven headcount step-changes flagged.",
+      "common_misuse": "Reading leverage in isolation from gross margin, churn, and CAC; attributing a revenue-driven gain to headcount cuts.",
+      "decision_supported": "Whether the company is scaling efficiently (more output with proportionally fewer people).",
+      "downstream": [
+        "people-intelligence"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Report alongside the revenue/FTE and headcount trend; pair with gross margin and retention so a high reading with thin margins isn't misread as health.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "draft_summary",
+        "surface_to_human"
+      ],
+      "agent_forbidden_actions": [
+        "make_hiring_decision",
+        "recommend_termination",
+        "change_salary"
+      ]
+    },
+    {
+      "id": "workforce_cost_ratio",
+      "name": "Workforce cost ratio (base-salary basis)",
+      "domain": "business_linkage",
+      "definition": "Active-employee base salary as a share of trailing-twelve-month revenue.",
+      "formula": "sum(active_base_salary) / ttm_revenue",
+      "grain": "period",
+      "unit": "percent",
+      "source_system": "HRIS/comp (base salary) + Finance (revenue)",
+      "owner": "Total Rewards + Finance",
+      "refresh_cadence": "quarterly",
+      "exclusions": "Variable pay, employer taxes, and benefits are NOT included (base-salary basis); see labor_cost_per_fte for the fully-loaded measure.",
+      "common_misuse": "Presenting base-salary-only cost as fully-loaded workforce cost; comparing across companies with different equity/variable mixes.",
+      "decision_supported": "Workforce-cost-to-revenue governance (the largest SaaS P&L line).",
+      "downstream": [
+        "people-intelligence"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "State the basis explicitly (base salary only); the fully-loaded ratio is labor_cost_per_fte and stays data_pending until benefits/taxes/variable are modeled.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary",
+        "surface_to_human"
+      ],
+      "agent_forbidden_actions": [
+        "recommend_pay_change",
+        "change_salary",
+        "make_hiring_decision"
+      ]
+    },
+    {
+      "id": "nine_box",
+      "name": "9-box talent grid",
+      "domain": "performance",
+      "definition": "Distribution of the rated active population across the performance x potential 9-box grid.",
+      "formula": "count(active rated employees) by (performance_band x potential_band)",
+      "grain": "employee_snapshot",
+      "unit": "count",
+      "source_system": "HRIS (performance rating + potential)",
+      "owner": "Talent Management",
+      "refresh_cadence": "annual / calibration cycle",
+      "exclusions": "Unrated employees; employees without a potential rating; contractors.",
+      "common_misuse": "Treating box placement as a stack-ranking or a pay/termination trigger; comparing boxes across managers without calibration; reading the grid as fixed rather than a development snapshot.",
+      "decision_supported": "Succession, development, and calibration discussions (never pay or termination).",
+      "downstream": [
+        "people-intelligence"
+      ],
+      "metric_class": "diagnostic",
+      "protocol": "Map the rating scale to three performance bands and pair with the potential rating; use only for development/succession conversations, never as an automated action trigger.",
+      "agent_allowed_actions": [
+        "calculate",
+        "trend",
+        "segment",
+        "draft_summary",
+        "surface_to_human"
+      ],
+      "agent_forbidden_actions": [
+        "change_rating",
+        "recommend_termination",
+        "make_hiring_decision"
       ]
     }
   ]

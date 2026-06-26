@@ -7,16 +7,17 @@ last-reviewed: 2026-06-20
 
 # Metrics glossary
 
-The canonical People Analytics measurement system. **One definition per metric**, so the numbers an agent reports are the numbers everyone trusts. Machine-readable source of truth: [`metrics/metrics.registry.json`](metrics/metrics.registry.json) (68 metrics). Reporting agents read and **cite** it; they never redefine a metric.
+The canonical People Analytics measurement system. **One definition per metric**, so the numbers an agent reports are the numbers everyone trusts. Machine-readable source of truth: [`metrics/metrics.registry.json`](metrics/metrics.registry.json) (72 metrics). Reporting agents read and **cite** it; they never redefine a metric.
 
 - [Attrition & Retention](metrics/attrition.md) — 9 metrics
+- [Business Linkage (People & Finance)](metrics/business_linkage.md) — 3 metrics
 - [Compliance & Ethics](metrics/compliance_ethics.md) — 3 metrics
 - [Diversity](metrics/diversity.md) — 3 metrics
 - [Headcount & Workforce](metrics/headcount.md) — 9 metrics
 - [Health & Safety](metrics/health_safety.md) — 3 metrics
 - [Learning & Development](metrics/learning_development.md) — 3 metrics
 - [People Operations](metrics/people_ops.md) — 8 metrics
-- [Performance & Talent](metrics/performance.md) — 3 metrics
+- [Performance & Talent](metrics/performance.md) — 4 metrics
 - [Succession](metrics/succession.md) — 2 metrics
 - [Talent Acquisition](metrics/talent_acquisition.md) — 12 metrics
 - [Total Rewards](metrics/total_rewards.md) — 13 metrics

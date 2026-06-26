@@ -23,8 +23,8 @@ REPO = Path(__file__).resolve().parents[1]
 REQUIRED_GLOBS = [
     "core/*.py", "core/tests/*.py", "tools/*.py",
     "foundation/data/generate.py", "foundation/data/acme/*.csv",
-    "foundation/compute/engine.py", "foundation/compute/tests/*.py",
-    "foundation/render/dashboard.py", "foundation/render/tests/*.py",
+    "foundation/compute/*.py", "foundation/compute/tests/*.py",
+    "foundation/render/*.py", "foundation/render/tests/*.py",
     "examples/*/run.py", "examples/*/evals/*.py",
     # The example anatomy + committed artifacts the READMEs/CI reference must ship too — otherwise
     # the pushed repo renders a README that points at a SOUL/SPEC/screenshot that isn't there.
@@ -70,7 +70,8 @@ def main():
     # 1. critical trees exist (and aren't empty)
     required = _required_files()
     for must in ("core/event_log.py", "core/metrics.py", "tools/render_glossary.py",
-                 "foundation/compute/engine.py",
+                 "foundation/compute/engine.py", "foundation/compute/regression.py",
+                 "foundation/render/dashboard.py", "foundation/render/charts.py",
                  "vault/90-people-analytics/metrics/metrics.registry.json"):
         if must not in required:
             errors.append(f"required file missing on disk: {must}")
