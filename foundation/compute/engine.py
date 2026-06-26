@@ -19,6 +19,7 @@ return status='data_pending' with the missing input named (honest, not faked).
 from __future__ import annotations
 
 import csv
+import math
 import statistics
 import sys
 from datetime import date, datetime, time, timedelta
@@ -70,7 +71,6 @@ class MetricEngine:
         "internal_fill_rate": "vacancy fill events (internal vs external)",
         "merit_increase": "merit-cycle compensation events",
         "comp_exception_rate": "comp-action + exception-approval events",
-        "adjusted_pay_gap": "regression engine (multivariate OLS)",
         "ceo_pay_ratio": "executive compensation",
         "total_cash_comp": "target bonus / commission data",
         "bonus_target_attainment": "bonus plan + payout data",
@@ -107,12 +107,17 @@ class MetricEngine:
     def __init__(self, data_dir=DATA, as_of=AS_OF):
         global DATA
         DATA = Path(data_dir)
+        self._data_dir = Path(data_dir)
         self.as_of = as_of
         self.as_of_dt = datetime.combine(as_of, time(18, 0))   # matches the generator's clock
         self.workers = _load("workers.csv")
         self.bands = {b["band_id"]: b for b in _load("comp_bands.csv")}
         self.benefits = _load("benefits_enrollment.csv")
         self.cases = _load("cases.csv")
+        self.financials = _load("financials.csv")            # quarterly revenue (business-linkage)
+        for f in self.financials:
+            f["revenue_usd"] = int(f["revenue_usd"]) if f.get("revenue_usd") not in ("", None) else None
+        self.financials.sort(key=lambda f: f["period_end"])
         for w in self.workers:
             for k in ("scheduled_hours", "standard_full_time_hours", "base_salary"):
                 w[k] = int(w[k]) if w.get(k) not in ("", None) else None
@@ -139,6 +144,13 @@ class MetricEngine:
             if resolved is not None and resolved < opened:
                 raise EngineDataError(
                     f"case {c.get('case_id')} resolved_at ({rs}) precedes opened_at ({op}) — impossible interval")
+        # Categorical integrity: a non-empty rating/potential must be a known value, so downstream
+        # buckets (e.g. the 9-box) always reconcile rather than silently dropping an unknown code.
+        for w in self.employees:
+            if w.get("rating") and w["rating"] not in _VALID_RATINGS:
+                raise EngineDataError(f"worker {w.get('emp_id')} has unknown rating '{w['rating']}'")
+            if w.get("potential") and w["potential"] not in _VALID_POTENTIAL:
+                raise EngineDataError(f"worker {w.get('emp_id')} has unknown potential '{w['potential']}'")
 
     # ---- population helpers ----
     def _active_at(self, d: date):
@@ -161,6 +173,43 @@ class MetricEngine:
     def _avg_headcount(self, start: date, end: date):
         counts = [len(self._active_at(me)) for me in _month_ends(start, end)]
         return statistics.mean(counts) if counts else 0
+
+    # ---- point-in-time history (for sparklines / trend charts) ----
+    def quarter_ends(self, n=8):
+        """The n most recent COMPLETE calendar quarter-ends at or before as_of (oldest -> newest)."""
+        qm = ((self.as_of.month - 1) // 3) * 3 + 1
+        cur = date(self.as_of.year, qm, 1) - timedelta(days=1)
+        out = []
+        for _ in range(n):
+            out.append(cur)
+            pm, py = cur.month - 3, cur.year
+            if pm <= 0:
+                pm, py = pm + 12, py - 1
+            nm_y, nm_m = (py + 1, 1) if pm == 12 else (py, pm + 1)
+            cur = date(nm_y, nm_m, 1) - timedelta(days=1)
+        return list(reversed(out))
+
+    def series(self, metric_id, n=8):
+        """Evaluate one metric at each of the n most recent quarter-ends — each point is the SAME
+        engine re-run at that point in time (so the trend reuses the as_of point-in-time discipline).
+        Returns [{period_end, value|None}]."""
+        out = []
+        for qe in self.quarter_ends(n):
+            r = MetricEngine(self._data_dir, as_of=qe).compute(metric_id)
+            out.append({"period_end": qe.isoformat(), "value": r.get("value") if r.get("status") == "ok" else None})
+        return out
+
+    def series_multi(self, metric_ids, n=8):
+        """Like series() but evaluates several metrics per quarter-end, sharing each sub-engine (one
+        construction per quarter instead of one per metric). Returns (quarter_labels, {id: [values]})."""
+        qes = self.quarter_ends(n)
+        out = {mid: [] for mid in metric_ids}
+        for qe in qes:
+            sub = MetricEngine(self._data_dir, as_of=qe)
+            for mid in metric_ids:
+                r = sub.compute(mid)
+                out[mid].append(r.get("value") if r.get("status") == "ok" else None)
+        return [qe.isoformat() for qe in qes], out
 
     # ---- dispatch ----
     def compute(self, metric_id, **opts):
@@ -214,13 +263,18 @@ def _headcount(eng):
                        "on_leave": sum(1 for w in pop if w["status"] == "on_leave")}}
 
 
-def _fte(eng):
+def _fte_of(pop):
+    """Sum of capped FTE fractions for a population (scheduled / standard full-time hours)."""
     total = 0.0
-    for w in eng._active_asof():
+    for w in pop:
         std = w["standard_full_time_hours"] or 0
         if std:
             total += min(1.0, (w["scheduled_hours"] or 0) / std)
-    return {"value": round(total, 1), "unit": "fte"}
+    return total
+
+
+def _fte(eng):
+    return {"value": round(_fte_of(eng._active_asof()), 1), "unit": "fte"}
 
 
 def _net_headcount_growth(eng):
@@ -249,10 +303,18 @@ def _span_of_control(eng):
             reports[mid] += 1
     with_mgr = sum(1 for w in active if w["manager_id"] and w["manager_id"] in ids)
     spans = list(reports.values())
+    bands = [("1-2", 1, 2), ("3", 3, 3), ("4-6", 4, 6), ("7-9", 7, 9), ("10-12", 10, 12), ("13+", 13, 1 << 30)]
+    by_span = {lbl: sum(1 for s in spans if lo <= s <= hi) for lbl, lo, hi in bands}
+    # Org-shape: managers vs ICs per level (the population-pyramid / "diamond" view).
+    by_level = {}
+    for lvl in sorted({w["level"] for w in active}):
+        lp = [w for w in active if w["level"] == lvl]
+        m = sum(1 for w in lp if w["is_people_manager"] == "yes")
+        by_level[lvl] = {"managers": m, "ics": len(lp) - m, "total": len(lp)}
     return {"value": round(with_mgr / len(reports), 2) if reports else 0, "unit": "ratio",
             "extras": {"managers": len(reports), "mean": round(statistics.mean(spans), 2) if spans else 0,
                        "median": statistics.median(spans) if spans else 0,
-                       "max": max(spans) if spans else 0}}
+                       "max": max(spans) if spans else 0, "by_span": by_span, "by_level": by_level}}
 
 
 def _span_outlier_rate(eng, low=3, high=10):
@@ -389,11 +451,29 @@ def _compa_ratio(eng):
                        "n": len(pairs)}}
 
 
+_PEN_LABELS = ["<min", "0-10", "-20", "-30", "-40", "-50", "-60", "-70", "-80", "-90", "-100", ">max"]
+
+
 def _range_penetration(eng):
     pairs = _banded_active(eng)
     num = sum(w["base_salary"] - int(b["range_min"]) for w, b in pairs)
     den = sum(int(b["range_max"]) - int(b["range_min"]) for w, b in pairs)
-    return {"value": round(100 * num / den) if den else 0, "unit": "percent", "extras": {"n": len(pairs)}}
+    # Distribution of where people sit within their band (the pay-positioning histogram). The <min /
+    # >max tails are the out-of-band employees; the shape in between is the in-band spread.
+    hist = {lbl: 0 for lbl in _PEN_LABELS}
+    for w, b in pairs:
+        lo, hi = int(b["range_min"]), int(b["range_max"])
+        if hi <= lo:
+            continue
+        p = 100 * (w["base_salary"] - lo) / (hi - lo)
+        if p < 0:
+            hist["<min"] += 1
+        elif p > 100:
+            hist[">max"] += 1
+        else:
+            hist[_PEN_LABELS[min(9, int(p // 10)) + 1]] += 1
+    return {"value": round(100 * num / den) if den else 0, "unit": "percent",
+            "extras": {"n": len(pairs), "by_penetration": hist}}
 
 
 def _out_of_band_rate(eng):
@@ -401,10 +481,12 @@ def _out_of_band_rate(eng):
     below = sum(1 for w, b in pairs if w["base_salary"] < int(b["range_min"]))
     above = sum(1 for w, b in pairs if w["base_salary"] > int(b["range_max"]))
     n = len(pairs)
+    in_band = n - below - above
     return {"value": round(100 * (below + above) / n) if n else 0, "unit": "percent",
             "extras": {"below_min_rate": round(100 * below / n) if n else 0,
                        "above_max_rate": round(100 * above / n) if n else 0,
-                       "below": below, "above": above, "n": n}}
+                       "in_band_rate": round(100 * in_band / n) if n else 0,
+                       "below": below, "above": above, "in_band": in_band, "n": n}}
 
 
 def _raw_pay_gap(eng, group_field="gender_group"):
@@ -419,6 +501,61 @@ def _raw_pay_gap(eng, group_field="gender_group"):
     gaps = {g: round(100 * (m / hi - 1), 1) for g, m in meds.items()}
     return {"value": min(gaps.values()), "unit": "percent",
             "extras": {"by_group": gaps, "reference": "highest-median group"}}
+
+
+def _adjusted_pay_gap(eng):
+    """Regression-ADJUSTED pay gap: the residual pay difference for a group after controlling for
+    level, job family, location, and tenure (OLS on log base salary), reported with a 95% CI.
+    Contrast with the RAW gap so the reader sees what the controls explain. The honest version of a
+    pay-equity number — a gap whose CI clears 0 is the one that needs action.
+    """
+    from foundation.compute.regression import ols, SingularMatrixError
+    pop = [w for w in eng._active_asof()
+           if w["base_salary"] and w["gender_group"] and w["ethnicity_group"]]
+    if len(pop) < 30:
+        return {"value": None, "unit": "percent", "extras": {"note": "population too small to adjust"}}
+
+    # Control design (dummies drop a reference category; keep only categories with >=2 members to
+    # avoid a rank-deficient column). Deterministic ordering via sorted categories.
+    def _cats(field):
+        seen = sorted({w[field] for w in pop})
+        return [c for c in seen if sum(1 for w in pop if w[field] == c) >= 2]
+    levels, fams, locs = _cats("level"), _cats("job_family"), _cats("location")
+    lvl_d, fam_d, loc_d = levels[1:], fams[1:], locs[1:]   # drop reference (first) category
+
+    def controls(w):
+        ten = (eng.as_of - _date(w["hire_date"])).days / 365.25 if w["hire_date"] else 0.0
+        return ([1.0 if w["level"] == c else 0.0 for c in lvl_d]
+                + [1.0 if w["job_family"] == c else 0.0 for c in fam_d]
+                + [1.0 if w["location"] == c else 0.0 for c in loc_d]
+                + [ten])
+
+    MIN_CELL = 10                                     # suppress a contrast unless both sides are big
+    contrasts = {}                                    # enough for a stable estimate (privacy + stats)
+    focals = {"gender": lambda w: 1.0 if w["gender_group"] == "B" else 0.0,
+              "ethnicity": lambda w: 1.0 if w["ethnicity_group"] in ("grp2", "grp3") else 0.0}
+    for key, focal in focals.items():
+        focal_n = sum(1 for w in pop if focal(w) == 1.0)
+        if not (MIN_CELL <= focal_n <= len(pop) - MIN_CELL):
+            continue                                  # too small on one side -> suppressed, not noisy
+        X = [[1.0, focal(w)] + controls(w) for w in pop]
+        y = [math.log(w["base_salary"]) for w in pop]
+        try:
+            beta, se, info = ols(X, y)
+        except SingularMatrixError as exc:
+            raise EngineDataError(f"adjusted_pay_gap[{key}]: controls are collinear ({exc})")
+        b, s = beta[1], se[1]
+        pct = lambda lp: round(100 * (math.exp(lp) - 1), 1)   # log-points -> percent effect
+        g1 = [math.log(w["base_salary"]) for w in pop if focal(w) == 1.0]
+        g0 = [math.log(w["base_salary"]) for w in pop if focal(w) == 0.0]
+        contrasts[key] = {"adj": pct(b), "ci_lo": pct(b - 1.96 * s), "ci_hi": pct(b + 1.96 * s),
+                          "raw": pct(statistics.mean(g1) - statistics.mean(g0)),
+                          "significant": (b - 1.96 * s) > 0 or (b + 1.96 * s) < 0,
+                          "n": info["n"], "r2": round(info["r2"], 3)}
+    headline = contrasts.get("gender", {}).get("adj")
+    return {"value": headline, "unit": "percent",
+            "extras": {"contrasts": contrasts, "controls": ["level", "job_family", "location", "tenure_years"],
+                       "model": "OLS on log(base salary); 95% CI; reference = group A / grp1"}}
 
 
 def _benefits_enrollment_rate(eng):
@@ -608,6 +745,70 @@ def _promotion_rate(eng):
                        "enterprise_rate_pct": round(100 * promoted / avg) if avg else 0}}
 
 
+# ---- BUSINESS LINKAGE (People <-> Finance) ----
+def _ttm_revenue(eng, as_of=None):
+    """Trailing-twelve-month revenue = sum of the 4 most recent quarters ending at/before as_of.
+    Returns None when fewer than 4 quarters are available (honest, not a partial-year number)."""
+    iso = (as_of or eng.as_of).isoformat()
+    past = [f for f in eng.financials if f["period_end"] <= iso and f["revenue_usd"] is not None]
+    return sum(f["revenue_usd"] for f in past[-4:]) if len(past) >= 4 else None
+
+
+def _revenue_per_fte(eng):
+    ttm, fte = _ttm_revenue(eng), _fte_of(eng._active_asof())
+    quarters = [f["period_end"] for f in eng.financials if f["period_end"] <= eng.as_of.isoformat()][-4:]
+    return {"value": round(ttm / fte) if (ttm and fte) else 0, "unit": "currency",
+            "extras": {"ttm_revenue": ttm, "fte": round(fte, 1), "ttm_quarters": quarters}}
+
+
+def _operating_leverage(eng):
+    now_ttm, now_fte = _ttm_revenue(eng), _fte_of(eng._active_asof())
+    ya = date(eng.as_of.year - 1, eng.as_of.month, eng.as_of.day)
+    ya_ttm, ya_fte = _ttm_revenue(eng, ya), _fte_of(eng._active_at(ya))
+    if not (now_ttm and now_fte and ya_ttm and ya_fte):
+        return {"value": 0, "unit": "percent", "extras": {"note": "insufficient revenue history"}}
+    rpf_now, rpf_ya = now_ttm / now_fte, ya_ttm / ya_fte
+    hc_now, hc_ya = len(eng._active_asof()), len(eng._active_at(ya))
+    return {"value": round(100 * (rpf_now - rpf_ya) / rpf_ya, 1), "unit": "percent",
+            "extras": {"revenue_per_fte_now": round(rpf_now), "revenue_per_fte_year_ago": round(rpf_ya),
+                       "revenue_growth_pct": round(100 * (now_ttm - ya_ttm) / ya_ttm, 1),
+                       "headcount_growth_pct": round(100 * (hc_now - hc_ya) / hc_ya, 1) if hc_ya else 0}}
+
+
+def _workforce_cost_ratio(eng):
+    ttm = _ttm_revenue(eng)
+    base = sum(w["base_salary"] or 0 for w in eng._active_asof())
+    return {"value": round(100 * base / ttm, 1) if ttm else 0, "unit": "percent",
+            "extras": {"base_salary_total": base, "ttm_revenue": ttm,
+                       "basis": "base salary only (not fully-loaded; see labor_cost_per_fte)"}}
+
+
+# ---- 9-BOX TALENT GRID (performance x potential) ----
+_PERF_BAND = {"below": "Low", "meets": "Med", "exceeds": "High", "outstanding": "High"}
+_VALID_RATINGS = frozenset(_PERF_BAND)                 # the known rating codes (load-time integrity)
+_VALID_POTENTIAL = frozenset(("Low", "Med", "High"))
+
+
+def _nine_box(eng):
+    """Distribution of the rated active population across the performance x potential grid. The
+    4-point rating scale is mapped to 3 performance bands (below->Low, meets->Med, exceeds/
+    outstanding->High). A development/calibration view — never a pay or termination trigger."""
+    pop = [w for w in eng._active_asof() if w["rating"] and w.get("potential")]
+    grid = {pot: {perf: 0 for perf in ("Low", "Med", "High")} for pot in ("High", "Med", "Low")}
+    for w in pop:
+        perf = _PERF_BAND.get(w["rating"])
+        if perf is None or w["potential"] not in grid:
+            # Fail closed: an included row that can't be bucketed would break cell-sum == n.
+            raise EngineDataError(
+                f"nine_box: unrecognized rating/potential ('{w['rating']}'/'{w['potential']}') — cannot bucket")
+        grid[w["potential"]][perf] += 1
+    n = len(pop)   # every included row was bucketed above, so the 9 cells reconcile to n exactly
+    pct = {pot: {perf: (round(100 * grid[pot][perf] / n) if n else 0) for perf in grid[pot]} for pot in grid}
+    return {"value": grid, "unit": "count",
+            "extras": {"n": n, "stars": grid["High"]["High"], "core": grid["Med"]["Med"],
+                       "at_risk": grid["Low"]["Low"], "pct": pct}}
+
+
 def _count_by(rows, field):
     out = {}
     for r in rows:
@@ -625,6 +826,7 @@ _FUNCS = {
     "twelve_month_retention": _twelve_month_retention,
     "compa_ratio": _compa_ratio, "range_penetration": _range_penetration,
     "out_of_band_rate": _out_of_band_rate, "raw_pay_gap": _raw_pay_gap,
+    "adjusted_pay_gap": _adjusted_pay_gap,
     "benefits_enrollment_rate": _benefits_enrollment_rate,
     "benefits_cost_per_employee": _benefits_cost_per_employee,
     "case_volume": _case_volume, "sla_attainment": _sla_attainment,
@@ -633,6 +835,9 @@ _FUNCS = {
     "open_case_backlog": _open_case_backlog,
     "representation_by_level": _representation_by_level, "leadership_diversity": _leadership_diversity,
     "rating_distribution": _rating_distribution, "promotion_rate": _promotion_rate,
+    "nine_box": _nine_box,
+    "revenue_per_fte": _revenue_per_fte, "operating_leverage": _operating_leverage,
+    "workforce_cost_ratio": _workforce_cost_ratio,
 }
 
 _SEG = {

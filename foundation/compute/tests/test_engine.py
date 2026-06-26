@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from foundation.compute.engine import (  # noqa: E402
     MetricEngine, EngineDataError, _FUNCS, _window, _month_ends, _resolved, _is_open_at_asof,
     _exists_at_asof, _sla_attainment, _open_case_backlog, _case_csat, _cases_in_period, _date,
+    _adjusted_pay_gap,
 )
 
 passed = 0
@@ -195,6 +196,109 @@ try:
 except EngineDataError:
     _raised = True
 ok(_raised, "a case that resolved before it opened fails closed (no negative TTR / inflated SLA)")
+
+# ---- business linkage (People <-> Finance): real, engine-computed, reconciles to financials ----
+rpf = eng.compute("revenue_per_fte")
+ok(rpf["status"] == "ok" and rpf["value"] > 0, "revenue_per_fte computes")
+ok(rpf["extras"]["ttm_revenue"] == sum(f["revenue_usd"] for f in eng.financials[-4:]),
+   "ttm_revenue is the sum of the 4 most recent quarters")
+ok(rpf["value"] == round(rpf["extras"]["ttm_revenue"] / rpf["extras"]["fte"]),
+   "revenue_per_fte = ttm_revenue / FTE (reconciles)")
+ol = eng.compute("operating_leverage")
+ok(ol["status"] == "ok" and "revenue_growth_pct" in ol["extras"] and "headcount_growth_pct" in ol["extras"],
+   "operating_leverage reports revenue vs headcount growth (the leverage story)")
+wcr = eng.compute("workforce_cost_ratio")
+ok(wcr["status"] == "ok" and "base salary only" in wcr["extras"]["basis"],
+   "workforce_cost_ratio is honestly labeled base-salary-basis (fully-loaded stays data_pending)")
+ok(wcr["value"] == round(100 * wcr["extras"]["base_salary_total"] / wcr["extras"]["ttm_revenue"], 1),
+   "workforce_cost_ratio = base comp / ttm revenue (reconciles)")
+ok(eng.compute("labor_cost_per_fte")["status"] == "data_pending",
+   "the FULLY-LOADED labor cost stays data_pending (not conflated with the base-salary ratio)")
+
+# ---- adjusted pay gap: a real regression (OLS) with CIs, contrasted with the raw gap ----
+apg = eng.compute("adjusted_pay_gap")
+ok(apg["status"] == "ok" and "contrasts" in apg["extras"], "adjusted_pay_gap is computed (not data_pending)")
+gc = apg["extras"]["contrasts"]["gender"]
+ok(gc["ci_lo"] <= gc["adj"] <= gc["ci_hi"], "the adjusted point estimate lies inside its 95% CI")
+ok(gc["significant"] == (gc["ci_lo"] > 0 or gc["ci_hi"] < 0),
+   "the 'significant' flag is exactly 'CI excludes 0'")
+ok("raw" in gc and gc["raw"] != gc["adj"], "the raw (unadjusted) gap is reported alongside the adjusted one")
+ok(0 < gc["r2"] <= 1 and gc["n"] > 30, "the model reports an R^2 in (0,1] over a real population")
+ok(eng.compute("adjusted_pay_gap")["value"] == apg["value"], "adjusted_pay_gap is deterministic")
+ok("performance" not in apg["extras"]["controls"] and "rating" not in apg["extras"]["controls"],
+   "performance rating is deliberately NOT a control (no over-controlling on a biased mediator)")
+
+
+# a focal group below the minimum cell size is SUPPRESSED, not reported as a noisy 'significant' gap
+class _APGStub:
+    as_of = date(2026, 1, 31)
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def _active_asof(self):
+        return self._rows
+
+
+_rows = []
+for i in range(40):
+    _rows.append({"gender_group": "B" if i < 2 else "A",   # only 2 of 40 in the focal group (< floor 10)
+                  "ethnicity_group": "grp1", "base_salary": 120000 + i * 500,
+                  "level": "L4", "job_family": "Engineering", "location": "US",
+                  "hire_date": f"2021-0{i % 9 + 1}-01"})
+_apg_small = _adjusted_pay_gap(_APGStub(_rows))
+ok("gender" not in _apg_small["extras"]["contrasts"] and _apg_small["value"] is None,
+   "a focal group below the minimum cell size is suppressed (not a noisy significant gap)")
+
+# ---- 9-box talent grid: performance x potential, reconciles to the rated population ----
+nb = eng.compute("nine_box")
+ok(nb["status"] == "ok" and set(nb["value"]) == {"High", "Med", "Low"}, "nine_box has the 3 potential rows")
+ok(all(set(nb["value"][p]) == {"Low", "Med", "High"} for p in nb["value"]), "each row has the 3 performance bands")
+ok(sum(nb["value"][p][pf] for p in nb["value"] for pf in nb["value"][p]) == nb["extras"]["n"],
+   "every rated employee lands in exactly one box (cells reconcile to n)")
+ok(nb["extras"]["stars"] == nb["value"]["High"]["High"] and nb["extras"]["at_risk"] == nb["value"]["Low"]["Low"],
+   "stars/at-risk callouts match the corner cells")
+# fail closed: an unbucketable rating/potential must raise, never silently drop (cell-sum != n)
+_nb_bad = type("E", (), {"_active_asof": lambda self: [{"rating": "unexpected", "potential": "High"}]})()
+try:
+    eng.__class__.__dict__  # noqa
+    from foundation.compute.engine import _nine_box as _nbfn
+    _nbfn(_nb_bad)
+    ok(False, "an unrecognized rating should make nine_box fail closed")
+except EngineDataError:
+    ok(True, "nine_box fails closed on an unbucketable rating/potential (cell-sum can't drift from n)")
+# and the engine refuses to LOAD a worker with an unknown rating/potential at all
+_e_bad = MetricEngine()
+_e_bad.employees[0] = dict(_e_bad.employees[0], rating="bogus")
+try:
+    _e_bad._check_data_quality()
+    ok(False, "load-time guard should reject an unknown rating")
+except EngineDataError:
+    ok(True, "the engine refuses to load a worker with an unknown rating (categorical integrity)")
+
+# ---- point-in-time history: the sparkline is the SAME engine re-run at each quarter-end ----
+ser = eng.series("revenue_per_fte", 8)
+ok(len(ser) == 8 and all(p["value"] for p in ser), "revenue_per_fte history has 8 non-empty quarters")
+ok(ser[-1]["value"] == MetricEngine(as_of=date.fromisoformat(ser[-1]["period_end"])).compute("revenue_per_fte")["value"],
+   "each history point equals the engine evaluated point-in-time at that quarter-end")
+ok([p["period_end"] for p in ser] == sorted(p["period_end"] for p in ser), "history is oldest -> newest")
+# series_multi (batched) agrees with series() and shares sub-engines
+q_m, s_m = eng.series_multi(["revenue_per_fte", "headcount"], 8)
+ok(q_m == [p["period_end"] for p in ser], "series_multi quarter labels match series()")
+ok(s_m["revenue_per_fte"] == [p["value"] for p in ser], "series_multi values match series() for a metric")
+
+# range-penetration distribution + span buckets reconcile to their populations
+pen = eng.compute("range_penetration")["extras"]["by_penetration"]
+ok(sum(pen.values()) == eng.compute("range_penetration")["extras"]["n"], "penetration histogram reconciles to n")
+ok(set(pen) == {"<min", "0-10", "-20", "-30", "-40", "-50", "-60", "-70", "-80", "-90", "-100", ">max"},
+   "penetration histogram has the 12 expected bins")
+spx = eng.compute("span_of_control")["extras"]
+ok(sum(spx["by_span"].values()) == spx["managers"], "span buckets reconcile to the manager count")
+# org-shape by_level: managers + ICs reconcile to the active headcount, per level and overall
+bl = spx["by_level"]
+ok(all(d["managers"] + d["ics"] == d["total"] for d in bl.values()), "by_level mgr+IC == total per level")
+ok(sum(d["total"] for d in bl.values()) == eng.compute("headcount")["value"],
+   "by_level totals reconcile to headcount (the org-shape diamond covers everyone)")
 
 # ---- governance: the engine is read-only — no dangerous mutator exists ----
 for danger in ("change_salary", "recommend_pay_change", "change_rating", "terminate",

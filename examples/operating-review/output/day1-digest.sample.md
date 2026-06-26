@@ -2,7 +2,7 @@
 _As of Jan 2026 · draft for review_
 
 - Headcount 196 (net -23 / 12mo). Voluntary attrition 15.3%, highest in L7 (34.0%). People Ops SLA 58% with 69 cases past SLA.
-- Instrumentation coverage: **31/68** registry metrics computed across 11 domains (measured vs defined; the rest are honestly data_pending).
+- Instrumentation coverage: **36/72** registry metrics computed across 12 domains (measured vs defined; the rest are honestly data_pending).
 
 _Composed from the shared metric engine; metrics cited from metrics.registry.json._
 

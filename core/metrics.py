@@ -21,7 +21,7 @@ DEFAULT_PATH = Path(__file__).resolve().parents[1] / "vault/90-people-analytics/
 
 DOMAINS = {"talent_acquisition", "headcount", "total_rewards", "attrition", "people_ops",
            "performance", "health_safety", "compliance_ethics", "learning_development",
-           "succession", "diversity"}
+           "succession", "diversity", "business_linkage"}
 # Every metric is classed so Core KPIs aren't confused with diagnostics or workflow alerts.
 METRIC_CLASSES = {"core_kpi", "diagnostic", "operational_alert"}
 

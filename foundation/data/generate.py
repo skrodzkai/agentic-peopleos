@@ -144,6 +144,16 @@ def generate():
     # Each level reports ONE level up, but only enough seniors become managers to hit the target
     # span. That yields realistic spans (not 1-2) and real depth (L3 -> L4 -> L5 -> L6 -> L7).
     employees = [w for w in workers if w["worker_type"] == "employee"]
+
+    # ---- potential rating (for the 9-box talent grid) ----
+    # Drawn from an INDEPENDENT rng stream so adding this column does NOT perturb the rest of the
+    # deterministic dataset (existing tables stay byte-identical). Loosely correlated with performance.
+    rng_pot = random.Random(SEED + 7)
+    _POT_W = {"outstanding": [5, 30, 65], "exceeds": [10, 45, 45],
+              "meets": [25, 55, 20], "below": [55, 35, 10]}
+    for w in employees:
+        w["potential"] = rng_pot.choices(["Low", "Med", "High"], weights=_POT_W[w["rating"]])[0]
+
     by_level = {lvl: [w for w in employees if w["level"] == lvl] for lvl in LEVELS}
     order = ["L7", "L6", "L5", "L4", "L3"]
     TARGET_SPAN = 6
@@ -172,7 +182,7 @@ def generate():
             "regrettable", "level", "job_family", "location", "manager_id",
             "is_people_manager", "scheduled_hours", "standard_full_time_hours",
             "base_salary", "band_id", "rating", "gender_group", "ethnicity_group",
-            "promotion_eligible", "promoted_this_period", "level_entry_date"])
+            "promotion_eligible", "promoted_this_period", "level_entry_date", "potential"])
 
     # ---- benefits enrollment: per active employee per benefit ----
     enroll = []
@@ -226,15 +236,38 @@ def generate():
            ["case_id", "opened_at", "resolved_at", "category", "sla_target_hours",
             "reopened", "first_contact_resolution", "csat", "channel"])
 
+    # ---- financials: quarterly revenue (the business-linkage / People<->Finance layer) ----
+    # Independent rng stream (never perturbs the workforce tables). 12 calendar quarters ending at the
+    # last COMPLETE quarter before AS_OF; revenue rises ~3.5%/qtr with a small seeded wobble. Synthetic.
+    rng_fin = random.Random(SEED + 3)
+    qm = ((AS_OF.month - 1) // 3) * 3 + 1                 # first month of AS_OF's quarter
+    qe = date(AS_OF.year, qm, 1) - timedelta(days=1)      # end of the previous (last complete) quarter
+    quarters = []
+    cur = qe
+    for _ in range(12):
+        quarters.append(cur)
+        pm, py = cur.month - 3, cur.year
+        if pm <= 0:
+            pm, py = pm + 12, py - 1
+        nm_y, nm_m = (py + 1, 1) if pm == 12 else (py, pm + 1)
+        cur = date(nm_y, nm_m, 1) - timedelta(days=1)
+    quarters.reverse()                                    # oldest -> newest
+    fin = []
+    for i, q in enumerate(quarters):
+        rev = 9_000_000 * (1.035 ** i) * rng_fin.uniform(0.985, 1.015)
+        fin.append({"period_end": _d(q), "revenue_usd": int(round(rev / 1000) * 1000)})
+    _write("financials.csv", fin, ["period_end", "revenue_usd"])
+
     print(f"generated Acme dataset -> {OUT}")
     print(f"  workers.csv: {len(workers)} ({len(employees)} employees, {len(workers) - len(employees)} contractors)")
     print(f"  comp_bands.csv: {len(bands)} | benefits_enrollment.csv: {len(enroll)} | cases.csv: {len(cases)}")
+    print(f"  financials.csv: {len(fin)} quarters ({fin[0]['period_end']} -> {fin[-1]['period_end']})")
     print(f"  as_of: {AS_OF.isoformat()} | seed: {SEED}")
 
 
 def _write(name, rows, fields):
     with open(OUT / name, "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
+        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")   # LF (clean git diff --check)
         w.writeheader()
         for r in rows:
             w.writerow(r)

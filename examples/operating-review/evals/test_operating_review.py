@@ -32,7 +32,7 @@ report = run.build_report(eng)
 ok(len(report["ok_ids"]) == 14, "14 curated headline metrics, all computable")
 ok(report["results"]["headcount"]["value"] == eng.compute("headcount")["value"], "headline == engine value")
 ok(report["results"]["sla_attainment"]["value"] == eng.compute("sla_attainment")["value"], "SLA == engine value")
-ok(len(report["coverage"]) == 11, "coverage map spans all 11 domains")
+ok(len(report["coverage"]) == 12, "coverage map spans all 12 domains (incl. business linkage)")
 for dom, (okc, tot) in report["coverage"].items():
     ok(0 <= okc <= tot and tot > 0, f"coverage for {dom} is sane")
 instrumented = sum(o for o, _ in report["coverage"].values())
