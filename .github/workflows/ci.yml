@@ -23,8 +23,9 @@ jobs:
           python -m py_compile
           core/*.py core/tests/*.py tools/*.py
           foundation/data/generate.py
-          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/tests/test_engine.py
-          foundation/compute/tests/test_regression.py
+          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py
+          foundation/compute/tests/test_engine.py foundation/compute/tests/test_regression.py
+          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py
           foundation/render/dashboard.py foundation/render/charts.py
           foundation/render/tests/test_dashboard.py foundation/render/tests/test_charts.py
           examples/headcount-reporting/run.py examples/headcount-reporting/evals/test_headcount.py
@@ -32,6 +33,9 @@ jobs:
           examples/people-ops-reporting/run.py examples/people-ops-reporting/evals/test_people_ops.py
           examples/operating-review/run.py examples/operating-review/evals/test_operating_review.py
           examples/people-intelligence/run.py examples/people-intelligence/evals/test_people_intelligence.py
+          examples/executive-comp-peer-builder/run.py examples/executive-comp-peer-builder/evals/test_peer_builder.py
+          examples/rtsr-psu-valuation/run.py examples/rtsr-psu-valuation/evals/test_rtsr_psu.py
+          examples/iss-pay-screen/run.py examples/iss-pay-screen/evals/test_iss_pay_screen.py
           examples/ta-reporting/run.py examples/ta-reporting/evals/test_report.py
           examples/comp-reporting/run.py examples/comp-reporting/evals/test_comp.py
           examples/visible-handoff/run.py examples/visible-handoff/evals/test_handoff.py
@@ -58,6 +62,14 @@ jobs:
             || (echo "::error::Acme dataset is stale — run foundation/data/generate.py and commit" && exit 1)
           python foundation/compute/tests/test_engine.py
           python foundation/compute/tests/test_regression.py
+          python foundation/compute/tests/test_peers.py
+          python foundation/compute/tests/test_rtsr.py
+          python foundation/compute/tests/test_iss_screen.py
+
+      - name: Public-safety ticker scan (synthetic artifacts)
+        run: |
+          python tools/ticker_scan.py --self-test
+          python tools/ticker_scan.py examples foundation/data vault README.md
 
       - name: Shared dashboard renderer + chart toolkit evals
         run: |
@@ -99,6 +111,30 @@ jobs:
             examples/operating-review/output/decision.sample.events.jsonl \
             examples/people-intelligence/output/report.sample.html examples/people-intelligence/output/day1-digest.sample.md \
             || (echo "::error::an Analytics-arm dashboard/ledger is stale — run the agents and commit" && exit 1)
+
+      - name: Executive comp arm — peer-builder eval
+        working-directory: examples/executive-comp-peer-builder
+        run: |
+          python evals/test_peer_builder.py
+          python run.py
+          git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            || (echo "::error::executive-comp peer-builder output is stale — run examples/executive-comp-peer-builder/run.py and commit" && exit 1)
+
+      - name: Executive comp arm — rTSR PSU valuation eval
+        working-directory: examples/rtsr-psu-valuation
+        run: |
+          python evals/test_rtsr_psu.py
+          python run.py
+          git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            || (echo "::error::rTSR PSU valuation output is stale — run examples/rtsr-psu-valuation/run.py and commit" && exit 1)
+
+      - name: Executive comp arm — ISS pay-for-performance screen eval
+        working-directory: examples/iss-pay-screen
+        run: |
+          python evals/test_iss_pay_screen.py
+          python run.py
+          git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            || (echo "::error::ISS pay-for-performance screen output is stale — run examples/iss-pay-screen/run.py and commit" && exit 1)
 
       - name: Operating-review decision ledger validates (registry-backed)
         run: |
@@ -143,4 +179,6 @@ jobs:
           python tools/pii_scan.py \
             examples/ta-reporting/output examples/ta-reporting/data \
             examples/comp-reporting/output examples/comp-reporting/data \
+            examples/rtsr-psu-valuation/output examples/rtsr-psu-valuation/data \
+            examples/iss-pay-screen/output \
             examples/visible-handoff/output foundation/data vault

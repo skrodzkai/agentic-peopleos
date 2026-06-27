@@ -1,0 +1,15 @@
+[
+  { "date": "2026-01-09", "payout_percent": 72.0 },
+  { "date": "2026-01-23", "payout_percent": 84.0 },
+  { "date": "2026-02-06", "payout_percent": 68.0 },
+  { "date": "2026-02-20", "payout_percent": 42.0 },
+  { "date": "2026-03-06", "payout_percent": 0.0 },
+  { "date": "2026-03-20", "payout_percent": 18.0 },
+  { "date": "2026-04-03", "payout_percent": 36.0 },
+  { "date": "2026-04-17", "payout_percent": 58.0 },
+  { "date": "2026-05-01", "payout_percent": 74.0 },
+  { "date": "2026-05-15", "payout_percent": 91.0 },
+  { "date": "2026-05-29", "payout_percent": 98.0 },
+  { "date": "2026-06-12", "payout_percent": 103.0 },
+  { "date": "2026-06-26", "payout_percent": 106.25 }
+]

@@ -1,0 +1,29 @@
+# Tools the iss-pay-screen agent is allowed to use.
+# Note what's ABSENT: no proxy scraper, no pay-recommendation tool, no "send"/"publish" tool, and no
+# write access to any system of record.
+
+tools:
+  - name: iss_screen_read
+    access: read-only
+    description: >
+      Reads the ISS screen result (comparison group + MOM/RDA/PTA/FPA → concern + qualitative triggers)
+      from the shared engine (foundation/compute/iss_screen.py), itself read-only over the synthetic
+      exec-pay/TSR dataset. The agent performs no screening math of its own.
+
+  - name: peer_group_read
+    access: read-only
+    description: >
+      Reads the committee's own peer group (foundation/compute/peers.py) ONLY to show the overlap between
+      it and the ISS-derived comparison group. Optional — the screen renders standalone without it.
+
+  - name: report_writer
+    access: write-local
+    description: >
+      Renders the committee dashboard (HTML) and the digest (Markdown) to the local output/ directory.
+      Produces drafts only.
+
+# Intentionally NOT granted:
+#   - proxy / ISS / EDGAR scraper — this sample never touches real ISS data or a real filing
+#   - any pay-recommendation tool — the agent anticipates a screen, it never sets pay
+#   - email / Slack / "publish" — the Compensation Committee owns distribution (publish gate)
+#   - any write access to a system of record

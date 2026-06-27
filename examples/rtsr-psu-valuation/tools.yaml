@@ -1,0 +1,24 @@
+agent: rtsr-psu-valuation
+scope: executive-compensation
+tools:
+  - name: local_json_inputs
+    mode: read
+    paths:
+      - data/plan_terms.sample.json
+      - data/companies.sample.json
+      - data/prices.sample.json
+      - data/valuation_assumptions.sample.json
+  - name: rtsr_compute_engine
+    mode: read
+    path: ../../foundation/compute/rtsr.py
+  - name: local_artifacts
+    mode: write
+    paths:
+      - output/report.sample.html
+      - output/day1-digest.sample.md
+      - output/PUBLISHED.json
+guards:
+  publish_requires_human_approval: true
+  network_access: false
+  real_market_data: false
+  real_company_data: false

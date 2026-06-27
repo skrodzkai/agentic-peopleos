@@ -1,0 +1,19 @@
+{
+  "issuer": "ACMQ",
+  "company_name": "Acme Corp",
+  "award_name": "2026 Relative TSR PSU",
+  "performance_period": {
+    "start": "2026-01-01",
+    "end": "2028-12-31",
+    "vest": "2029-02-20"
+  },
+  "comparator_group": "S&P Software & Services-style synthetic index members present at both start and end",
+  "averaging_days": 30,
+  "percentile_rounding": 0.01,
+  "payout_curve": [
+    { "percentile": 25.0, "payout_percent": 50.0 },
+    { "percentile": 55.0, "payout_percent": 100.0 },
+    { "percentile": 75.0, "payout_percent": 200.0 }
+  ],
+  "methodology_note": "TSR = (ending 30-day simple average closing price + dividends during the period) / beginning 30-day simple average closing price. Payout interpolates linearly between stated points and is capped at 200%."
+}

@@ -1,0 +1,29 @@
+# Tools the executive-comp-peer-builder agent is allowed to use.
+# Note what's ABSENT: no proxy scraper, no pay-recommendation tool, no "send"/"publish" tool, and no
+# write access to any system of record.
+
+tools:
+  - name: peer_screener_read
+    access: read-only
+    description: >
+      Reads the screen (per-criterion pass/fail gate + size-fit rank) from the shared screener
+      (foundation/compute/peers.py), itself read-only over the synthetic public-company universe
+      (foundation/data/acme/peer_universe.csv). The agent performs no screening or ranking math of its own.
+
+  - name: chart_toolkit
+    access: pure-render
+    description: >
+      Draws the dashboard with the deterministic, stdlib SVG toolkit (foundation/render/charts.py).
+      Pure functions string -> SVG; no data access, no IO, no network.
+
+  - name: report_writer
+    access: write-local
+    description: >
+      Renders the committee dashboard (HTML) and the digest (Markdown) to the local output/
+      directory. Produces drafts only.
+
+# Intentionally NOT granted:
+#   - proxy/EDGAR scraper — this sample never touches a real filing
+#   - any pay-recommendation tool — the agent builds a peer group, it never sets pay
+#   - email / Slack / "publish" — the Compensation Committee owns distribution (publish gate)
+#   - any write access to a system of record

@@ -1,0 +1,21 @@
+[
+  { "ticker": "ACMQ", "name": "Acme Corp", "role": "issuer", "index_start": true, "index_end": true },
+  { "ticker": "AXQA", "name": "Atlas Applications", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "BEXQ", "name": "Billerix Cloud", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "CYRQ", "name": "Cloudwright Systems", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "DOVQ", "name": "Databank Nexus", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "ELNQ", "name": "Eventrail Software", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "FENQ", "name": "FluxLayer", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "GRAQ", "name": "GridCore Analytics", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "HAXQ", "name": "Hubmatrix", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "IVYQ", "name": "Interwave SaaS", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "JOVQ", "name": "JunoLedger", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "KORQ", "name": "Kiteflow", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "LYRQ", "name": "Lumaware", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "MAVQ", "name": "MetricForge", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "NEXQ", "name": "Novaline Systems", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "ORVQ", "name": "OrbitOps", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "PAXQ", "name": "PulseDesk", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "QEXQ", "name": "QueryWorks", "role": "peer", "index_start": true, "index_end": false },
+  { "ticker": "RYVQ", "name": "Riverbase", "role": "peer", "index_start": false, "index_end": true }
+]

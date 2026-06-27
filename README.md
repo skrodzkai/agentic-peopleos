@@ -135,6 +135,32 @@ not-yet-instrumented metrics **honestly** as `data_pending`, fails closed, and s
   role-scoped, ledger-backed approval gate** (an entitled human's approval recorded in a hash-chained,
   re-verified ledger; a non-entitled actor is denied and escalated).
 
+## The Executive Compensation arm — committee-style reference workflows
+
+The **Executive Compensation** arm is built around the parts of Total Rewards that have to mirror
+board-level scrutiny: peer group construction, proxy-backed benchmarking, target percentile policy,
+relative-TSR PSU tracking, and human-owned committee decisions.
+
+- **[Executive Comp Peer Group Builder](examples/executive-comp-peer-builder/)** — builds a defensible
+  peer group the way a compensation committee does. A **hard, transparent screen** decides membership
+  (same GICS sub-industry, plus revenue and market cap each within **0.5–2.0×** of the subject; headcount
+  is a disclosed soft fit factor), then a **revenue-weighted size-fit rank** orders the in-band group into a recommended core
+  + a substitution watchlist. It documents every same-industry size exclusion, carries the committee's
+  target-percentile policy forward to benchmarking, and never recommends pay until a human approves the
+  peer set. The fit score *orders* the group; the screen — not the score — *decides* who is in it.
+- **[Relative TSR PSU Valuation](examples/rtsr-psu-valuation/)** — tracks a synthetic software-company
+  rTSR PSU against an index-style peer set, applies a public-style payout curve (25th=50%,
+  55th=100%, 75th+=200%), and estimates an illustrative Monte Carlo fair value from supplied
+  volatility, correlation, dividend, and risk-free-rate assumptions. The sample is deterministic,
+  offline, synthetic-only, and explicitly not accounting/legal/investment advice.
+- **[ISS Pay-for-Performance Screen](examples/iss-pay-screen/)** — a board-anticipation dashboard that
+  shows how the **ISS quantitative pay-for-performance screen** would likely read the subject: the overall
+  Low/Medium/High concern, the three measures (**MOM / RDA / PTA**) against ISS's *published* non-S&P-500
+  thresholds and weighted-least-squares mechanics, the ISS-derived comparison group (and its overlap with
+  the committee's own peer group), and the FPA modifier. It models the proxy-advisor screen a committee
+  must navigate, on transparent public methodology over synthetic Acme data — anticipating the board read,
+  never deciding pay, and never claiming to be ISS's actual output.
+
 ## Examples (reference patterns)
 
 - **[Talent Acquisition reporting agent](examples/ta-reporting/)** — the recruiting-pipeline

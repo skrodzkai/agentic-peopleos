@@ -29,6 +29,7 @@ REQUIRED_GLOBS = [
     # The example anatomy + committed artifacts the READMEs/CI reference must ship too — otherwise
     # the pushed repo renders a README that points at a SOUL/SPEC/screenshot that isn't there.
     "examples/*/README.md", "examples/*/SOUL.md", "examples/*/SPEC.md",
+    "examples/*/tools.yaml", "examples/*/cost_tracker.json", "examples/*/data/*.json",
     "examples/*/output/*.html", "examples/*/output/*.md",
     "examples/*/output/*.png", "examples/*/output/*.jsonl",
     "vault/**/*.md", "vault/90-people-analytics/metrics/metrics.registry.json",
@@ -71,6 +72,7 @@ def main():
     required = _required_files()
     for must in ("core/event_log.py", "core/metrics.py", "tools/render_glossary.py",
                  "foundation/compute/engine.py", "foundation/compute/regression.py",
+                 "foundation/compute/peers.py", "foundation/compute/rtsr.py",
                  "foundation/render/dashboard.py", "foundation/render/charts.py",
                  "vault/90-people-analytics/metrics/metrics.registry.json"):
         if must not in required:

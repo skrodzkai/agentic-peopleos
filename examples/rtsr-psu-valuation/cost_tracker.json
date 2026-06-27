@@ -1,0 +1,8 @@
+{
+  "agent": "rtsr-psu-valuation",
+  "mode": "offline",
+  "network_calls": 0,
+  "paid_model_calls": 0,
+  "external_data_feeds": 0,
+  "notes": "Deterministic standard-library Python over synthetic local inputs."
+}

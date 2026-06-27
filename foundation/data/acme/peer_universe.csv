@@ -1,0 +1,222 @@
+ticker,company_name,gics_sector,gics_subindustry,revenue_usd,market_cap_usd,employees,total_assets_usd,is_subject
+ACMQ,Acme Corp,Information Technology,Application Software,49941000,420000000,196,80000000,yes
+GRAC,Granite Brands,Consumer Discretionary,Specialty Retail,125000000,310000000,510,258000000,no
+KESG,Kestrel Group,Consumer Discretionary,Internet Retail,27000000,55000000,90,47000000,no
+IROL,Ironwood Logic,Information Technology,Systems Software,864000000,5533000000,2900,1491000000,no
+FORP,Forge Platforms,Information Technology,IT Services,33000000,416000000,110,59000000,no
+CREL,Crestline Logic,Information Technology,Application Software,86000000,691000000,270,113000000,no
+FORC,Forge Cloud,Information Technology,Application Software,19000000,138000000,60,34000000,no
+ASTH,Aster Holdings,Financials,Financial Exchanges,188000000,890000000,440,1215000000,no
+CYPB,Cypress Bio,Health Care,Life Sciences Tools,16000000,95000000,60,39000000,no
+HARP,Harbor Partners,Financials,Financial Exchanges,164000000,1164000000,290,824000000,no
+FALC,Falcon Controls,Industrials,Research & Consulting,279000000,544000000,1510,564000000,no
+BEAC,Beacon Cloud,Information Technology,Application Software,137000000,1598000000,400,209000000,no
+SABL,Sable Logic,Information Technology,Application Software,56000000,707000000,190,98000000,no
+IROW,Ironwood Wireless,Communication Services,Interactive Media,236000000,1430000000,600,343000000,no
+HALI,Halcyon Interactive,Communication Services,Interactive Media,46000000,434000000,140,65000000,no
+SUMP,Summit Platforms,Information Technology,Systems Software,62000000,451000000,170,72000000,no
+VANS,Vantage Systems,Information Technology,Application Software,184000000,2377000000,600,281000000,no
+DRIQ,Driftwood Platforms,Information Technology,Application Software,102000000,1178000000,410,130000000,no
+CINL,Cinder Logic,Information Technology,Systems Software,28000000,190000000,120,49000000,no
+VERM,Vertex Manufacturing,Industrials,Electronic Equipment,119000000,277000000,530,294000000,no
+QUAT,Quanta Therapeutics,Health Care,Life Sciences Tools,101000000,334000000,480,198000000,no
+COBS,Cobalt Systems,Information Technology,Application Software,35000000,254000000,100,62000000,no
+VAND,Vantage Digital,Information Technology,Application Software,39000000,456000000,110,51000000,no
+ONYT,Onyx Technologies,Information Technology,IT Services,47000000,458000000,170,74000000,no
+CYPD,Cypress Digital,Information Technology,Systems Software,99000000,653000000,400,167000000,no
+HALD,Halcyon Dynamics,Industrials,Research & Consulting,32000000,108000000,180,91000000,no
+LUMD,Lumen Digital,Information Technology,Application Software,28000000,289000000,100,38000000,no
+DRIA,Driftwood Analytics,Information Technology,Application Software,98000000,824000000,420,110000000,no
+LUMB,Lumen Brands,Consumer Discretionary,Specialty Retail,76000000,116000000,260,143000000,no
+MISW,Mistral Works,Industrials,Research & Consulting,27000000,64000000,110,69000000,no
+CINC,Cinder Commerce,Consumer Discretionary,Specialty Retail,34000000,54000000,110,63000000,no
+CEDD,Cedar Dynamics,Industrials,Research & Consulting,46000000,145000000,260,101000000,no
+HARL,Harbor Logic,Information Technology,IT Services,30000000,381000000,110,50000000,no
+BASG,Basalt Goods,Consumer Discretionary,Specialty Retail,70000000,121000000,310,112000000,no
+SABS,Sable Systems,Information Technology,Application Software,29000000,369000000,80,44000000,no
+SLAT,Slate Therapeutics,Health Care,Health Care Technology,26000000,107000000,90,63000000,no
+NORM,North Markets,Financials,Financial Exchanges,32000000,136000000,60,242000000,no
+AURP,Aurora Partners,Financials,Capital Markets,26000000,171000000,40,196000000,no
+CREM,Crestline Markets,Financials,Capital Markets,119000000,647000000,260,908000000,no
+BEAD,Beacon Digital,Information Technology,Systems Software,69000000,743000000,270,107000000,no
+BEAE,Beacon Dynamics,Industrials,Research & Consulting,26000000,87000000,130,65000000,no
+SLAD,Slate Diagnostics,Health Care,Health Care Technology,57000000,314000000,240,133000000,no
+VERA,Verdant Analytics,Information Technology,IT Services,58000000,703000000,210,81000000,no
+ASTB,Aster Brands,Consumer Discretionary,Internet Retail,54000000,144000000,170,113000000,no
+ONYI,Onyx Interactive,Communication Services,Internet Services,42000000,262000000,120,55000000,no
+SLAP,Slate Platforms,Information Technology,Application Software,39000000,267000000,160,59000000,no
+VERF,Vertex Financial,Financials,Financial Exchanges,203000000,1212000000,390,1246000000,no
+VERS,Verdant Systems,Information Technology,Systems Software,69000000,850000000,270,104000000,no
+ONYS,Onyx Sciences,Health Care,Life Sciences Tools,60000000,343000000,300,124000000,no
+TIDA,Tiderock Analytics,Information Technology,Application Software,96000000,1146000000,280,120000000,no
+SUMS,Summit Software,Information Technology,Application Software,67000000,794000000,290,79000000,no
+NORC,North Cloud,Information Technology,IT Services,322000000,3806000000,1340,524000000,no
+LUMI,Lumen Interactive,Communication Services,Internet Services,99000000,768000000,310,195000000,no
+RIDH,Ridge Health,Health Care,Health Care Technology,34000000,212000000,140,58000000,no
+KESL,Kestrel Logic,Information Technology,Systems Software,92000000,1061000000,320,124000000,no
+RIDG,Ridge Goods,Consumer Discretionary,Specialty Retail,394000000,1061000000,1340,920000000,no
+ONYD,Onyx Digital,Information Technology,Application Software,153000000,1349000000,510,263000000,no
+VANT,Vantage Software,Information Technology,Application Software,135000000,1045000000,490,230000000,no
+ONYC,Onyx Controls,Industrials,Electronic Equipment,51000000,135000000,190,114000000,no
+DRIG,Driftwood Group,Consumer Discretionary,Internet Retail,151000000,215000000,670,301000000,no
+RIDB,Ridge Bio,Health Care,Life Sciences Tools,21000000,109000000,100,42000000,no
+BEAF,Beacon Commerce,Consumer Discretionary,Specialty Retail,305000000,596000000,1350,662000000,no
+COBT,Cobalt Technologies,Information Technology,Application Software,92000000,1161000000,270,133000000,no
+RIDC,Ridge Controls,Industrials,Electronic Equipment,33000000,69000000,130,63000000,no
+MERT,Meridian Technologies,Information Technology,Application Software,60000000,722000000,170,85000000,no
+ASTS,Aster Sciences,Health Care,Health Care Technology,179000000,910000000,670,297000000,no
+BASW,Basalt Wireless,Communication Services,Interactive Media,108000000,817000000,320,178000000,no
+CYPC,Cypress Commerce,Consumer Discretionary,Specialty Retail,96000000,162000000,400,179000000,no
+ASTD,Aster Diagnostics,Health Care,Life Sciences Tools,71000000,278000000,240,129000000,no
+GRAM,Granite Media,Communication Services,Internet Services,52000000,308000000,130,103000000,no
+MISA,Mistral Analytics,Information Technology,Systems Software,385000000,4944000000,1120,613000000,no
+BASL,Basalt Logic,Information Technology,Application Software,27000000,220000000,80,42000000,no
+NORS,North Sciences,Health Care,Health Care Technology,243000000,1470000000,890,381000000,no
+MERU,Meridian Therapeutics,Health Care,Life Sciences Tools,183000000,975000000,710,446000000,no
+SABP,Sable Platforms,Information Technology,Application Software,208000000,1448000000,840,343000000,no
+APEC,Apex Connect,Communication Services,Interactive Media,14000000,132000000,40,28000000,no
+NORT,North Software,Information Technology,Systems Software,65000000,526000000,240,80000000,no
+DRIM,Driftwood Manufacturing,Industrials,Research & Consulting,225000000,430000000,1130,558000000,no
+SLAS,Slate Systems,Information Technology,Systems Software,244000000,1806000000,970,300000000,no
+KESS,Kestrel Systems,Information Technology,Application Software,56000000,429000000,160,70000000,no
+ONYP,Onyx Platforms,Information Technology,Application Software,95000000,796000000,350,150000000,no
+VERP,Vertex Partners,Financials,Capital Markets,89000000,452000000,140,518000000,no
+MISP,Mistral Platforms,Information Technology,Application Software,177000000,1345000000,570,275000000,no
+NIMS,Nimbus Software,Information Technology,Application Software,54000000,490000000,170,85000000,no
+CINT,Cinder Technologies,Information Technology,IT Services,155000000,1575000000,440,219000000,no
+SLAC,Slate Controls,Industrials,Research & Consulting,178000000,380000000,690,488000000,no
+GRAD,Granite Diagnostics,Health Care,Health Care Technology,145000000,481000000,730,316000000,no
+NORG,North Goods,Consumer Discretionary,Internet Retail,61000000,147000000,220,117000000,no
+ASTP,Aster Partners,Financials,Capital Markets,26000000,114000000,40,134000000,no
+CEDC,Cedar Connect,Communication Services,Internet Services,66000000,398000000,170,116000000,no
+ASTE,Aster Digital,Information Technology,Systems Software,36000000,328000000,130,51000000,no
+TIDS,Tiderock Sciences,Health Care,Health Care Technology,38000000,127000000,150,83000000,no
+NIMC,Nimbus Controls,Industrials,Research & Consulting,113000000,237000000,600,222000000,no
+FALS,Falcon Systems,Information Technology,IT Services,32000000,292000000,110,55000000,no
+CREC,Crestline Cloud,Information Technology,Application Software,91000000,1024000000,300,161000000,no
+BEAH,Beacon Holdings,Financials,Financial Exchanges,95000000,635000000,150,590000000,no
+IROA,Ironwood Analytics,Information Technology,IT Services,63000000,508000000,250,76000000,no
+CYPH,Cypress Health,Health Care,Life Sciences Tools,293000000,1457000000,1490,722000000,no
+BRIW,Brightwater Works,Industrials,Research & Consulting,26000000,57000000,120,59000000,no
+MISL,Mistral Logic,Information Technology,Application Software,28000000,306000000,120,34000000,no
+MISC,Mistral Controls,Industrials,Research & Consulting,106000000,214000000,600,202000000,no
+AURN,Aurora Networks,Communication Services,Internet Services,69000000,671000000,150,138000000,no
+LUME,Lumen Dynamics,Industrials,Research & Consulting,58000000,191000000,240,152000000,no
+MISH,Mistral Health,Health Care,Health Care Technology,141000000,756000000,590,249000000,no
+MISM,Mistral Markets,Financials,Capital Markets,210000000,956000000,330,1525000000,no
+APES,Apex Systems,Information Technology,Application Software,26000000,318000000,80,46000000,no
+ASTC,Aster Cloud,Information Technology,Application Software,32000000,350000000,120,46000000,no
+FORS,Forge Software,Information Technology,Application Software,114000000,763000000,350,144000000,no
+NIMT,Nimbus Sciences,Health Care,Life Sciences Tools,40000000,182000000,160,92000000,no
+HELS,Helio Software,Information Technology,Application Software,248000000,1697000000,900,326000000,no
+ONYJ,Onyx Industries,Industrials,Research & Consulting,553000000,1501000000,2480,1287000000,no
+SABM,Sable Media,Communication Services,Interactive Media,39000000,197000000,90,68000000,no
+KEST,Kestrel Software,Information Technology,Application Software,48000000,349000000,190,67000000,no
+IROS,Ironwood Software,Information Technology,IT Services,57000000,638000000,210,67000000,no
+NORP,North Partners,Financials,Financial Exchanges,92000000,585000000,160,575000000,no
+NIMP,Nimbus Partners,Financials,Financial Exchanges,41000000,256000000,80,284000000,no
+CEDP,Cedar Platforms,Information Technology,IT Services,140000000,1283000000,400,160000000,no
+VANU,Vantage Therapeutics,Health Care,Health Care Technology,122000000,655000000,450,251000000,no
+MISG,Mistral Group,Consumer Discretionary,Specialty Retail,166000000,397000000,550,332000000,no
+ONYM,Onyx Manufacturing,Industrials,Electronic Equipment,87000000,272000000,460,174000000,no
+HARM,Harbor Manufacturing,Industrials,Electronic Equipment,192000000,656000000,1050,490000000,no
+BRIC,Brightwater Controls,Industrials,Research & Consulting,48000000,107000000,250,92000000,no
+LUMC,Lumen Connect,Communication Services,Interactive Media,56000000,304000000,140,74000000,no
+VERD,Verdant Diagnostics,Health Care,Health Care Technology,17000000,99000000,60,40000000,no
+COBU,Cobalt Software,Information Technology,Application Software,28000000,294000000,110,49000000,no
+QUAU,Quanta Technologies,Information Technology,Application Software,858000000,7250000000,3510,1240000000,no
+QUAC,Quanta Cloud,Information Technology,IT Services,475000000,6068000000,1330,834000000,no
+APEM,Apex Media,Communication Services,Interactive Media,36000000,314000000,100,72000000,no
+ASTM,Aster Markets,Financials,Capital Markets,268000000,1595000000,630,1365000000,no
+FALD,Falcon Connect,Communication Services,Interactive Media,57000000,578000000,130,92000000,no
+NORH,North Health,Health Care,Health Care Technology,115000000,443000000,440,189000000,no
+GRAE,Granite Cloud,Information Technology,Application Software,61000000,672000000,220,90000000,no
+SABG,Sable Group,Consumer Discretionary,Internet Retail,253000000,479000000,890,508000000,no
+MERP,Meridian Partners,Financials,Financial Exchanges,30000000,198000000,60,230000000,no
+CIND,Cinder Dynamics,Industrials,Electronic Equipment,754000000,2095000000,3290,1864000000,no
+MISX,Mistral Wireless,Communication Services,Internet Services,14000000,99000000,30,27000000,no
+CEDE,Cedar Digital,Information Technology,Systems Software,89000000,1035000000,290,160000000,no
+RIDW,Ridge Works,Industrials,Research & Consulting,47000000,151000000,230,93000000,no
+HARS,Harbor Systems,Information Technology,Systems Software,323000000,3691000000,1040,416000000,no
+SABR,Sable Retail,Consumer Discretionary,Internet Retail,53000000,98000000,220,98000000,no
+MERA,Meridian Analytics,Information Technology,Systems Software,165000000,1242000000,640,214000000,no
+CEDT,Cedar Technologies,Information Technology,IT Services,35000000,412000000,110,46000000,no
+LUMS,Lumen Systems,Information Technology,IT Services,34000000,309000000,140,49000000,no
+GRAA,Granite Analytics,Information Technology,Systems Software,90000000,922000000,380,109000000,no
+FALB,Falcon Bio,Health Care,Health Care Technology,324000000,1465000000,1400,668000000,no
+ONYL,Onyx Logic,Information Technology,Application Software,524000000,5031000000,2000,598000000,no
+CINP,Cinder Partners,Financials,Capital Markets,40000000,197000000,90,216000000,no
+SLAE,Slate Digital,Information Technology,Systems Software,240000000,2800000000,990,395000000,no
+MERI,Meridian Industries,Industrials,Electronic Equipment,39000000,94000000,150,95000000,no
+BRID,Brightwater Diagnostics,Health Care,Health Care Technology,49000000,269000000,250,83000000,no
+AURH,Aurora Holdings,Financials,Financial Exchanges,101000000,684000000,240,501000000,no
+LUMO,Lumen Networks,Communication Services,Interactive Media,348000000,2031000000,990,490000000,no
+HELT,Helio Systems,Information Technology,IT Services,67000000,471000000,210,121000000,no
+GRAP,Granite Platforms,Information Technology,Application Software,39000000,418000000,140,46000000,no
+APET,Apex Software,Information Technology,Systems Software,35000000,394000000,130,51000000,no
+DRIW,Driftwood Wireless,Communication Services,Interactive Media,244000000,2325000000,590,376000000,no
+BASS,Basalt Software,Information Technology,Application Software,49000000,621000000,140,69000000,no
+ASTT,Aster Technologies,Information Technology,IT Services,46000000,291000000,160,68000000,no
+GRAN,Granite Markets,Financials,Capital Markets,85000000,640000000,150,467000000,no
+RIDL,Ridge Logic,Information Technology,Systems Software,154000000,1433000000,660,251000000,no
+BEAW,Beacon Works,Industrials,Research & Consulting,19000000,50000000,90,50000000,no
+VANW,Vantage Wireless,Communication Services,Internet Services,35000000,189000000,80,64000000,no
+AURD,Aurora Diagnostics,Health Care,Life Sciences Tools,31000000,125000000,110,71000000,no
+BRIS,Brightwater Sciences,Health Care,Health Care Technology,140000000,501000000,490,249000000,no
+VANR,Vantage Retail,Consumer Discretionary,Specialty Retail,717000000,1965000000,3300,1557000000,no
+BEAG,Beacon Connect,Communication Services,Interactive Media,104000000,1000000000,300,211000000,no
+ASTN,Aster Manufacturing,Industrials,Electronic Equipment,14000000,34000000,50,40000000,no
+CINI,Cinder Interactive,Communication Services,Interactive Media,32000000,277000000,70,50000000,no
+VANM,Vantage Manufacturing,Industrials,Research & Consulting,84000000,274000000,440,210000000,no
+POLC,Polaris Capital,Financials,Capital Markets,41000000,202000000,90,228000000,no
+SABC,Sable Cloud,Information Technology,Application Software,197000000,2224000000,810,338000000,no
+HALH,Halcyon Holdings,Financials,Capital Markets,48000000,381000000,80,351000000,no
+TIDB,Tiderock Brands,Consumer Discretionary,Specialty Retail,127000000,307000000,550,271000000,no
+FORN,Forge Media,Communication Services,Internet Services,17000000,142000000,40,32000000,no
+POLF,Polaris Financial,Financials,Financial Exchanges,22000000,134000000,30,141000000,no
+LUMW,Lumen Wireless,Communication Services,Interactive Media,18000000,159000000,40,25000000,no
+AURQ,Aurora Platforms,Information Technology,Application Software,81000000,992000000,240,136000000,no
+IROI,Ironwood Industries,Industrials,Research & Consulting,93000000,192000000,390,218000000,no
+DRIC,Driftwood Cloud,Information Technology,Application Software,222000000,1779000000,870,348000000,no
+KESC,Kestrel Cloud,Information Technology,Application Software,77000000,918000000,240,90000000,no
+NORA,North Analytics,Information Technology,IT Services,246000000,1643000000,760,284000000,no
+CYPI,Cypress Interactive,Communication Services,Internet Services,136000000,1294000000,290,268000000,no
+SUMC,Summit Cloud,Information Technology,Application Software,83000000,1077000000,340,101000000,no
+COBL,Cobalt Logic,Information Technology,Application Software,15000000,110000000,50,26000000,no
+CEDF,Cedar Diagnostics,Health Care,Life Sciences Tools,33000000,182000000,110,64000000,no
+MERL,Meridian Logic,Information Technology,Systems Software,370000000,3150000000,1170,638000000,no
+HARA,Harbor Analytics,Information Technology,Application Software,68000000,531000000,210,103000000,no
+CREG,Crestline Group,Consumer Discretionary,Specialty Retail,53000000,139000000,180,88000000,no
+CEDM,Cedar Markets,Financials,Financial Exchanges,118000000,608000000,260,796000000,no
+APEN,Apex Markets,Financials,Financial Exchanges,30000000,146000000,60,173000000,no
+FORI,Forge Industries,Industrials,Research & Consulting,89000000,294000000,510,212000000,no
+FALM,Falcon Manufacturing,Industrials,Electronic Equipment,100000000,323000000,430,282000000,no
+IROM,Ironwood Manufacturing,Industrials,Research & Consulting,154000000,535000000,660,317000000,no
+HELU,Helio Therapeutics,Health Care,Life Sciences Tools,1090000000,4977000000,3930,2361000000,no
+CEDI,Cedar Industries,Industrials,Research & Consulting,164000000,404000000,830,373000000,no
+CINS,Cinder Software,Information Technology,Application Software,57000000,409000000,170,70000000,no
+CYPS,Cypress Sciences,Health Care,Health Care Technology,293000000,1626000000,1190,616000000,no
+BRIE,Brightwater Cloud,Information Technology,IT Services,185000000,1216000000,590,288000000,no
+QUAN,Quanta Networks,Communication Services,Internet Services,22000000,110000000,70,39000000,no
+HALC,Halcyon Cloud,Information Technology,Application Software,115000000,868000000,460,176000000,no
+CYPA,Cypress Analytics,Information Technology,Application Software,20000000,186000000,70,26000000,no
+BRIA,Brightwater Analytics,Information Technology,Application Software,124000000,1415000000,400,162000000,no
+FALN,Falcon Markets,Financials,Financial Exchanges,30000000,162000000,60,154000000,no
+BRIH,Brightwater Health,Health Care,Health Care Technology,137000000,732000000,620,305000000,no
+MISS,Mistral Systems,Information Technology,Application Software,318000000,2491000000,1000,520000000,no
+SLAF,Slate Capital,Financials,Capital Markets,118000000,615000000,280,660000000,no
+HALE,Halcyon Diagnostics,Health Care,Life Sciences Tools,85000000,272000000,370,193000000,no
+AURE,Aurora Digital,Information Technology,Application Software,248000000,1810000000,730,400000000,no
+VERC,Verdant Controls,Industrials,Electronic Equipment,78000000,135000000,370,162000000,no
+TIDF,Tiderock Financial,Financials,Financial Exchanges,45000000,259000000,70,251000000,no
+ONYU,Onyx Software,Information Technology,Application Software,19000000,121000000,50,24000000,no
+CYPW,Cypress Works,Industrials,Electronic Equipment,220000000,556000000,1280,457000000,no
+POLL,Polaris Logic,Information Technology,Application Software,72000000,478000000,270,107000000,no
+BEAI,Beacon Diagnostics,Health Care,Health Care Technology,24000000,152000000,120,55000000,no
+APED,Apex Digital,Information Technology,Application Software,362000000,4635000000,1220,604000000,no
+MERD,Meridian Capital,Financials,Capital Markets,153000000,615000000,310,1050000000,no
+HALF,Halcyon Capital,Financials,Financial Exchanges,397000000,2511000000,730,1944000000,no
+CYPE,Cypress Diagnostics,Health Care,Life Sciences Tools,280000000,925000000,1000,553000000,no
+GRAF,Granite Dynamics,Industrials,Electronic Equipment,83000000,186000000,340,163000000,no
+VANE,Vantage Dynamics,Industrials,Electronic Equipment,79000000,189000000,320,145000000,no
+ASTW,Aster Wireless,Communication Services,Internet Services,32000000,241000000,100,58000000,no

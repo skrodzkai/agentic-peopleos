@@ -7,18 +7,46 @@ hold no secrets.
 
 ## Running the checks (from the repo root)
 
+This block mirrors `.github/workflows/ci.yml`; keep the two in sync.
+
 ```bash
-python -m py_compile core/*.py core/tests/*.py tools/*.py examples/*/run.py examples/*/evals/*.py
+python -m py_compile core/*.py core/tests/*.py tools/*.py \
+  foundation/data/generate.py foundation/compute/*.py foundation/compute/tests/*.py \
+  foundation/render/*.py foundation/render/tests/*.py examples/*/run.py examples/*/evals/*.py
+# public-safety + release preflight
+python tools/pii_scan.py .                  # whole repo (tests/evals excluded)
+python tools/preflight.py                   # CI/doc-linked paths exist + nothing required is untracked
 # core spine
 python core/tests/test_event_log.py
 python core/tests/test_approval_registry.py
 python core/tests/test_content.py
 python core/tests/test_messaging.py
 python core/tests/test_metrics.py
+# data foundation is deterministic + compute reconciles
+python foundation/data/generate.py          # then `git diff --exit-code -- foundation/data/acme` (deterministic)
+python foundation/compute/tests/test_engine.py
+python foundation/compute/tests/test_regression.py
+python foundation/compute/tests/test_peers.py
+# shared renderer + chart toolkit
+python foundation/render/tests/test_dashboard.py
+python foundation/render/tests/test_charts.py
 # measurement governance
 python -m core.metrics validate vault/90-people-analytics/metrics/metrics.registry.json
-python tools/render_glossary.py     # then `git diff --exit-code` on vault/90-people-analytics to confirm the glossary is in sync
-# example agents
+python tools/render_glossary.py             # then `git diff --exit-code` on vault/90-people-analytics (glossary in sync)
+# Analytics arm (eval + run, then `git diff --exit-code` on each output/report.sample.* + digest)
+(cd examples/headcount-reporting && python evals/test_headcount.py && python run.py)
+(cd examples/attrition-reporting && python evals/test_attrition.py && python run.py)
+(cd examples/people-ops-reporting && python evals/test_people_ops.py && python run.py)
+(cd examples/operating-review && python evals/test_operating_review.py && python run.py --publish --approved-by hr.business-partner)
+(cd examples/people-intelligence && python evals/test_people_intelligence.py && python run.py)
+# Executive Compensation arm (eval + run, then `git diff --exit-code` on each output/report.sample.html + day1-digest.sample.md)
+(cd examples/executive-comp-peer-builder && python evals/test_peer_builder.py && python run.py)
+(cd examples/rtsr-psu-valuation && python evals/test_rtsr_psu.py && python run.py)
+(cd examples/iss-pay-screen && python evals/test_iss_pay_screen.py && python run.py)
+# shared exec-comp compute engines
+python foundation/compute/tests/test_rtsr.py
+python foundation/compute/tests/test_iss_screen.py
+# reference example agents
 (cd examples/ta-reporting && python evals/test_report.py)
 (cd examples/comp-reporting && python evals/test_comp.py)
 (cd examples/visible-handoff && python evals/test_handoff.py)

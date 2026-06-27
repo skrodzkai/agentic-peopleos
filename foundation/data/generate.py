@@ -19,8 +19,14 @@ All dates are ISO YYYY-MM-DD. AS_OF anchors the synthetic "today" so cohorts/ten
 """
 import csv
 import random
+import sys
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
+
+# Single source of truth for the real-ticker deny-list lives with the screener (compute layer); import it
+# so the generator (don't-mint) and the loader (don't-accept) can never drift. Side-effect-free import.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from foundation.compute.peers import REAL_TICKERS as _PEER_REAL_TICKERS  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "acme"
 AS_OF = date(2026, 1, 31)              # synthetic "today"
@@ -258,10 +264,142 @@ def generate():
         fin.append({"period_end": _d(q), "revenue_usd": int(round(rev / 1000) * 1000)})
     _write("financials.csv", fin, ["period_end", "revenue_usd"])
 
+    # ---- peer universe: synthetic public companies for executive-comp peer-group screening ----
+    # Independent rng stream. The SUBJECT is Acme (the same synthetic company); the candidate peers are
+    # obviously-fictional issuers (made-up names + tickers) spanning sectors and sizes, clustered around
+    # Acme's size so a revenue/market-cap/sub-industry screen (with headcount as a soft fit factor) yields
+    # a realistic peer set. No real company, ticker, or proxy is represented.
+    rng_peer = random.Random(SEED + 11)
+    ttm = sum(f["revenue_usd"] for f in fin[-4:])               # Acme trailing-12-month revenue
+    active_emp = sum(1 for w in employees if w["status"] in ("active", "on_leave"))
+    PREFIX = ["North", "Vantage", "Cobalt", "Meridian", "Apex", "Lumen", "Quanta", "Sable", "Ridge",
+              "Cinder", "Vertex", "Helio", "Onyx", "Brightwater", "Cedar", "Aster", "Polaris", "Nimbus",
+              "Beacon", "Forge", "Harbor", "Summit", "Tiderock", "Granite", "Cypress", "Falcon", "Ironwood",
+              "Slate", "Aurora", "Driftwood", "Kestrel", "Mistral", "Basalt", "Verdant", "Halcyon", "Crestline"]
+    # (sector, [(subindustry, weight)...], rev/employee_$, market-cap/revenue, asset-intensity, [name suffixes]).
+    # IT dominates and Application Software dominates IT, mirroring Acme's market — so a tight, same-
+    # sub-industry screen still funnels to a credible peer set out of a deliberately broad starting universe.
+    SECTORS = [
+        ("Information Technology",
+         [("Application Software", 52), ("Systems Software", 28), ("IT Services", 20)], 290_000, 9.0, 1.4,
+         ["Systems", "Software", "Cloud", "Logic", "Technologies", "Analytics", "Platforms", "Digital"]),
+        ("Communication Services",
+         [("Interactive Media", 1), ("Internet Services", 1)], 380_000, 7.0, 1.6,
+         ["Networks", "Media", "Wireless", "Interactive", "Connect"]),
+        ("Health Care",
+         [("Health Care Technology", 1), ("Life Sciences Tools", 1)], 240_000, 4.5, 1.9,
+         ["Bio", "Health", "Therapeutics", "Diagnostics", "Sciences"]),
+        ("Industrials",
+         [("Electronic Equipment", 1), ("Research & Consulting", 1)], 210_000, 2.4, 2.2,
+         ["Industries", "Dynamics", "Controls", "Manufacturing", "Works"]),
+        ("Consumer Discretionary",
+         [("Internet Retail", 1), ("Specialty Retail", 1)], 260_000, 2.0, 1.8,
+         ["Retail", "Brands", "Commerce", "Goods", "Group"]),
+        ("Financials",
+         [("Financial Exchanges", 1), ("Capital Markets", 1)], 520_000, 5.5, 6.0,
+         ["Capital", "Financial", "Holdings", "Partners", "Markets"]),
+    ]
+    SECTOR_W = [48, 12, 13, 13, 7, 7]                           # IT-heavy, mirroring Acme's market
+    # Tickers we refuse to mint: a real, recognizable ticker would undermine the "obviously synthetic"
+    # guarantee. Single source of truth — the same deny-list the screener's loader rejects on (so the
+    # generator and the loader can never drift). The dedup loop skips any base that lands on one of these.
+    REAL_TICKERS = set(_PEER_REAL_TICKERS)
+    companies = [{"ticker": "ACMQ", "company_name": "Acme Corp", "gics_sector": "Information Technology",
+                  "gics_subindustry": "Application Software", "revenue_usd": ttm,
+                  "market_cap_usd": int(round(ttm * 8.4 / 1_000_000) * 1_000_000),
+                  "employees": active_emp, "total_assets_usd": int(round(ttm * 1.6 / 1_000_000) * 1_000_000),
+                  "is_subject": "yes"}]
+    used_names, used_tk, n, guard = set(), {"ACMQ"} | REAL_TICKERS, 0, 0
+    while n < 220:
+        guard += 1
+        if guard > 50_000:                                      # bounded: never spin forever on an exhausted pool
+            raise RuntimeError("peer-universe generation exceeded its retry budget; widen the name/ticker pool")
+        sector, subs, rev_per_emp, mc_mult, asset_int, suffixes = rng_peer.choices(SECTORS, weights=SECTOR_W)[0]
+        subindustry = rng_peer.choices([s for s, _ in subs], weights=[w for _, w in subs])[0]
+        name = f"{rng_peer.choice(PREFIX)} {rng_peer.choice(suffixes)}"
+        if name in used_names:
+            continue
+        # derive a 4-char ticker; rotate ONLY the final letter (bounded to 26 tries, A after Z) to dodge
+        # collisions with prior peers and the real-ticker deny-list. If a base is exhausted, drop the name.
+        base = (name.split()[0][:3] + name.split()[1][:1]).upper()
+        tk = base
+        for _ in range(26):
+            if tk not in used_tk:
+                break
+            last = tk[-1]
+            tk = base[:3] + (chr(ord(last) + 1) if last < "Z" else "A")
+        if tk in used_tk:
+            continue
+        used_names.add(name)
+        used_tk.add(tk)
+        # revenue: log-uniform $12M..$1.6B, beta-skewed toward small-cap so there's a real cluster near Acme
+        lo, hi = 12_000_000, 1_600_000_000
+        rev = lo * (hi / lo) ** (rng_peer.betavariate(2.0, 3.2))
+        rev = int(round(rev / 1_000_000) * 1_000_000)
+        mc = int(round(rev * mc_mult * rng_peer.uniform(0.7, 1.45) / 1_000_000) * 1_000_000)
+        emp = max(20, int(round(rev / (rev_per_emp * rng_peer.uniform(0.8, 1.25)) / 10) * 10))
+        assets = int(round(rev * asset_int * rng_peer.uniform(0.8, 1.3) / 1_000_000) * 1_000_000)
+        companies.append({"ticker": tk, "company_name": name, "gics_sector": sector,
+                          "gics_subindustry": subindustry, "revenue_usd": rev,
+                          "market_cap_usd": mc, "employees": emp, "total_assets_usd": assets,
+                          "is_subject": "no"})
+        n += 1
+    _write("peer_universe.csv", companies,
+           ["ticker", "company_name", "gics_sector", "gics_subindustry", "revenue_usd",
+            "market_cap_usd", "employees", "total_assets_usd", "is_subject"])
+
+    # ---- exec pay + TSR + self-peers: inputs for the illustrative ISS pay-for-performance screen ----
+    # Independent rng stream (zero churn to the tables above). Per company: a self-selected peer list
+    # (same-sector nearest-by-revenue, the way issuers actually pick peers, which yields natural
+    # reciprocity for size-clustered names), a 5-year CEO total-pay trajectory scaled to market cap, a
+    # 5-year indexed TSR path ($100 invested), and an EVA-style financial-performance score for the FPA.
+    # All synthetic; the ISS engine derives 1/3/5-yr aggregates + percentile ranks from these.
+    rng_iss = random.Random(SEED + 17)
+    same_sector = {}
+    for c in companies:
+        same_sector.setdefault(c["gics_sector"], []).append(c)
+    exec_rows = []
+    for c in companies:
+        is_subj = c.get("is_subject") == "yes"
+        pool = sorted((o for o in same_sector[c["gics_sector"]] if o["ticker"] != c["ticker"]),
+                      key=lambda o: (abs(o["revenue_usd"] - c["revenue_usd"]), o["ticker"]))
+        if is_subj:
+            # The subject is deliberately positioned for a borderline/Medium ISS story (a clean pass would
+            # not exercise the screen, an absurd fail isn't realistic): CEO pay ~2.2x the peer median with
+            # a steady ~30% ramp, a SOFT TSR (+7% over 5y), and below-median financials. Explicit +
+            # deterministic for control; clearly illustrative synthetic positioning.
+            self_peers = [o["ticker"] for o in pool[:12]]
+            med = c["market_cap_usd"] * 0.012        # ≈ peer-median annual CEO pay anchor
+            pays = [int(round(med * f / 1000) * 1000) for f in (1.68, 1.80, 1.94, 2.08, 2.20)]
+            tsr = [104.0, 109.0, 113.0, 110.0, 107.0]
+            fe = 16.0                                # strong financials ≈ high pay -> FPA neutral, no escalation
+        else:
+            self_peers = [o["ticker"] for o in pool[:rng_iss.randint(10, 14)]]
+            base = max(1_000_000, c["market_cap_usd"] * rng_iss.uniform(0.008, 0.016))   # CEO pay ~ size
+            p = base / (1.07 ** 4)                    # back out year-1 so ~7%/yr growth lands near base at y5
+            pays = []
+            for _ in range(5):
+                p *= 1.0 + rng_iss.uniform(-0.05, 0.18)
+                pays.append(int(round(p / 1000) * 1000))
+            val, tsr = 100.0, []                      # indexed TSR path: $100 invested, annual total return
+            for _ in range(5):
+                val = max(8.0, val * (1.0 + rng_iss.gauss(0.10, 0.28)))
+                tsr.append(round(val, 2))
+            fe = round(rng_iss.uniform(-8.0, 18.0), 2)
+        exec_rows.append({                           # `fe` (not `fin`) so it never shadows the financials list
+            "ticker": c["ticker"], "self_peers": ";".join(self_peers),
+            "pay_y1": pays[0], "pay_y2": pays[1], "pay_y3": pays[2], "pay_y4": pays[3], "pay_y5": pays[4],
+            "tsrval_y1": tsr[0], "tsrval_y2": tsr[1], "tsrval_y3": tsr[2], "tsrval_y4": tsr[3],
+            "tsrval_y5": tsr[4], "fin_eva": round(fe, 2)})
+    _write("exec_pay_tsr.csv", exec_rows,
+           ["ticker", "self_peers", "pay_y1", "pay_y2", "pay_y3", "pay_y4", "pay_y5",
+            "tsrval_y1", "tsrval_y2", "tsrval_y3", "tsrval_y4", "tsrval_y5", "fin_eva"])
+
     print(f"generated Acme dataset -> {OUT}")
     print(f"  workers.csv: {len(workers)} ({len(employees)} employees, {len(workers) - len(employees)} contractors)")
     print(f"  comp_bands.csv: {len(bands)} | benefits_enrollment.csv: {len(enroll)} | cases.csv: {len(cases)}")
     print(f"  financials.csv: {len(fin)} quarters ({fin[0]['period_end']} -> {fin[-1]['period_end']})")
+    print(f"  peer_universe.csv: {len(companies)} companies (1 subject + {len(companies)-1} synthetic peers)")
     print(f"  as_of: {AS_OF.isoformat()} | seed: {SEED}")
 
 
