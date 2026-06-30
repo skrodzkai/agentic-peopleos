@@ -129,8 +129,8 @@ finally:
     _P.FIT_WEIGHTS.update(_saved)
 
 # golden: pin the shipped fit-ranked order so a silent weight/score/tie-break change fails loudly
-GOLDEN_TOP = [("KEST", 88.2), ("CINS", 85.2), ("KESS", 85.0), ("NIMS", 83.6),
-              ("GRAP", 72.2), ("BASS", 72.0), ("SABL", 68.3), ("HARA", 65.6)]
+GOLDEN_TOP = [("CREL", 89.1), ("HARA", 85.7), ("KESS", 84.9), ("NIMS", 81.0),
+              ("SLAP", 78.6), ("CINS", 78.1), ("CINF", 76.0), ("TIDA", 74.4)]
 ok([(p["company"]["ticker"], p["fit"]) for p in r["peers"][:8]] == GOLDEN_TOP,
    "the shipped fit-ranked order matches the golden (a weight/score/tie-break change is now a deliberate update)")
 

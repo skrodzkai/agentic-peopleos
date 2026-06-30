@@ -23,9 +23,9 @@ jobs:
           python -m py_compile
           core/*.py core/tests/*.py tools/*.py
           foundation/data/generate.py
-          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py
+          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py foundation/compute/retention.py
           foundation/compute/tests/test_engine.py foundation/compute/tests/test_regression.py
-          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py
+          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py foundation/compute/tests/test_retention.py
           foundation/render/dashboard.py foundation/render/charts.py
           foundation/render/tests/test_dashboard.py foundation/render/tests/test_charts.py
           examples/headcount-reporting/run.py examples/headcount-reporting/evals/test_headcount.py
@@ -65,6 +65,14 @@ jobs:
           python foundation/compute/tests/test_peers.py
           python foundation/compute/tests/test_rtsr.py
           python foundation/compute/tests/test_iss_screen.py
+          python foundation/compute/tests/test_retention.py
+
+      - name: Retention panel + model manifest stay in sync (deterministic)
+        run: |
+          python foundation/compute/retention.py build-manifest
+          git diff --exit-code -- foundation/compute/manifests/retention_model_manifest.json \
+            || (echo "::error::retention model manifest is stale — run foundation/compute/retention.py build-manifest and commit" && exit 1)
+          python foundation/compute/retention.py validate
 
       - name: Public-safety ticker scan (synthetic artifacts)
         run: |

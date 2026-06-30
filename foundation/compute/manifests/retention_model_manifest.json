@@ -1,0 +1,87 @@
+{
+  "allowlist_features": [
+    "comp_ratio",
+    "mths_since_last_raise",
+    "last_raise_pct",
+    "mths_since_promo",
+    "promo_velocity_vs_peer",
+    "stuck_in_level_flag",
+    "perf_rating_delta_4q",
+    "high_perf_unrecognized",
+    "engagement_slope_3p",
+    "mgr_changed_12m",
+    "mgr_team_attrition_ttm",
+    "team_departures_90d",
+    "tenure_danger_18_24",
+    "unvested_equity_pct_comp",
+    "days_to_next_vest",
+    "post_vest_window_flag",
+    "equity_moneyness",
+    "comp_mix_equity_heavy"
+  ],
+  "audit_strata_column": "audit_group",
+  "challenger_calibration": {},
+  "decoy_features": [
+    "decoy_noise_a",
+    "decoy_noise_b",
+    "decoy_noise_c"
+  ],
+  "event_values": [
+    "none",
+    "voluntary",
+    "involuntary",
+    "retirement"
+  ],
+  "feature_version": "1.0.0",
+  "id_column": "emp_id",
+  "increment": 0,
+  "label_column": "event_next",
+  "missable_features": [
+    "engagement_slope_3p",
+    "perf_rating_delta_4q"
+  ],
+  "model_features": [
+    "comp_ratio",
+    "mths_since_last_raise",
+    "last_raise_pct",
+    "mths_since_promo",
+    "promo_velocity_vs_peer",
+    "stuck_in_level_flag",
+    "perf_rating_delta_4q",
+    "high_perf_unrecognized",
+    "engagement_slope_3p",
+    "mgr_changed_12m",
+    "mgr_team_attrition_ttm",
+    "team_departures_90d",
+    "tenure_danger_18_24",
+    "unvested_equity_pct_comp",
+    "days_to_next_vest",
+    "post_vest_window_flag",
+    "equity_moneyness",
+    "comp_mix_equity_heavy",
+    "decoy_noise_a",
+    "decoy_noise_b",
+    "decoy_noise_c"
+  ],
+  "model_version": "0.0.0-scaffold",
+  "panel_data_hash": "d077dd3bcbbe181cf3218100335c17aa3af3e6f115a6f9a16b29544390cd2480",
+  "panel_rows": 55883,
+  "primary_calibration": {},
+  "primary_coefficients": {},
+  "risk_band_thresholds": {},
+  "schema_version": "1.0.0",
+  "segment_dims": [
+    "function",
+    "level",
+    "region_band",
+    "manager_span_band",
+    "comp_position_band",
+    "tenure_band"
+  ],
+  "status": "scaffold",
+  "target_event": "voluntary",
+  "time_column": "month",
+  "training_window": {
+    "slices": null
+  }
+}

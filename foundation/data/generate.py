@@ -18,6 +18,7 @@ Tables (one row per entity):
 All dates are ISO YYYY-MM-DD. AS_OF anchors the synthetic "today" so cohorts/tenure are stable.
 """
 import csv
+import math
 import random
 import sys
 from datetime import date, datetime, time, timedelta
@@ -33,8 +34,10 @@ AS_OF = date(2026, 1, 31)              # synthetic "today"
 SEED = 30414                           # fixed: deterministic output
 LEVELS = ["L3", "L4", "L5", "L6", "L7"]
 FAMILIES = ["Engineering", "Product", "Sales", "GA", "Support", "Marketing"]
-LOCATIONS = [("US", 2080, 1.00), ("UK", 1950, 0.85), ("India", 2080, 0.32),
-             ("Germany", 1880, 0.92), ("Canada", 1950, 0.88)]
+LOCATIONS = [("US", 2080, 1.00), ("Canada", 1950, 0.88), ("UK", 1950, 0.90),
+             ("Ireland", 1950, 0.92), ("Germany", 1880, 0.95), ("France", 1820, 0.93),
+             ("Netherlands", 1880, 0.94), ("Poland", 2000, 0.55), ("India", 2080, 0.34),
+             ("Australia", 1976, 0.97), ("Singapore", 2080, 0.85), ("Brazil", 2080, 0.48)]
 RATINGS = ["below", "meets", "exceeds", "outstanding"]
 GENDERS = ["A", "B"]                   # synthetic groups (no real demographics)
 ETHNICITIES = ["grp1", "grp2", "grp3"]
@@ -44,6 +47,10 @@ CASE_CATEGORIES = ["payroll", "benefits", "leave", "policy", "access", "other"]
 
 def _d(d: date) -> str:
     return d.isoformat()
+
+
+def _sig(z: float) -> float:
+    return 1.0 / (1.0 + math.exp(-max(-60.0, min(60.0, z))))
 
 
 def _band(level, family, location):
@@ -73,14 +80,15 @@ def generate():
 
     # ---- workers: the HRIS backbone ----
     workers = []
-    N = 240
+    N = 2400
     # Build an org: a few L7 roots, then managers down the levels.
     for i in range(1, N + 1):
         eid = f"E-{i:04d}"
         # level skew: more juniors than seniors
         lvl = rng.choices(LEVELS, weights=[34, 30, 22, 10, 4])[0]
         fam = rng.choice(FAMILIES)
-        loc, ft_hours, _m = rng.choice(LOCATIONS)
+        # US-HQ global SaaS: US dominant, large India/Poland delivery, the rest spread across EMEA/APAC/Americas
+        loc, ft_hours, _m = rng.choices(LOCATIONS, weights=[34, 6, 8, 4, 6, 5, 4, 8, 12, 3, 4, 6])[0]
         bid = f"B-{lvl}-{fam[:3].upper()}-{loc[:2].upper()}"
         band = bands[bid]
         # tenure: hire 0-9 years ago
@@ -131,7 +139,7 @@ def generate():
         })
 
     # ---- contractors (counted separately; for contingent-workforce ratio) ----
-    for j in range(1, 41):
+    for j in range(1, 261):
         eid = f"C-{j:04d}"
         lvl = rng.choice(LEVELS); fam = rng.choice(FAMILIES)
         loc, ft_hours, _m = rng.choice(LOCATIONS)
@@ -216,7 +224,7 @@ def generate():
     # flags that could drift from the facts.
     cases = []
     as_of_dt = datetime.combine(AS_OF, time(18, 0))
-    for c in range(1, 521):
+    for c in range(1, 2601):                                # scaled to the ~2,400-employee company
         opened = as_of_dt - timedelta(days=rng.randint(0, 90), hours=rng.randint(0, 23))
         cat = rng.choice(CASE_CATEGORIES)
         sla_hours = {"payroll": 24, "benefits": 48, "leave": 48, "policy": 72,
@@ -260,7 +268,7 @@ def generate():
     quarters.reverse()                                    # oldest -> newest
     fin = []
     for i, q in enumerate(quarters):
-        rev = 9_000_000 * (1.035 ** i) * rng_fin.uniform(0.985, 1.015)
+        rev = 140_000_000 * (1.045 ** i) * rng_fin.uniform(0.985, 1.015)
         fin.append({"period_end": _d(q), "revenue_usd": int(round(rev / 1000) * 1000)})
     _write("financials.csv", fin, ["period_end", "revenue_usd"])
 
@@ -306,7 +314,7 @@ def generate():
     REAL_TICKERS = set(_PEER_REAL_TICKERS)
     companies = [{"ticker": "ACMQ", "company_name": "Acme Corp", "gics_sector": "Information Technology",
                   "gics_subindustry": "Application Software", "revenue_usd": ttm,
-                  "market_cap_usd": int(round(ttm * 8.4 / 1_000_000) * 1_000_000),
+                  "market_cap_usd": int(round(ttm * 7.5 / 1_000_000) * 1_000_000),
                   "employees": active_emp, "total_assets_usd": int(round(ttm * 1.6 / 1_000_000) * 1_000_000),
                   "is_subject": "yes"}]
     used_names, used_tk, n, guard = set(), {"ACMQ"} | REAL_TICKERS, 0, 0
@@ -333,8 +341,8 @@ def generate():
         used_names.add(name)
         used_tk.add(tk)
         # revenue: log-uniform $12M..$1.6B, beta-skewed toward small-cap so there's a real cluster near Acme
-        lo, hi = 12_000_000, 1_600_000_000
-        rev = lo * (hi / lo) ** (rng_peer.betavariate(2.0, 3.2))
+        lo, hi = 150_000_000, 5_000_000_000
+        rev = lo * (hi / lo) ** (rng_peer.betavariate(2.3, 2.5))
         rev = int(round(rev / 1_000_000) * 1_000_000)
         mc = int(round(rev * mc_mult * rng_peer.uniform(0.7, 1.45) / 1_000_000) * 1_000_000)
         emp = max(20, int(round(rev / (rev_per_emp * rng_peer.uniform(0.8, 1.25)) / 10) * 10))
@@ -363,19 +371,20 @@ def generate():
         is_subj = c.get("is_subject") == "yes"
         pool = sorted((o for o in same_sector[c["gics_sector"]] if o["ticker"] != c["ticker"]),
                       key=lambda o: (abs(o["revenue_usd"] - c["revenue_usd"]), o["ticker"]))
+        anchor = 9_000_000 * (c["market_cap_usd"] / 6_000_000_000.0) ** 0.40   # CEO pay ~ size, SUBLINEAR (no $90M tails)
         if is_subj:
             # The subject is deliberately positioned for a borderline/Medium ISS story (a clean pass would
             # not exercise the screen, an absurd fail isn't realistic): CEO pay ~2.2x the peer median with
             # a steady ~30% ramp, a SOFT TSR (+7% over 5y), and below-median financials. Explicit +
             # deterministic for control; clearly illustrative synthetic positioning.
             self_peers = [o["ticker"] for o in pool[:12]]
-            med = c["market_cap_usd"] * 0.012        # ≈ peer-median annual CEO pay anchor
+            med = anchor                             # ≈ peer-median annual CEO pay anchor
             pays = [int(round(med * f / 1000) * 1000) for f in (1.68, 1.80, 1.94, 2.08, 2.20)]
             tsr = [104.0, 109.0, 113.0, 110.0, 107.0]
             fe = 16.0                                # strong financials ≈ high pay -> FPA neutral, no escalation
         else:
             self_peers = [o["ticker"] for o in pool[:rng_iss.randint(10, 14)]]
-            base = max(1_000_000, c["market_cap_usd"] * rng_iss.uniform(0.008, 0.016))   # CEO pay ~ size
+            base = max(1_000_000, anchor * rng_iss.uniform(0.75, 1.35))                  # CEO pay ~ size
             p = base / (1.07 ** 4)                    # back out year-1 so ~7%/yr growth lands near base at y5
             pays = []
             for _ in range(5):
@@ -395,11 +404,191 @@ def generate():
            ["ticker", "self_peers", "pay_y1", "pay_y2", "pay_y3", "pay_y4", "pay_y5",
             "tsrval_y1", "tsrval_y2", "tsrval_y3", "tsrval_y4", "tsrval_y5", "fin_eva"])
 
+    # ---- retention panel: a monthly person-period panel for the retention-risk model ----
+    # Independent rng stream (SEED+23): appended, so every table above stays byte-identical. A 36-month
+    # point-in-time panel over an independent synthetic workforce (R-0001…), with PLANTED discrete-time
+    # hazard signal — so a real model can recover structure — AND deliberate realism (stochastic noise,
+    # decoy features, missingness, a weak-signal cohort) so held-out performance lands in a believable band
+    # rather than a cartoonish 0.99. Voluntary / involuntary / retirement are DISTINCT competing risks:
+    # only `voluntary` is the model target; the others are censored (never coded as a positive). One row per
+    # (employee × active month). Features are point-in-time as-of month-END m (all known then); `event_next`
+    # is the leakage-free one-step-ahead competing-risks label = the outcome in the FOLLOWING month (the exit
+    # month itself is not a row, so end-of-m features predicting an m+1 event carry no lookahead). No real people/PII.
+    rng_ret = random.Random(SEED + 23)
+    N_RET = 2400
+    H = 36                                                 # observation horizon, months
+
+    def _pme(d):                                           # previous month-end
+        return date(d.year, d.month, 1) - timedelta(days=1)
+
+    months = []
+    cur = AS_OF
+    for _ in range(H):
+        months.append(cur)
+        cur = _pme(cur)
+    months.reverse()                                       # oldest -> newest, length H
+    mi = {m: i for i, m in enumerate(months)}
+
+    def _absm(d):                                          # absolute month index (year*12+month)
+        return d.year * 12 + (d.month - 1)
+
+    base_abs = _absm(months[0])
+    SPAN_BACK = 120
+    # shared synthetic market-index path (mild up-drift + a deterministic mid-window drawdown so some RSU
+    # grants go underwater -> equity_moneyness has real spread). Anchored SPAN_BACK months before the window.
+    price = [100.0]
+    for k in range(1, SPAN_BACK + H + 6):
+        shock = -0.035 if 72 <= k <= 84 else 0.0
+        price.append(max(15.0, price[-1] * (1.0 + 0.006 + shock + rng_ret.gauss(0.0, 0.045))))
+
+    def _price_at(d):
+        return price[max(0, min(len(price) - 1, _absm(d) - (base_abs - SPAN_BACK)))]
+
+    def _zn(x, c, s):                                      # rough standardization for the planted predictor
+        return (x - c) / s
+
+    REGIONS = ["Americas", "EMEA", "APAC"]
+    RET_FUNCS = ["Engineering", "Product", "Sales", "Customer Success", "G&A", "Marketing"]
+    EQW = {"L3": 0.22, "L4": 0.30, "L5": 0.40, "L6": 0.52, "L7": 0.60}
+
+    panel = []
+    vol_events = inv_events = ret_events = 0
+    for i in range(1, N_RET + 1):
+        eid = f"R-{i:04d}"
+        func = rng_ret.choices(RET_FUNCS, weights=[30, 14, 20, 14, 12, 10])[0]
+        level = rng_ret.choices(LEVELS, weights=[34, 30, 22, 10, 4])[0]
+        region = rng_ret.choices(REGIONS, weights=[50, 34, 16])[0]
+        audit_group = rng_ret.choice(["A", "B", "C"])      # synthetic, fairness-audit-only; independent of hazard
+        span_band = rng_ret.choices(["IC", "1-3", "4-7", "8+"], weights=[64, 18, 12, 6])[0]
+        weak = func == "Customer Success"                  # weak-signal cohort (effects damped)
+        hire = AS_OF - timedelta(days=rng_ret.randint(31, 365 * 8))
+        comp_ratio = max(0.62, min(1.45, rng_ret.gauss(0.99, 0.12)))
+        eqw = EQW[level]
+        grant_price = _price_at(hire)
+        team_attr = min(0.45, max(0.02, rng_ret.gauss(0.14, 0.06)))
+        is_high_perf = rng_ret.random() < 0.20
+        is_low_perf = rng_ret.random() < 0.12
+        eng_level = rng_ret.gauss(0.0, 1.0)
+        eng_trend = rng_ret.gauss(-0.02, 0.06)
+        last_raise_pct = round(rng_ret.uniform(0.02, 0.06), 3)
+        mgr_change_m = (months[0] + timedelta(days=rng_ret.randint(-200, 760))) if rng_ret.random() < 0.35 else None
+        noise_a_base = rng_ret.randint(20, 60)
+        noise_b_static = round(rng_ret.uniform(0.1, 9.9), 2)   # harmless synthetic noise, no hazard effect
+        # stagnation COUNTERS seeded at window entry, then incremented monthly (reset on raise/promo). Seeding
+        # deep histories (up to ~5y in level / ~2.5y since raise) is what lets the stuck / tenure-danger /
+        # high-perf-unrecognized flags actually fire instead of being constant-zero columns.
+        msr = rng_ret.randint(0, 24)
+        msp = rng_ret.randint(0, 42)
+        mil = msp
+        eng_vals = []
+        for t, m in enumerate([mm for mm in months if mm >= hire]):
+            if t > 0:
+                msr += 1
+                msp += 1
+                mil += 1
+            # --- monthly raise/promo dynamics (reset the stagnation clocks) ---
+            if rng_ret.random() < 0.03:
+                msr = 0
+                last_raise_pct = round(rng_ret.uniform(0.01, 0.05), 3)
+                comp_ratio = min(1.45, comp_ratio + rng_ret.uniform(0.01, 0.05))
+            else:
+                comp_ratio = max(0.62, comp_ratio - 0.0015)               # slow erosion -> stagnation signal
+            if level != "L7" and mil >= 12 and rng_ret.random() < 0.012:
+                msp = 0
+                mil = 0
+            # --- point-in-time features as of month-END m (all known at end of m) ---
+            tenure_m = max(0, _absm(m) - _absm(hire))
+            e_t = eng_level + eng_trend * t + rng_ret.gauss(0.0, 0.30)
+            eng_vals.append(e_t)
+            eng_missing = rng_ret.random() < 0.12
+            slope = (eng_vals[-1] - eng_vals[-3]) / 2.0 if len(eng_vals) >= 3 else eng_trend
+            stuck = 1 if (mil >= 36 and msp >= 24) else 0
+            tdanger = 1 if (18 <= tenure_m <= 24 and msp >= 12 and msr >= 9) else 0
+            hpu = 1 if (is_high_perf and msp > 24) else 0
+            promo_vel = round((30 - msp) / 16.0 + rng_ret.gauss(0.0, 0.30), 3)
+            pdelta_missing = rng_ret.random() < 0.08
+            pdelta = round(rng_ret.gauss(0.0, 0.6), 2)
+            mgr_chg = 1 if (mgr_change_m is not None and abs(_absm(m) - _absm(mgr_change_m)) <= 12) else 0
+            mta = round(min(0.5, max(0.0, team_attr + rng_ret.gauss(0.0, 0.02))), 3)
+            tdep = max(0, min(6, int(round(rng_ret.gauss(team_attr * 6.0, 1.2)))))
+            msg = tenure_m                                                  # months since grant (grant at hire)
+            vested = 0.0 if msg < 12 else min(1.0, 0.25 + 0.75 * (msg - 12) / 36.0)
+            unvested_pct = round(eqw * max(0.10, 1.0 - vested), 4)          # floor: ongoing refreshers keep some unvested
+            rem = msg % 12                                                  # annual vest cadence: cliff at 12, then yearly
+            dtnv = (12 - msg if msg < 12 else (12 - rem if rem else 0)) * 30   # days to next vest, bounded [0, 360]
+            pvw = 1 if (msg >= 12 and rem in (0, 1)) else 0                 # the month of / month after an annual vest
+            underwater = round(max(0.0, min(1.0, 1.0 - _price_at(m) / grant_price)), 4)
+            eq_heavy = 1 if eqw >= 0.45 else 0
+            # --- planted monthly voluntary hazard. EVERY allowlist feature carries an intentional signed
+            # effect (so a model recovers real structure) and ONLY the 3 named decoys are inert. ---
+            es = 0.0 if eng_missing else slope
+            pd_ = 0.0 if pdelta_missing else pdelta
+            zfeat = (0.55 * _zn(msr, 12, 10) + 0.55 * _zn(msp, 24, 16) + 0.45 * stuck
+                     - 0.70 * _zn(comp_ratio, 0.99, 0.12) - 0.60 * _zn(es, 0.0, 0.5) - 0.40 * pd_
+                     + 0.50 * hpu + 0.55 * _zn(mta, 0.14, 0.06) + 0.30 * _zn(tdep, 1.2, 1.3)
+                     + 0.45 * tdanger - 0.65 * _zn(unvested_pct, 0.18, 0.14) + 0.55 * pvw
+                     + 0.60 * _zn(underwater, 0.10, 0.18)
+                     + 0.25 * mgr_chg - 0.25 * _zn(last_raise_pct, 0.035, 0.015)
+                     - 0.15 * _zn(promo_vel, 0.0, 1.0)
+                     + 0.15 * _zn(dtnv, 180, 110) + 0.12 * eq_heavy)
+            z = -6.65 + (0.4 if weak else 1.0) * zfeat + rng_ret.gauss(0.0, 0.85)
+            lam_vol = max(0.0, min(0.30, _sig(z)))
+            lam_inv = 0.0025 * (2.2 if is_low_perf else 1.0)
+            lam_ret = 0.0009 * (3.0 if tenure_m > 300 else 1.0)
+            u = rng_ret.random()
+            if u < lam_vol:
+                ev = "voluntary"
+            elif u < lam_vol + lam_inv:
+                ev = "involuntary"
+            elif u < lam_vol + lam_inv + lam_ret:
+                ev = "retirement"
+            else:
+                ev = "none"
+            tb = ("<1y" if tenure_m < 12 else "1-2y" if tenure_m < 24 else "2-3y" if tenure_m < 36
+                  else "3-5y" if tenure_m < 60 else "5y+")
+            cpb = "below" if comp_ratio < 0.9 else "within" if comp_ratio <= 1.1 else "above"
+            panel.append({
+                "emp_id": eid, "month": _d(m), "month_index": mi[m],
+                "function": func, "level": level, "region_band": region,
+                "manager_span_band": span_band, "comp_position_band": cpb, "tenure_band": tb,
+                "comp_ratio": round(comp_ratio, 4), "mths_since_last_raise": msr,
+                "last_raise_pct": last_raise_pct, "mths_since_promo": msp,
+                "promo_velocity_vs_peer": promo_vel, "stuck_in_level_flag": stuck,
+                "perf_rating_delta_4q": ("" if pdelta_missing else pdelta),
+                "high_perf_unrecognized": hpu,
+                "engagement_slope_3p": ("" if eng_missing else round(slope, 3)),
+                "mgr_changed_12m": mgr_chg, "mgr_team_attrition_ttm": mta,
+                "team_departures_90d": tdep,
+                "tenure_danger_18_24": tdanger, "unvested_equity_pct_comp": unvested_pct,
+                "days_to_next_vest": dtnv, "post_vest_window_flag": pvw,
+                "equity_moneyness": underwater, "comp_mix_equity_heavy": eq_heavy,
+                "decoy_noise_a": max(0, noise_a_base + rng_ret.randint(-8, 8)),
+                "decoy_noise_b": noise_b_static,
+                "decoy_noise_c": rng_ret.randint(0, 12),
+                "audit_group": audit_group, "event_next": ev,
+            })
+            if ev != "none":
+                vol_events += ev == "voluntary"
+                inv_events += ev == "involuntary"
+                ret_events += ev == "retirement"
+                break
+    _write("retention_panel.csv", panel,
+           ["emp_id", "month", "month_index", "function", "level", "region_band",
+            "manager_span_band", "comp_position_band", "tenure_band", "comp_ratio",
+            "mths_since_last_raise", "last_raise_pct", "mths_since_promo", "promo_velocity_vs_peer",
+            "stuck_in_level_flag", "perf_rating_delta_4q", "high_perf_unrecognized",
+            "engagement_slope_3p", "mgr_changed_12m", "mgr_team_attrition_ttm", "team_departures_90d",
+            "tenure_danger_18_24", "unvested_equity_pct_comp", "days_to_next_vest",
+            "post_vest_window_flag", "equity_moneyness", "comp_mix_equity_heavy", "decoy_noise_a",
+            "decoy_noise_b", "decoy_noise_c", "audit_group", "event_next"])
+
     print(f"generated Acme dataset -> {OUT}")
     print(f"  workers.csv: {len(workers)} ({len(employees)} employees, {len(workers) - len(employees)} contractors)")
     print(f"  comp_bands.csv: {len(bands)} | benefits_enrollment.csv: {len(enroll)} | cases.csv: {len(cases)}")
     print(f"  financials.csv: {len(fin)} quarters ({fin[0]['period_end']} -> {fin[-1]['period_end']})")
     print(f"  peer_universe.csv: {len(companies)} companies (1 subject + {len(companies)-1} synthetic peers)")
+    print(f"  retention_panel.csv: {len(panel)} person-months ({N_RET} employees; "
+          f"{vol_events} vol / {inv_events} invol / {ret_events} ret exits)")
     print(f"  as_of: {AS_OF.isoformat()} | seed: {SEED}")
 
 

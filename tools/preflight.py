@@ -24,6 +24,7 @@ REQUIRED_GLOBS = [
     "core/*.py", "core/tests/*.py", "tools/*.py",
     "foundation/data/generate.py", "foundation/data/acme/*.csv",
     "foundation/compute/*.py", "foundation/compute/tests/*.py",
+    "foundation/compute/manifests/*.json",
     "foundation/render/*.py", "foundation/render/tests/*.py",
     "examples/*/run.py", "examples/*/evals/*.py",
     # The example anatomy + committed artifacts the READMEs/CI reference must ship too — otherwise
@@ -73,6 +74,8 @@ def main():
     for must in ("core/event_log.py", "core/metrics.py", "tools/render_glossary.py",
                  "foundation/compute/engine.py", "foundation/compute/regression.py",
                  "foundation/compute/peers.py", "foundation/compute/rtsr.py",
+                 "foundation/compute/retention.py",
+                 "foundation/compute/manifests/retention_model_manifest.json",
                  "foundation/render/dashboard.py", "foundation/render/charts.py",
                  "vault/90-people-analytics/metrics/metrics.registry.json"):
         if must not in required:
