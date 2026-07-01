@@ -212,7 +212,7 @@ raises(R.PanelError, lambda: R.load_panel(_write(midmonth)), "mid-month dates re
 
 m = R.load_manifest()
 R.validate_manifest(m)
-ok(m["status"] == "trained" and m["increment"] == 2, "committed manifest is the trained Increment-2 model")
+ok(m["status"] == "trained" and m["increment"] == 3, "committed manifest is the trained model (Increment 3)")
 ok(m["panel_data_hash"] == R.panel_data_hash(), "manifest panel_data_hash matches the committed panel (sync gate)")
 ok(len(m["panel_data_hash"]) == 64, "panel_data_hash is a 64-char sha256 hex")
 ok(m["model_features"] == list(R.MODEL_FEATURES), "manifest model_features matches the contract")
@@ -406,6 +406,46 @@ import copy  # noqa: E402
 _mt = copy.deepcopy(m); _mt["primary_coefficients"]["intercept"] += 1.0
 raises(R.ManifestError, lambda: R.check_reproducible(_mt), "a tampered coefficient fails reproduction")
 
-print(f"OK — {CHECKS} retention Increment 0+1+2 checks passed "
-      f"(contract + feature builder + glass-box hazard; {len(rows)} person-months, {len(names)} design "
-      f"features, voluntary={ev['voluntary']}; model recovers planted signal, calibrated, reproducible).")
+# --------------------------------------------------------------- 9) evaluation + realism guard (Increment 3)
+
+E = R.evaluate(model, calib, design, slices)
+ok(0.65 < E["roc_auc"] < 0.90, f"out-of-time ROC-AUC is in a believable band ({E['roc_auc']:.3f})")
+ok(E["pr_auc"] > E["base_rate"], "PR-AUC beats the base rate (real lift under imbalance)")
+ok(E["brier"] < E["base_rate"] * (1 - E["base_rate"]), "Brier beats a constant base-rate predictor")
+ok(0.6 < E["horizon_concordance"] < 0.95, f"survival concordance is real but not perfect ({E['horizon_concordance']:.3f})")
+ok(E["precision_at_k"]["status"] == "ok" and E["precision_at_k"]["n_flagged"] >= 50, "precision@k has a sufficient denominator")
+ok(E["precision_at_k"]["precision"] > E["base_rate"], "top-decile precision beats the base rate")
+ok(E["validation"].startswith("synthetic-only"), "the evaluation is labeled synthetic-validation-only")
+
+# realism guard: passes on the honest model, trips on each tripwire
+ok(R.realism_guard(model, E) is True, "realism guard passes on the honest model")
+raises(R.ModelError, lambda: R.realism_guard(model, {**E, "roc_auc": 0.97}), "realism guard trips on ROC-AUC > 0.90")
+raises(R.ModelError, lambda: R.realism_guard(model, {**E, "precision_at_k": {"status": "ok", "precision": 1.0, "n_flagged": 100}}),
+       "realism guard trips on a perfect precision@k")
+_fake = {**model, "coef": {**model["coef"], R.DECOY_FEATURES[0]: 999.0}}
+raises(R.ModelError, lambda: R.realism_guard(_fake, E), "realism guard trips when a decoy is forced into the top-3")
+raises(R.ModelError, lambda: R.realism_guard(model, {**E, "pr_auc": 0.8}), "realism guard trips on an implausible PR-AUC")
+raises(R.ModelError, lambda: R.realism_guard(model, {"roc_auc": 0.8}), "realism guard rejects a metrics dict missing keys")
+# risk_tier fails closed on non-finite / reversed bands (module fail-closed-numerics contract)
+raises(R.ModelError, lambda: R.risk_tier(float("nan"), m["risk_band_thresholds"]), "risk_tier rejects a non-finite probability")
+raises(R.ModelError, lambda: R.risk_tier(0.5, {"elevated": 0.7, "high": 0.3}), "risk_tier rejects reversed bands")
+
+# precision@k denominator rule (a tiny population reports insufficient rather than a fluke)
+ok(R.precision_at_k([0.9, 0.1, 0.8], [1, 0, 1], [0, 0, 0], min_denom=50)["status"] == "insufficient_denominator",
+   "precision@k reports insufficient denominator for a tiny population")
+
+# horizon concordance covers BOTH comparable-pair types
+ok(R.horizon_concordance([0.9, 0.1], [3, None]) == 1.0, "higher risk correctly ranks the exiter over the event-free")
+ok(R.horizon_concordance([0.9, 0.1], [2, 4]) == 1.0, "higher risk correctly ranks the earlier of two in-window exits")
+ok(R.horizon_concordance([0.1, 0.9], [2, 4]) == 0.0, "discordant when the lower-risk person exits earlier")
+
+# risk bands are ordered in [0,1] and the tier mapping is monotone
+_b = m["risk_band_thresholds"]
+ok(0.0 <= _b["elevated"] <= _b["high"] <= 1.0, "risk bands are ordered within [0,1]")
+ok(R.risk_tier(_b["high"] + 0.01, _b) == "high" and R.risk_tier(0.0, _b) == "low"
+   and R.risk_tier((_b["elevated"] + _b["high"]) / 2, _b) == "elevated", "risk_tier maps probabilities to the correct tier")
+
+print(f"OK — {CHECKS} retention Increment 0+1+2+3 checks passed "
+      f"(contract + feature builder + glass-box hazard + eval/realism-guard; {len(rows)} person-months, "
+      f"{len(names)} design features, voluntary={ev['voluntary']}; test AUC={E['roc_auc']:.3f}, "
+      f"concordance={E['horizon_concordance']:.3f}, realism-guarded, reproducible).")

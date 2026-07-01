@@ -59,7 +59,7 @@
   ],
   "feature_version": "1.0.0",
   "id_column": "emp_id",
-  "increment": 2,
+  "increment": 3,
   "label_column": "event_next",
   "missable_features": [
     "engagement_slope_3p",
@@ -176,7 +176,10 @@
       "unvested_equity_pct_comp": 0.12457687
     }
   },
-  "risk_band_thresholds": {},
+  "risk_band_thresholds": {
+    "elevated": 0.02843628,
+    "high": 0.07299319
+  },
   "schema_version": "1.0.0",
   "segment_dims": [
     "function",

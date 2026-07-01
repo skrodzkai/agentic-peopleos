@@ -625,6 +625,178 @@ def train_model(panel_path=PANEL_PATH):
     return model, calibration, design, slices
 
 
+# --------------------------------------------------------------- evaluation + realism guard (Increment 3)
+
+REALISM_AUC_MAX = 0.90            # a synthetic model above this is implausibly perfect -> fail closed
+REALISM_PR_AUC_MAX = 0.60        # ditto for PR-AUC on this heavily-imbalanced target (honest ~0.10)
+PRECISION_K_FRAC = 0.10          # top-decile
+PRECISION_MIN_DENOM = 50         # need >=50 pooled flags or we report 'insufficient denominator'
+BAND_ELEVATED_PCTILE = 0.85
+BAND_HIGH_PCTILE = 0.97
+SYNTHETIC_VALIDATION = "synthetic-only — demonstrates mechanics, not external predictive validity"
+
+
+def pr_auc(scores, y):
+    """Average precision (area under the precision-recall curve) — the headline discrimination metric under
+    heavy class imbalance. Ties broken deterministically by index."""
+    if len(scores) != len(y):
+        raise ModelError("pr_auc: length mismatch")
+    _binary_labels(y)
+    P = sum(y)
+    if P == 0 or P == len(y):
+        raise ModelError("pr_auc needs both classes present")
+    order = sorted(range(len(scores)), key=lambda i: (-scores[i], i))
+    tp = 0
+    ap = 0.0
+    for rank, i in enumerate(order, start=1):
+        if y[i] == 1:
+            tp += 1
+            ap += tp / rank
+    return ap / P
+
+
+def precision_at_k(scores, y, groups, k_frac=PRECISION_K_FRAC, min_denom=PRECISION_MIN_DENOM):
+    """Top-decile precision, computed PER window (calendar month) then POOLED, so a tiny single window can't
+    trip or hide it. Returns {precision|None, n_flagged, status} — 'insufficient_denominator' if the pooled
+    flags never reach min_denom (Codex build-note: Acme's active pop can be small)."""
+    if not (len(scores) == len(y) == len(groups)):
+        raise ModelError("precision_at_k: length mismatch")
+    _binary_labels(y)
+    by_g = {}
+    for i in range(len(scores)):
+        by_g.setdefault(groups[i], []).append(i)
+    flagged = []
+    for g, idxs in by_g.items():
+        idxs.sort(key=lambda i: (-scores[i], i))
+        k = max(1, int(len(idxs) * k_frac))
+        flagged.extend(idxs[:k])
+    n = len(flagged)
+    if n < min_denom:
+        return {"precision": None, "n_flagged": n, "status": "insufficient_denominator"}
+    return {"precision": sum(y[i] for i in flagged) / n, "n_flagged": n, "status": "ok"}
+
+
+def _test_outcomes(model, calibration, design, slices):
+    """Per employee active in the TEST slice: a risk score (max calibrated monthly hazard over their test
+    rows) and their voluntary exit month within the window (or None = event-free / censored) — the inputs
+    to the survival concordance."""
+    by_emp = {}
+    for i in slices["test"]:
+        by_emp.setdefault(design["emp"][i], []).append(i)
+    risk, exit_month = [], []
+    for e, idxs in by_emp.items():
+        idxs.sort(key=lambda i: design["month_index"][i])
+        risk.append(max(calibrated_probability(model, calibration, design["X"][i]) for i in idxs))
+        ex = next((design["month_index"][i] for i in idxs if design["y"][i] == 1), None)
+        exit_month.append(ex)
+    return risk, exit_month
+
+
+def horizon_concordance(risk, exit_month):
+    """Survival C-index over comparable pairs: comparable when one voluntarily exits and the other is
+    event-free through the window, OR both exit in-window at different months. Concordant when the higher
+    risk score belongs to the earlier / actual exiter (ties in score score 0.5)."""
+    if len(risk) != len(exit_month):
+        raise ModelError("horizon_concordance: length mismatch")
+    n = len(risk)
+    conc = comp = 0.0
+    for i in range(n):
+        for j in range(i + 1, n):
+            ei, ej = exit_month[i], exit_month[j]
+            if ei is None and ej is None:
+                continue
+            if ei is not None and ej is not None:
+                if ei == ej:
+                    continue
+                earlier, later = (i, j) if ei < ej else (j, i)
+            else:
+                earlier, later = (i, j) if ei is not None else (j, i)
+            comp += 1
+            if risk[earlier] > risk[later]:
+                conc += 1.0
+            elif risk[earlier] == risk[later]:
+                conc += 0.5
+    if comp == 0:
+        raise ModelError("no comparable pairs for concordance")
+    return conc / comp
+
+
+def evaluate(model=None, calibration=None, design=None, slices=None, panel_path=PANEL_PATH):
+    """Out-of-time TEST-slice evaluation. Every number here is SYNTHETIC-VALIDATION only (mechanics, not
+    external accuracy). Discrimination metrics use the raw logit (rank-equivalent); Brier uses calibrated
+    probabilities."""
+    if model is None:
+        model, calibration, design, slices = train_model(panel_path)
+    test = slices["test"]
+    if not test:
+        raise ModelError("empty test slice")
+    scores = [_logit(model, design["X"][i]) for i in test]
+    cprob = [calibrated_probability(model, calibration, design["X"][i]) for i in test]
+    ytest = [design["y"][i] for i in test]
+    groups = [design["month_index"][i] for i in test]
+    risk, exit_month = _test_outcomes(model, calibration, design, slices)
+    return {
+        "roc_auc": rank_auc(scores, ytest),
+        "pr_auc": pr_auc(scores, ytest),
+        "precision_at_k": precision_at_k(scores, ytest, groups),
+        "brier": brier_score(cprob, ytest),
+        "horizon_concordance": horizon_concordance(risk, exit_month),
+        "base_rate": sum(ytest) / len(ytest),
+        "n_test_rows": len(test),
+        "n_test_employees": len(risk),
+        "validation": SYNTHETIC_VALIDATION,
+    }
+
+
+def realism_guard(model, metrics):
+    """Fail closed if the synthetic model looks implausibly perfect (a tell for leakage or an overfit demo):
+    ROC-AUC > 0.90, PR-AUC > 0.60, a perfect top-decile precision@k, or any decoy in the top-3 features by
+    |coefficient|. This is a plausibility CEILING that complements — it does not replace — the temporal-slice
+    design + leakage tests that prevent leakage in the first place; a model in the honest ~0.84-0.90 band is
+    plausible, so the guard is a tripwire against cartoonish performance, not a fine-grained leakage detector."""
+    for k in ("roc_auc", "pr_auc", "precision_at_k"):
+        if k not in metrics:
+            raise ModelError(f"realism_guard: metrics missing {k!r}")
+    v = []
+    if metrics["roc_auc"] > REALISM_AUC_MAX:
+        v.append(f"ROC-AUC {metrics['roc_auc']:.3f} > {REALISM_AUC_MAX}")
+    if metrics["pr_auc"] > REALISM_PR_AUC_MAX:
+        v.append(f"PR-AUC {metrics['pr_auc']:.3f} > {REALISM_PR_AUC_MAX}")
+    pk = metrics["precision_at_k"]
+    if pk["status"] == "ok" and pk["precision"] == 1.0:
+        v.append("precision@k is a perfect 1.0")
+    dec = set(DECOY_FEATURES) & {k for k, _ in sorted(model["coef"].items(), key=lambda kv: -abs(kv[1]))[:3]}
+    if dec:
+        v.append(f"decoy(s) in the top-3 by |coef|: {sorted(dec)}")
+    if v:
+        raise ModelError("realism guard tripped: " + "; ".join(v))
+    return True
+
+
+def _percentile(sorted_vals, q):
+    if not sorted_vals:
+        raise ModelError("percentile of an empty sequence")
+    return sorted_vals[min(len(sorted_vals) - 1, max(0, int(round(q * (len(sorted_vals) - 1)))))]
+
+
+def risk_bands(probs):
+    """Calibrated-probability cutoffs for the low / elevated / high tiers (elevated = 85th pctile, high =
+    97th). Computed on the CALIBRATION slice so no test-slice information leaks into the committed thresholds."""
+    s = sorted(probs)
+    return {"elevated": round(_percentile(s, BAND_ELEVATED_PCTILE), COEF_DP),
+            "high": round(_percentile(s, BAND_HIGH_PCTILE), COEF_DP)}
+
+
+def risk_tier(prob, bands):
+    """Map a calibrated probability to a support tier (never an adverse-action label). Fails closed on a
+    non-finite probability or reversed bands, honoring the module's fail-closed-numerics contract."""
+    if not math.isfinite(prob):
+        raise ModelError(f"risk_tier: non-finite probability {prob!r}")
+    if not (bands["elevated"] <= bands["high"]):
+        raise ModelError("risk_tier: bands not ordered (elevated <= high)")
+    return "high" if prob >= bands["high"] else "elevated" if prob >= bands["elevated"] else "low"
+
+
 # --------------------------------------------------------------------------- model manifest (scaffold)
 
 _MANIFEST_KEYS = {
@@ -645,6 +817,8 @@ def build_manifest(path: Path = MANIFEST_PATH, panel_path: Path = PANEL_PATH) ->
     fitted floats are cross-platform-noisy, CI does NOT byte-diff this file — it re-fits and checks
     reproducibility within a tolerance (see check_reproducible). Same-platform it is exactly deterministic."""
     model, calibration, design, slices = train_model(panel_path)
+    realism_guard(model, evaluate(model, calibration, design, slices))   # fail closed — never ship an implausibly-perfect model
+    bands = risk_bands([calibrated_probability(model, calibration, design["X"][i]) for i in slices["calibration"]])
 
     def rnd(v):
         return round(float(v), COEF_DP)
@@ -655,7 +829,7 @@ def build_manifest(path: Path = MANIFEST_PATH, panel_path: Path = PANEL_PATH) ->
         "feature_version": FEATURE_VERSION,
         "model_version": MODEL_VERSION,
         "status": "trained",
-        "increment": 2,
+        "increment": 3,
         "target_event": TARGET_EVENT,
         "label_column": LABEL_COL,
         "event_values": list(EVENT_VALUES),
@@ -678,7 +852,7 @@ def build_manifest(path: Path = MANIFEST_PATH, panel_path: Path = PANEL_PATH) ->
         },
         "primary_calibration": {"method": "platt", "a": rnd(calibration["a"]), "b": rnd(calibration["b"])},
         "challenger_calibration": {},    # filled at Increment 5
-        "risk_band_thresholds": {},      # filled at Increment 3 (on calibrated probability, on the test slice)
+        "risk_band_thresholds": bands,   # low/elevated/high cutoffs on calibrated probability (calibration slice)
         "training_window": {
             "train_max_month_index": SLICE_T1,
             "calibration_max_month_index": SLICE_T2,
@@ -743,6 +917,10 @@ def check_reproducible(manifest: dict = None, panel_path: Path = PANEL_PATH, tol
     for k, v in expect.items():
         if tw.get(k) != v:
             raise ManifestError(f"manifest training_window[{k!r}] drifted (expected {v!r}, got {tw.get(k)!r})")
+    # risk-band thresholds (Increment 3) — recomputed on the calibration slice, must reproduce
+    rb = m.get("risk_band_thresholds", {})
+    for k, v in risk_bands([calibrated_probability(model, calibration, _design["X"][i]) for i in slices["calibration"]]).items():
+        _close(rb, k, v)
     return True
 
 
@@ -790,6 +968,11 @@ def _validate_trained_shape(m: dict) -> None:
                                              and all(isinstance(h, int) and not isinstance(h, bool) and h > 0
                                                      for h in tw["horizons_months"])):
         raise ManifestError("training_window.l2 / horizons_months are malformed")
+    rb = m.get("risk_band_thresholds")
+    if not isinstance(rb, dict) or not _finite_num(rb.get("elevated")) or not _finite_num(rb.get("high")):
+        raise ManifestError("risk_band_thresholds must be {elevated:<finite>, high:<finite>}")
+    if not (0.0 <= rb["elevated"] <= rb["high"] <= 1.0):
+        raise ManifestError("risk_band_thresholds must satisfy 0 <= elevated <= high <= 1")
 
 
 def validate_manifest(m: dict) -> None:
