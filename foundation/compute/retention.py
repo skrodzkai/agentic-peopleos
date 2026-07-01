@@ -278,13 +278,54 @@ def panel_data_hash(path: Path = PANEL_PATH) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+# --------------------------------------------------------------- feature builder (Increment 1)
+
+MISSING_SUFFIX = "__missing"
+# The model's design columns: every model feature, then an explicit missing-indicator for each MISSABLE
+# feature (so the model can learn from missingness instead of a 0.0 impute masquerading as a real value).
+DESIGN_FEATURES = list(MODEL_FEATURES) + [f"{c}{MISSING_SUFFIX}" for c in sorted(MISSABLE)]
+
+
+def build_design(rows):
+    """Increment 1: assemble the point-in-time design matrix for the discrete-time VOLUNTARY-exit hazard.
+
+    Pure, **row-local**, deterministic — each design vector is a function ONLY of its own panel row (no
+    cross-row and no future information), so the construction itself cannot introduce lookahead leakage.
+    Missing values in the two MISSABLE features are deterministically imputed to 0.0 and flagged with an
+    explicit `<feat>__missing` indicator. Competing risks are handled by construction: an involuntary /
+    retirement terminal row is a y=0 row in the risk set (the person was at risk that month and did NOT
+    voluntarily exit) which then simply has no further rows — i.e. censored for the voluntary cause,
+    never coded as a positive.
+
+    Returns a dict: feature_names, X (list[list[float]]), y (1 iff the following-month outcome is a
+    voluntary exit), emp, month_index, month — the last three for grouped/temporal splits in Increment 3.
+    """
+    miss = sorted(MISSABLE)
+    names = list(MODEL_FEATURES) + [f"{c}{MISSING_SUFFIX}" for c in miss]
+    X, y, emp, midx, month = [], [], [], [], []
+    for r in rows:
+        ev = r.get(LABEL_COL)
+        if ev not in EVENT_VALUES:                        # fail closed — never silently coerce a bad label to y=0
+            raise PanelError(f"build_design got an invalid {LABEL_COL}: {ev!r}")
+        f = r["features"]
+        vec = [0.0 if f[c] is None else float(f[c]) for c in MODEL_FEATURES]
+        vec += [1.0 if f[c] is None else 0.0 for c in miss]
+        X.append(vec)
+        y.append(1 if ev == TARGET_EVENT else 0)
+        emp.append(r[ID_COL])
+        midx.append(r[INDEX_COL])
+        month.append(r[TIME_COL])
+    return {"feature_names": names, "X": X, "y": y, "emp": emp, "month_index": midx, "month": month}
+
+
 # --------------------------------------------------------------------------- model manifest (scaffold)
 
 _MANIFEST_KEYS = {
     "schema_version", "feature_version", "model_version", "status", "increment",
     "target_event", "label_column", "event_values", "audit_strata_column",
     "id_column", "time_column", "segment_dims", "model_features", "allowlist_features",
-    "decoy_features", "missable_features", "primary_coefficients", "primary_calibration",
+    "decoy_features", "missable_features", "design_features", "missing_indicator_suffix",
+    "primary_coefficients", "primary_calibration",
     "challenger_calibration", "risk_band_thresholds", "training_window",
     "panel_rows", "panel_data_hash",
 }
@@ -312,6 +353,8 @@ def build_manifest(path: Path = MANIFEST_PATH, panel_path: Path = PANEL_PATH) ->
         "allowlist_features": list(ALLOWLIST_FEATURES),
         "decoy_features": list(DECOY_FEATURES),
         "missable_features": sorted(MISSABLE),
+        "design_features": list(DESIGN_FEATURES),          # the exact model-ready column ORDER (Increment 1)
+        "missing_indicator_suffix": MISSING_SUFFIX,
         "primary_coefficients": {},      # filled at Increment 2 (glass-box hazard)
         "primary_calibration": {},       # filled at Increment 2/3 (Platt on the calibration slice)
         "challenger_calibration": {},    # filled at Increment 5
@@ -356,7 +399,8 @@ def validate_manifest(m: dict) -> None:
         "id_column": ID_COL, "time_column": TIME_COL, "event_values": list(EVENT_VALUES),
         "segment_dims": list(SEGMENT_COLS), "model_features": list(MODEL_FEATURES),
         "allowlist_features": list(ALLOWLIST_FEATURES), "decoy_features": list(DECOY_FEATURES),
-        "missable_features": sorted(MISSABLE),
+        "missable_features": sorted(MISSABLE), "design_features": list(DESIGN_FEATURES),
+        "missing_indicator_suffix": MISSING_SUFFIX,
     }
     for k, want in pinned.items():
         if m.get(k) != want:

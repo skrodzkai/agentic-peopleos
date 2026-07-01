@@ -263,5 +263,62 @@ raises(R.ManifestError, lambda: R.validate_manifest({**m, "status": "trained"}),
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "primary_coefficients": {"comp_ratio": 1.0}}),
        "scaffold carrying model results rejected")
 
-print(f"OK — {CHECKS} retention Increment-0 contract checks passed "
-      f"({len(rows)} person-months, target voluntary={ev['voluntary']}).")
+# --------------------------------------------------------------- 7) feature builder (Increment 1)
+
+D = R.build_design(rows)
+names, X, Y = D["feature_names"], D["X"], D["y"]
+ok(names == R.DESIGN_FEATURES, "design columns = model features + a missing-indicator per missable feature")
+ok(len(X) == len(rows) and len(Y) == len(rows), "one design row per panel row")
+ok(all(len(v) == len(names) for v in X), "every design vector aligns to the feature list")
+ok(set(Y) <= {0, 1}, "labels are binary")
+
+# competing risks: ONLY voluntary exits are positives; involuntary/retirement are censored (y=0)
+ok(sum(Y) == ev["voluntary"], "positives == voluntary exits (involuntary/retirement never positive)")
+irow = next(r for r in rows if r[R.LABEL_COL] == "involuntary")
+ok(R.build_design([irow])["y"][0] == 0, "an involuntary exit is never coded as a positive")
+# build_design fails closed on an invalid label instead of silently coercing it to y=0
+bad = dict(irow); bad[R.LABEL_COL] = "quit"
+raises(R.PanelError, lambda: R.build_design([bad]), "build_design rejects an unknown event label")
+
+# the design feature order is pinned in the manifest + validated (future coefficients depend on it)
+ok(m["design_features"] == list(R.DESIGN_FEATURES), "manifest pins the exact design feature order")
+ok(m["missing_indicator_suffix"] == R.MISSING_SUFFIX, "manifest pins the missing-indicator suffix")
+raises(R.ManifestError, lambda: R.validate_manifest({**m, "design_features": m["design_features"][:-1]}),
+       "manifest design_features drift rejected")
+raises(R.ManifestError, lambda: R.validate_manifest({**m, "missing_indicator_suffix": "_x"}),
+       "manifest missing_indicator_suffix drift rejected")
+
+# row-locality: a design vector is a pure function of its own panel row (no cross-row / future leakage)
+ok(R.build_design([rows[5]])["X"][0] == X[5], "the design is row-local — no cross-row leakage")
+ok(R.build_design(rows)["X"] == X, "build_design is deterministic")
+
+# missing handling: missing -> 0.0 impute + explicit indicator 1; present -> indicator 0
+jval = names.index("engagement_slope_3p")
+jmis = names.index("engagement_slope_3p" + R.MISSING_SUFFIX)
+mrow = next(r for r in rows if r["features"]["engagement_slope_3p"] is None)
+dm = R.build_design([mrow])["X"][0]
+ok(dm[jval] == 0.0 and dm[jmis] == 1.0, "a missing feature is imputed 0.0 and flagged by its indicator")
+prow = next(r for r in rows if r["features"]["engagement_slope_3p"] is not None)
+ok(R.build_design([prow])["X"][0][jmis] == 0.0, "a present feature leaves its missing-indicator at 0")
+
+
+def _qdelta(feat):
+    """Top-quartile minus bottom-quartile voluntary rate when rows are sorted by `feat` — a univariate
+    read of how much that feature separates exits."""
+    j = names.index(feat)
+    pairs = sorted(zip((v[j] for v in X), Y))
+    k = len(pairs) // 4
+    return sum(v for _, v in pairs[-k:]) / k - sum(v for _, v in pairs[:k]) / k
+
+
+# planted signal is present and recoverable; the named decoys carry less signal than the real drivers
+ok(_qdelta("mths_since_promo") > 0, "planted: more months-since-promo -> more voluntary exits")
+ok(_qdelta("comp_ratio") < 0, "planted: lower comp_ratio -> more voluntary exits")
+ok(_qdelta("unvested_equity_pct_comp") < 0, "planted: lower unvested equity (handcuffs off) -> more exits")
+_real = min(abs(_qdelta("mths_since_promo")), abs(_qdelta("comp_ratio")))
+for _d in R.DECOY_FEATURES:
+    ok(abs(_qdelta(_d)) < _real, f"decoy {_d} separates exits less than the real drivers")
+
+print(f"OK — {CHECKS} retention Increment 0+1 checks passed "
+      f"(contract + feature builder; {len(rows)} person-months, {len(names)} design features, "
+      f"voluntary={ev['voluntary']}).")

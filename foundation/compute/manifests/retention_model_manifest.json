@@ -26,6 +26,31 @@
     "decoy_noise_b",
     "decoy_noise_c"
   ],
+  "design_features": [
+    "comp_ratio",
+    "mths_since_last_raise",
+    "last_raise_pct",
+    "mths_since_promo",
+    "promo_velocity_vs_peer",
+    "stuck_in_level_flag",
+    "perf_rating_delta_4q",
+    "high_perf_unrecognized",
+    "engagement_slope_3p",
+    "mgr_changed_12m",
+    "mgr_team_attrition_ttm",
+    "team_departures_90d",
+    "tenure_danger_18_24",
+    "unvested_equity_pct_comp",
+    "days_to_next_vest",
+    "post_vest_window_flag",
+    "equity_moneyness",
+    "comp_mix_equity_heavy",
+    "decoy_noise_a",
+    "decoy_noise_b",
+    "decoy_noise_c",
+    "engagement_slope_3p__missing",
+    "perf_rating_delta_4q__missing"
+  ],
   "event_values": [
     "none",
     "voluntary",
@@ -40,6 +65,7 @@
     "engagement_slope_3p",
     "perf_rating_delta_4q"
   ],
+  "missing_indicator_suffix": "__missing",
   "model_features": [
     "comp_ratio",
     "mths_since_last_raise",
