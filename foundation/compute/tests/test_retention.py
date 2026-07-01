@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Increment-0 contract tests for `retention-risk` — data contract + hashing only (no model math).
+"""Tests for `retention-risk` shared compute (Increments 0-2).
 
-Covers: panel load + fail-closed validation, the canonical feature-snapshot hash (stability,
-decimal quantization, None handling, order-independence, rejection rules), quarantined/protected
-column exclusion, competing-risks label correctness (voluntary-only target; involuntary/retirement
-censored; one terminal event per employee), and the model-manifest schema + sync gate.
+Covers: (0) panel load + fail-closed validation, the canonical feature-snapshot hash, quarantined/
+protected exclusion, competing-risks label + panel-level temporal invariants, and the manifest schema;
+(1) the row-local feature builder — leakage/row-locality, missing-indicators, planted-signal presence;
+(2) the glass-box IRLS hazard model — out-of-time slices, planted-coefficient recovery, decoy top-3,
+survival/horizon/median math, exact additive explanations, Platt calibration (Brier improvement), the
+tolerance reproducibility gate, and fail-closed numerics.
 """
+import copy
 import csv
 import sys
 import tempfile
@@ -209,7 +212,7 @@ raises(R.PanelError, lambda: R.load_panel(_write(midmonth)), "mid-month dates re
 
 m = R.load_manifest()
 R.validate_manifest(m)
-ok(m["status"] == "scaffold", "committed manifest is the Increment-0 scaffold")
+ok(m["status"] == "trained" and m["increment"] == 2, "committed manifest is the trained Increment-2 model")
 ok(m["panel_data_hash"] == R.panel_data_hash(), "manifest panel_data_hash matches the committed panel (sync gate)")
 ok(len(m["panel_data_hash"]) == 64, "panel_data_hash is a 64-char sha256 hex")
 ok(m["model_features"] == list(R.MODEL_FEATURES), "manifest model_features matches the contract")
@@ -258,10 +261,9 @@ for fld, bad in [("allowlist_features", m["allowlist_features"][:-1]), ("decoy_f
     raises(R.ManifestError, lambda f=fld, b=bad: R.validate_manifest({**m, f: b}), f"manifest {fld} drift rejected")
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "panel_rows": 0}), "non-positive panel_rows rejected")
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "increment": True}), "bool increment rejected")
-# scaffold/trained cross-field consistency (a scaffold can't be mislabeled trained, or carry results)
-raises(R.ManifestError, lambda: R.validate_manifest({**m, "status": "trained"}), "scaffold mislabeled trained rejected")
-raises(R.ManifestError, lambda: R.validate_manifest({**m, "primary_coefficients": {"comp_ratio": 1.0}}),
-       "scaffold carrying model results rejected")
+# scaffold/trained cross-field consistency (the committed manifest is TRAINED at Increment 2)
+raises(R.ManifestError, lambda: R.validate_manifest({**m, "status": "scaffold"}), "trained manifest mislabeled scaffold rejected")
+raises(R.ManifestError, lambda: R.validate_manifest({**m, "primary_coefficients": {}}), "trained manifest with empty results rejected")
 
 # --------------------------------------------------------------- 7) feature builder (Increment 1)
 
@@ -319,6 +321,91 @@ _real = min(abs(_qdelta("mths_since_promo")), abs(_qdelta("comp_ratio")))
 for _d in R.DECOY_FEATURES:
     ok(abs(_qdelta(_d)) < _real, f"decoy {_d} separates exits less than the real drivers")
 
-print(f"OK — {CHECKS} retention Increment 0+1 checks passed "
-      f"(contract + feature builder; {len(rows)} person-months, {len(names)} design features, "
-      f"voluntary={ev['voluntary']}).")
+# --------------------------------------------------------------- 8) glass-box hazard model (Increment 2)
+
+import statistics  # noqa: E402
+model, calib, design, slices = R.train_model()
+
+# out-of-time temporal slices are disjoint and correctly ordered
+ok(not (set(slices["train"]) & set(slices["test"])), "train and test slices are disjoint")
+ok(all(design["month_index"][i] <= R.SLICE_T1 for i in slices["train"]), "train slice is the earliest months")
+ok(all(design["month_index"][i] > R.SLICE_T2 for i in slices["test"]), "test slice is out-of-time (latest months)")
+
+# the fit RECOVERS the planted signal — correct coefficient signs; decoys stay below the real drivers
+signs = {"mths_since_promo": 1, "comp_ratio": -1, "unvested_equity_pct_comp": -1,
+         "mgr_team_attrition_ttm": 1, "engagement_slope_3p": -1, "post_vest_window_flag": 1,
+         "stuck_in_level_flag": 1, "mgr_changed_12m": 1}
+for f, s in signs.items():
+    ok((model["coef"][f] > 0) == (s > 0), f"recovered planted coefficient sign for {f}")
+# no decoy ranks in the TOP-3 features by |coefficient| — the exact property the Increment-3 realism guard
+# enforces (a weak-but-real allowlist feature can sit below a decoy under collinearity, so top-3 is the honest bar)
+_top3 = {k for k, _ in sorted(model["coef"].items(), key=lambda kv: -abs(kv[1]))[:3]}
+ok(not (set(R.DECOY_FEATURES) & _top3), "no decoy is in the top-3 features by |coefficient|")
+
+# survival math (hand-checked)
+sc = R.survival_curve([0.1, 0.2])
+ok(abs(sc[0] - 0.9) < 1e-12 and abs(sc[1] - 0.72) < 1e-12, "S(t) = prod(1 - lambda)")
+ok(abs(R.horizon_probability([0.1] * 6, 6) - (1 - 0.9 ** 6)) < 1e-12, "horizon probability = 1 - prod(1 - lambda)")
+ok(R.median_months_to_exit([0.05] * 11) is None, "median = 'not reached' when survival stays >= 0.5")
+ok(R.median_months_to_exit([0.2] * 12) == 4, "median = first month survival drops below 0.5 (0.8^4=0.41)")
+
+# explanations are EXACT: additive contributions + intercept reconstruct the model logit
+xr = design["X"][slices["test"][0]]
+contribs = R.explain(model, xr, top=len(model["feature_names"]))
+ok(abs(model["intercept"] + sum(c for _, c in contribs) - R._logit(model, xr)) < 1e-9,
+   "additive explanations + intercept sum to the exact logit")
+
+# Platt calibration: valid probabilities, and it centers the mean near the base rate on the calibration slice
+ci = slices["calibration"]
+base = sum(design["y"][i] for i in ci) / len(ci)
+mean_cal = statistics.mean(R.calibrated_probability(model, calib, design["X"][i]) for i in ci)
+ok(0.0 <= R.calibrated_probability(model, calib, xr) <= 1.0, "calibrated output is a valid probability")
+ok(abs(mean_cal - base) < 0.01, "calibrated mean ≈ base rate on the calibration slice (well-calibrated in aggregate)")
+# calibration genuinely IMPROVES over the raw (pos_weight-inflated) scores, and discrimination is real-but-not-perfect
+_raw = [R._sigmoid(R._logit(model, design["X"][i])) for i in ci]
+_cal = [R.calibrated_probability(model, calib, design["X"][i]) for i in ci]
+_yci = [design["y"][i] for i in ci]
+ok(R.brier_score(_cal, _yci) < R.brier_score(_raw, _yci), "Platt calibration improves the Brier score over the raw model")
+_tst = slices["test"]
+_auc = R.rank_auc([R._logit(model, design["X"][i]) for i in _tst], [design["y"][i] for i in _tst])
+ok(0.65 < _auc < 0.90, f"out-of-time discrimination is real but not too-perfect (test AUC={_auc:.3f})")
+
+# fail-closed numerics (self-review): degenerate inputs raise ModelError, never a raw ZeroDivision/NaN/overflow
+raises(R.ModelError, lambda: R._standardizer([[1.0, 2.0]], []), "standardizer with no rows fails closed")
+raises(R.ModelError, lambda: R._sigmoid(float("nan")), "a non-finite logit fails closed")
+raises(R.ModelError, lambda: R._solve([[0.0, 0.0], [0.0, 0.0]], [1.0, 1.0]), "a singular system fails closed")
+
+# eval helpers fail closed on invalid inputs (lengths, labels, ranges) — Codex Inc-2 HIGH
+raises(R.ModelError, lambda: R.rank_auc([0.1], [0, 1, 1]), "rank_auc length mismatch rejected")
+raises(R.ModelError, lambda: R.rank_auc([0.1, 0.2], [0, 2]), "rank_auc non-binary label rejected")
+raises(R.ModelError, lambda: R.brier_score([1.2, 0.1], [1, 0]), "brier probability out of [0,1] rejected")
+raises(R.ModelError, lambda: R.survival_curve([0.1, 1.5]), "survival hazard out of [0,1] rejected")
+raises(R.ModelError, lambda: R.horizon_probability([0.1], -1), "negative horizon rejected")
+raises(R.ModelError, lambda: R._logit(model, [0.0] * (len(model["feature_names"]) - 1)),
+       "a short scoring row fails closed (not a raw IndexError)")
+raises(R.ModelError, lambda: R.platt_calibrate(model, {**design, "y": [0] * len(design["y"])}, slices["calibration"]),
+       "a single-class calibration slice is rejected")
+
+# the FULL trained artifact is protected (Codex Inc-2 HIGH): a corrupted standardizer / window fails the gate
+_ms = copy.deepcopy(m); _ms["primary_coefficients"]["standardizer_mean"][R.DESIGN_FEATURES[0]] = 999999.0
+raises(R.ManifestError, lambda: R.check_reproducible(_ms), "a corrupted standardizer fails the reproducibility gate")
+_mw = copy.deepcopy(m); _mw["training_window"]["n_train"] += 1
+raises(R.ManifestError, lambda: R.check_reproducible(_mw), "a corrupted training-window count fails the gate")
+# strict nested schema — malformed trained fields fail as ManifestError, not a raw KeyError
+_mb = copy.deepcopy(m); _mb["primary_coefficients"]["standardizer_std"][R.DESIGN_FEATURES[0]] = -1.0
+raises(R.ManifestError, lambda: R.validate_manifest(_mb), "a non-positive standardizer_std is rejected")
+_mb2 = copy.deepcopy(m); _mb2["primary_calibration"] = {"method": "platt", "a": "x", "b": 0.0}
+raises(R.ManifestError, lambda: R.validate_manifest(_mb2), "a non-numeric calibration param is rejected")
+_mb3 = copy.deepcopy(m); del _mb3["primary_coefficients"]["standardizer_mean"][R.DESIGN_FEATURES[0]]
+raises(R.ManifestError, lambda: R.validate_manifest(_mb3), "a standardizer missing a design feature is rejected")
+
+# the committed manifest reproduces the trained model within tolerance; a tampered coefficient fails
+ok(set(m["primary_coefficients"]["features"]) == set(R.DESIGN_FEATURES), "manifest pins a coefficient per design feature")
+ok(R.check_reproducible(m) is True, "committed model reproduces within tolerance (the trained sync gate)")
+import copy  # noqa: E402
+_mt = copy.deepcopy(m); _mt["primary_coefficients"]["intercept"] += 1.0
+raises(R.ManifestError, lambda: R.check_reproducible(_mt), "a tampered coefficient fails reproduction")
+
+print(f"OK — {CHECKS} retention Increment 0+1+2 checks passed "
+      f"(contract + feature builder + glass-box hazard; {len(rows)} person-months, {len(names)} design "
+      f"features, voluntary={ev['voluntary']}; model recovers planted signal, calibrated, reproducible).")

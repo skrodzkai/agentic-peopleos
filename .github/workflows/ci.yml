@@ -67,12 +67,8 @@ jobs:
           python foundation/compute/tests/test_iss_screen.py
           python foundation/compute/tests/test_retention.py
 
-      - name: Retention panel + model manifest stay in sync (deterministic)
-        run: |
-          python foundation/compute/retention.py build-manifest
-          git diff --exit-code -- foundation/compute/manifests/retention_model_manifest.json \
-            || (echo "::error::retention model manifest is stale — run foundation/compute/retention.py build-manifest and commit" && exit 1)
-          python foundation/compute/retention.py validate
+      - name: Retention model manifest reproduces (tolerance sync gate — fitted floats aren't byte-diffed)
+        run: python foundation/compute/retention.py validate   # re-fits + checks coefficients/calibration reproduce within tol (+ panel_data_hash, schema)
 
       - name: Public-safety ticker scan (synthetic artifacts)
         run: |

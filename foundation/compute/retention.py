@@ -1,31 +1,31 @@
 #!/usr/bin/env python3
-"""retention.py — data contract + hashing for the `retention-risk` model (Increment 0).
+"""retention.py — data contract + glass-box hazard model for the `retention-risk` agent.
 
-This module is the **contract**, not the model. Increment 0 ships only what's needed to validate
-the synthetic monthly person-period panel and pin its provenance — there is deliberately **no model
-math** here yet (no fitting, no scoring, no calibration); those arrive in later increments, each
-behind a Codex adversarial review.
+The shared compute for the governed retention-risk model, built up increment by increment (each behind
+an adversarial review). Present through Increment 2:
+  * DATA CONTRACT (Inc 0): `load_panel()` fail-closed load + panel-level temporal invariants;
+    `feature_snapshot_hash()` (FEATURES ONLY — `model_version` logged separately); `panel_data_hash()`.
+  * FEATURE BUILDER (Inc 1): `build_design()` — the pure, row-local, leakage-free panel -> design matrix
+    (voluntary-hazard label, missing-indicators; competing risks censored).
+  * GLASS-BOX MODEL (Inc 2): out-of-time `temporal_slices()`; `fit_hazard()` — pure-Python L2 IRLS
+    logistic discrete-time hazard on the TRAIN slice; survival / horizon / median-or-"not reached";
+    exact additive `explain()`; `platt_calibrate()` on the calibration slice; `rank_auc`/`brier_score`.
+  * MANIFEST: `build_manifest()` writes the TRAINED artifact; `validate_manifest()` (strict schema) +
+    `check_reproducible()` (tolerance sync gate — fitted floats aren't byte-diffed).
 
-What it provides:
-  * `load_panel()`      — fail-closed load + schema validation of the committed retention panel.
-  * `feature_snapshot_hash()` — the canonical, cross-platform-stable hash of a scoring input
-                          (FEATURES ONLY; `model_version` is logged separately, never mixed in).
-  * `panel_data_hash()` — sha256 of the committed panel file (provenance for the manifest).
-  * the manifest scaffold (`build_manifest()`) + its schema validator (`validate_manifest()`).
+Governance properties enforced here:
+  * QUARANTINED / PROTECTED columns may **never** appear in the panel (defense-in-depth allowlist).
+  * everything fails closed — bad labels, non-finite numerics, singular systems, single-class or empty
+    slices, non-convergence, dimension mismatches, and manifest/artifact drift all raise domain errors.
+  * the feature-snapshot hash is an INTEGRITY POINTER, not anonymization; the real-data posture
+    (documented, not built) uses a keyed HMAC / governed digest service.
 
-Governance properties enforced here (so the first code drop can't encode ambiguity):
-  * QUARANTINED / PROTECTED columns may **never** appear in the panel (defense-in-depth).
-  * the model feature set is an explicit allowlist + named decoys; nothing else is a feature.
-  * the canonical hash pins serialization (UTF-8, sorted keys, compact separators, no NaN/Inf,
-    decimal-quantized floats, ISO dates) so it is stable across Python versions and float drift.
-  * the hash is an INTEGRITY POINTER, not anonymization — a small feature space is brute-forceable;
-    the real-data posture (documented, not built) uses a keyed HMAC / governed digest service.
-
-stdlib only; deterministic; offline; fail-closed.
+stdlib only; deterministic; offline; fail-closed. NOTE: the accuracy CHALLENGER is Increment 5 and the
+full test-slice evaluation + realism guard is Increment 3.
 
 CLI:
-    python foundation/compute/retention.py validate         # load + validate panel + manifest
-    python foundation/compute/retention.py build-manifest   # (re)emit the canonical scaffold manifest
+    python foundation/compute/retention.py validate         # panel + manifest schema + model reproducibility
+    python foundation/compute/retention.py build-manifest   # (re)train the model + emit the canonical manifest
 """
 import csv
 import hashlib
@@ -38,7 +38,8 @@ from pathlib import Path
 
 SCHEMA_VERSION = "1.0.0"
 FEATURE_VERSION = "1.0.0"
-MODEL_VERSION = "0.0.0-scaffold"          # Increment 0: no trained model exists yet
+MODEL_VERSION = "1.0.0"                   # Increment 2: the trained glass-box hazard model
+_SCAFFOLD_VERSION = "0.0.0-scaffold"      # sentinel used before a model is trained (Increment 0)
 
 ROOT = Path(__file__).resolve().parents[2]
 PANEL_PATH = ROOT / "foundation" / "data" / "acme" / "retention_panel.csv"
@@ -298,7 +299,8 @@ def build_design(rows):
     never coded as a positive.
 
     Returns a dict: feature_names, X (list[list[float]]), y (1 iff the following-month outcome is a
-    voluntary exit), emp, month_index, month — the last three for grouped/temporal splits in Increment 3.
+    voluntary exit), emp, month_index, month — the last three for the out-of-time temporal splits (by
+    calendar month, NOT employee-grouped: the same person legitimately appears in earlier slices) below.
     """
     miss = sorted(MISSABLE)
     names = list(MODEL_FEATURES) + [f"{c}{MISSING_SUFFIX}" for c in miss]
@@ -308,6 +310,9 @@ def build_design(rows):
         if ev not in EVENT_VALUES:                        # fail closed — never silently coerce a bad label to y=0
             raise PanelError(f"build_design got an invalid {LABEL_COL}: {ev!r}")
         f = r["features"]
+        absent = [c for c in MODEL_FEATURES if c not in f]
+        if absent:                                        # a domain error, not a raw KeyError, on a malformed row
+            raise PanelError(f"build_design row is missing model features: {absent}")
         vec = [0.0 if f[c] is None else float(f[c]) for c in MODEL_FEATURES]
         vec += [1.0 if f[c] is None else 0.0 for c in miss]
         X.append(vec)
@@ -316,6 +321,308 @@ def build_design(rows):
         midx.append(r[INDEX_COL])
         month.append(r[TIME_COL])
     return {"feature_names": names, "X": X, "y": y, "emp": emp, "month_index": midx, "month": month}
+
+
+# --------------------------------------------------------------- glass-box hazard model (Increment 2)
+
+# Out-of-time temporal slices by month_index on the 36-month window (0..35): train 0-23 (24 mo),
+# calibration 24-29 (6 mo), test 30-35 (6 mo). Disjoint by construction — the model is fit on train,
+# calibrated on calibration, and (Increment 3) evaluated on test, so nothing downstream leaks backward.
+SLICE_T1, SLICE_T2 = 23, 29
+L2_LAMBDA = 1.0            # ridge penalty on the standardized coefficients (not the intercept)
+IRLS_ITERS = 15
+HORIZONS = (6, 12)        # months for the headline exit probabilities
+COEF_DP = 8               # coefficient rounding for a deterministic, byte-stable manifest
+
+
+class ModelError(ValueError):
+    """Raised on a degenerate model fit (e.g. an empty or singular training problem)."""
+
+
+def temporal_slices(design, t1=SLICE_T1, t2=SLICE_T2):
+    """Disjoint out-of-time row-index sets by month_index: train (<=t1) / calibration (t1<..<=t2) / test (>t2)."""
+    out = {"train": [], "calibration": [], "test": []}
+    for i, mi in enumerate(design["month_index"]):
+        out["train" if mi <= t1 else "calibration" if mi <= t2 else "test"].append(i)
+    return out
+
+
+def _standardizer(X, idx):
+    """Per-feature mean/std over the given (train) rows. A (near-)constant feature gets std=1 (no scaling)."""
+    if not idx:
+        raise ModelError("standardizer got no rows")
+    d = len(X[0])
+    n = len(idx)
+    mean = [0.0] * d
+    for i in idx:
+        row = X[i]
+        for j in range(d):
+            mean[j] += row[j]
+    mean = [m / n for m in mean]
+    var = [0.0] * d
+    for i in idx:
+        row = X[i]
+        for j in range(d):
+            dv = row[j] - mean[j]
+            var[j] += dv * dv
+    std = [(v / n) ** 0.5 for v in var]
+    std = [s if s > 1e-9 else 1.0 for s in std]
+    return mean, std
+
+
+def _apply_std(row, mean, std):
+    if len(row) != len(mean) or len(std) != len(mean):
+        raise ModelError(f"design-row width {len(row)} does not match the model width {len(mean)}")
+    return [(row[j] - mean[j]) / std[j] for j in range(len(row))]
+
+
+def _sigmoid(z):
+    if not math.isfinite(z):                              # fail closed at the source — a NaN/inf logit is never a probability
+        raise ModelError("non-finite logit")
+    if z <= -60.0:
+        return 0.0
+    if z >= 60.0:
+        return 1.0
+    return 1.0 / (1.0 + math.exp(-z))
+
+
+def _solve(A, b):
+    """Solve A x = b (A square) by Gauss-Jordan with partial pivoting. Raises ModelError if singular."""
+    n = len(A)
+    aug = [list(A[i]) + [b[i]] for i in range(n)]
+    for col in range(n):
+        piv = max(range(col, n), key=lambda r: abs(aug[r][col]))
+        if abs(aug[piv][col]) < 1e-12:
+            raise ModelError(f"singular normal system at column {col}")
+        aug[col], aug[piv] = aug[piv], aug[col]
+        pv = aug[col][col]
+        aug[col] = [v / pv for v in aug[col]]
+        for r in range(n):
+            if r != col and aug[r][col] != 0.0:
+                f = aug[r][col]
+                aug[r] = [a - f * c for a, c in zip(aug[r], aug[col])]
+    return [aug[i][n] for i in range(n)]
+
+
+def fit_hazard(design, slices=None, l2=L2_LAMBDA, iters=IRLS_ITERS):
+    """Fit the glass-box discrete-time VOLUNTARY-exit hazard: an L2-regularized logistic regression on the
+    standardized design matrix by IRLS (Newton), class-weighted for imbalance. Fit on the TRAIN slice ONLY
+    (the standardizer too), so calibration/test are never seen. Returns a model dict:
+    {intercept, coef{feature->weight (standardized units)}, mean, std, feature_names, pos_weight}."""
+    X, y, names = design["X"], design["y"], design["feature_names"]
+    sl = slices or temporal_slices(design)
+    tr = sl["train"]
+    if not tr:
+        raise ModelError("no rows in the train slice")
+    mean, std = _standardizer(X, tr)
+    Xs = [[1.0] + _apply_std(X[i], mean, std) for i in tr]     # leading intercept column
+    yt = [float(y[i]) for i in tr]
+    n, p = len(Xs), len(Xs[0])
+    npos = sum(yt)
+    if npos == 0 or npos == n:
+        raise ModelError("train slice has a single class")
+    pos_w = (n - npos) / npos                                  # up-weight the rare positive (voluntary) rows
+    w = [pos_w if v == 1.0 else 1.0 for v in yt]
+    beta = [0.0] * p
+    last_step = 0.0
+    for _ in range(iters):
+        H = [[0.0] * p for _ in range(p)]
+        g = [0.0] * p
+        for k in range(n):
+            row = Xs[k]
+            z = sum(beta[j] * row[j] for j in range(p))
+            pk = _sigmoid(z)
+            r = w[k] * (yt[k] - pk)
+            s = w[k] * pk * (1.0 - pk)
+            for a in range(p):
+                g[a] += r * row[a]
+                sa = s * row[a]
+                Ha = H[a]
+                for b_ in range(a, p):
+                    Ha[b_] += sa * row[b_]
+        for a in range(p):
+            for b_ in range(a + 1, p):
+                H[b_][a] = H[a][b_]
+            if a > 0:                                          # ridge on coefficients, never the intercept
+                H[a][a] += l2
+                g[a] -= l2 * beta[a]
+        step = _solve(H, g)
+        beta = [beta[a] + step[a] for a in range(p)]
+        last_step = max(abs(v) for v in step)
+        # NB: a FIXED iteration count (no early stop) keeps the fit reproducible across platforms — the
+        # iteration count can't diverge on a convergence threshold that lands differently on mac vs CI.
+    if not all(math.isfinite(v) for v in beta):
+        raise ModelError("non-finite coefficients after IRLS")
+    if last_step > 1e-3:            # the last Newton step must be tiny; a large one means we didn't converge
+        raise ModelError(f"IRLS did not converge in {iters} iterations (last step {last_step:.2e})")
+    return {"intercept": beta[0], "coef": {names[j]: beta[j + 1] for j in range(len(names))},
+            "mean": mean, "std": std, "feature_names": list(names), "pos_weight": pos_w}
+
+
+def _logit(model, x):
+    if len(x) != len(model["feature_names"]):
+        raise ModelError(f"scoring row width {len(x)} does not match the model's {len(model['feature_names'])} features")
+    xs = _apply_std(x, model["mean"], model["std"])
+    coef, names = model["coef"], model["feature_names"]
+    return model["intercept"] + sum(coef[names[j]] * xs[j] for j in range(len(names)))
+
+
+def predict_hazard(model, X, idx=None):
+    """Uncalibrated monthly score for each design row. NOTE: these are pos_weight-inflated (the fit
+    up-weights the rare positive rows), so they are NOT on the true-probability scale — for an absolute
+    monthly exit risk use calibrated_probability(). Raw scores are still rank-correct for AUC/ranking."""
+    idx = range(len(X)) if idx is None else idx
+    return [_sigmoid(_logit(model, X[i])) for i in idx]
+
+
+def _check_hazards(hazards):
+    for h in hazards:
+        if not math.isfinite(h) or not (0.0 <= h <= 1.0):
+            raise ModelError(f"hazard {h!r} outside [0,1]")
+
+
+def survival_curve(hazards):
+    """S[t] = P(survive through month t) = prod_{k<=t}(1 - lambda_k), for an ordered per-employee hazard run.
+    Fails closed on any hazard outside [0,1] (which would give a nonsensical survival curve)."""
+    _check_hazards(hazards)
+    s, out = 1.0, []
+    for h in hazards:
+        s *= (1.0 - h)
+        out.append(s)
+    return out
+
+
+def horizon_probability(hazards, h_months):
+    """P(voluntary exit within the next h_months) = 1 - prod(1 - lambda) over that horizon."""
+    if not isinstance(h_months, int) or isinstance(h_months, bool) or h_months < 0:
+        raise ModelError("horizon must be a non-negative int")
+    window = hazards[:h_months]
+    _check_hazards(window)
+    s = 1.0
+    for h in window:
+        s *= (1.0 - h)
+    return 1.0 - s
+
+
+def median_months_to_exit(hazards, max_h=18):
+    """Smallest month where survival drops below 0.5, else None (rendered 'not reached'). This is a
+    frozen-snapshot (time-homogeneous) 'what-if' median over the supplied hazard run — not a
+    path-integrated forecast; None conflates 'survives past max_h' with a genuinely low hazard."""
+    _check_hazards(hazards[:max_h])
+    s = 1.0
+    for t, h in enumerate(hazards[:max_h], start=1):
+        s *= (1.0 - h)
+        if s < 0.5:
+            return t
+    return None
+
+
+def explain(model, x, top=5):
+    """Exact additive per-feature contributions to the log-odds (coef * standardized value), largest first.
+    Exact for a linear/additive model — NOT an approximation, and NOT SHAP."""
+    xs = _apply_std(x, model["mean"], model["std"])
+    coef, names = model["coef"], model["feature_names"]
+    contribs = [(names[j], coef[names[j]] * xs[j]) for j in range(len(names))]
+    contribs.sort(key=lambda t: -abs(t[1]))
+    return contribs[:top]
+
+
+def platt_calibrate(model, design, calib_idx, iters=60):
+    """Fit Platt scaling p = sigmoid(a*logit + b) on the CALIBRATION slice by 2-parameter Newton, so the
+    surfaced probabilities are honestly calibrated (fit on a slice disjoint from train and test)."""
+    if not calib_idx:
+        raise ModelError("no rows in the calibration slice")
+    L = [_logit(model, design["X"][i]) for i in calib_idx]
+    yt = [float(design["y"][i]) for i in calib_idx]
+    npos = sum(yt)
+    if npos == 0 or npos == len(yt):
+        raise ModelError("calibration slice has a single class — Platt scaling needs both")
+    a, b = 1.0, 0.0
+    for _ in range(iters):
+        g0 = g1 = h00 = h01 = h11 = 0.0
+        for li, yi in zip(L, yt):
+            pi = _sigmoid(a * li + b)
+            r = yi - pi
+            s = pi * (1.0 - pi)
+            g0 += r * li
+            g1 += r
+            h00 += s * li * li
+            h01 += s * li
+            h11 += s
+        det = h00 * h11 - h01 * h01
+        if abs(det) < 1e-12:
+            break
+        da = (h11 * g0 - h01 * g1) / det
+        db = (-h01 * g0 + h00 * g1) / det
+        a += da
+        b += db
+        # Safe to early-stop here (unlike fit_hazard): 2-param Newton converges quadratically, so a +/-1
+        # iteration difference from libm ULP noise moves a,b by << the manifest rounding/tolerance.
+        if abs(da) < 1e-10 and abs(db) < 1e-10:
+            break
+    # NB: base rate drifts UP across the window (train ~1.19% -> test ~1.79%); Platt is anchored to the
+    # calibration-slice prevalence, so out-of-time surfaced probabilities track calibration, not test.
+    if not (math.isfinite(a) and math.isfinite(b)):
+        raise ModelError("non-finite Platt calibration parameters")
+    return {"a": a, "b": b}
+
+
+def calibrated_probability(model, calibration, x):
+    """The calibrated monthly hazard for a single design row."""
+    return _sigmoid(calibration["a"] * _logit(model, x) + calibration["b"])
+
+
+def _binary_labels(y):
+    if any(v not in (0, 1) for v in y):
+        raise ModelError("labels must be binary (0/1)")
+
+
+def brier_score(probs, y):
+    """Mean squared error of probabilistic predictions — lower is better-calibrated + sharper. Fails closed
+    on a length mismatch, non-binary labels, or a probability outside [0,1]/non-finite."""
+    if not y or len(probs) != len(y):
+        raise ModelError("brier_score: empty or length mismatch")
+    _binary_labels(y)
+    for p in probs:
+        if not math.isfinite(p) or not (0.0 <= p <= 1.0):
+            raise ModelError(f"brier_score: probability {p!r} outside [0,1]")
+    return sum((p - yi) ** 2 for p, yi in zip(probs, y)) / len(y)
+
+
+def rank_auc(scores, y):
+    """ROC-AUC via the Mann-Whitney U rank statistic (ties = 0.5). Pure stdlib; used by the eval + realism
+    guard in Increment 3. Rank-equivalent inputs (logits or calibrated probabilities) give the same AUC.
+    Fails closed on a length mismatch, non-binary labels, or a single-class input."""
+    if len(scores) != len(y):
+        raise ModelError("rank_auc: length mismatch")
+    _binary_labels(y)
+    npos = sum(1 for v in y if v == 1)
+    nneg = len(y) - npos
+    if npos == 0 or nneg == 0:
+        raise ModelError("rank_auc needs both classes present")
+    order = sorted(range(len(scores)), key=lambda i: scores[i])
+    ranks = [0.0] * len(scores)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and scores[order[j + 1]] == scores[order[i]]:
+            j += 1
+        avg = (i + j) / 2.0 + 1.0                          # average 1-based rank across a tie block
+        for k in range(i, j + 1):
+            ranks[order[k]] = avg
+        i = j + 1
+    rsum = sum(ranks[k] for k in range(len(scores)) if y[k] == 1)
+    return (rsum - npos * (npos + 1) / 2.0) / (npos * nneg)
+
+
+def train_model(panel_path=PANEL_PATH):
+    """End-to-end: load panel -> design -> fit hazard on train -> Platt-calibrate on calibration.
+    Returns (model, calibration, design, slices). The single source of the trained artifacts."""
+    design = build_design(load_panel(panel_path))
+    slices = temporal_slices(design)
+    model = fit_hazard(design, slices)
+    calibration = platt_calibrate(model, design, slices["calibration"])
+    return model, calibration, design, slices
 
 
 # --------------------------------------------------------------------------- model manifest (scaffold)
@@ -332,16 +639,23 @@ _MANIFEST_KEYS = {
 
 
 def build_manifest(path: Path = MANIFEST_PATH, panel_path: Path = PANEL_PATH) -> dict:
-    """(Re)build the canonical model-manifest scaffold from the committed panel and write it
-    deterministically. In Increment 0 the model fields are empty placeholders (status=scaffold);
-    they fill in at Increments 2–5. CI byte-diffs this against the committed file (sync gate)."""
-    rows = load_panel(panel_path)
+    """(Re)build the canonical model manifest by TRAINING the glass-box hazard: fit on the train slice,
+    Platt-calibrate on the calibration slice, and write the fitted artifacts (coefficients in STANDARDIZED
+    units, the standardizer, the Platt params, the temporal window) rounded for a readable file. Because
+    fitted floats are cross-platform-noisy, CI does NOT byte-diff this file — it re-fits and checks
+    reproducibility within a tolerance (see check_reproducible). Same-platform it is exactly deterministic."""
+    model, calibration, design, slices = train_model(panel_path)
+
+    def rnd(v):
+        return round(float(v), COEF_DP)
+
+    dnames = list(DESIGN_FEATURES)
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "feature_version": FEATURE_VERSION,
         "model_version": MODEL_VERSION,
-        "status": "scaffold",
-        "increment": 0,
+        "status": "trained",
+        "increment": 2,
         "target_event": TARGET_EVENT,
         "label_column": LABEL_COL,
         "event_values": list(EVENT_VALUES),
@@ -353,14 +667,27 @@ def build_manifest(path: Path = MANIFEST_PATH, panel_path: Path = PANEL_PATH) ->
         "allowlist_features": list(ALLOWLIST_FEATURES),
         "decoy_features": list(DECOY_FEATURES),
         "missable_features": sorted(MISSABLE),
-        "design_features": list(DESIGN_FEATURES),          # the exact model-ready column ORDER (Increment 1)
+        "design_features": dnames,
         "missing_indicator_suffix": MISSING_SUFFIX,
-        "primary_coefficients": {},      # filled at Increment 2 (glass-box hazard)
-        "primary_calibration": {},       # filled at Increment 2/3 (Platt on the calibration slice)
+        "primary_coefficients": {
+            "intercept": rnd(model["intercept"]),
+            "features": {k: rnd(v) for k, v in model["coef"].items()},
+            "standardizer_mean": {dnames[j]: rnd(model["mean"][j]) for j in range(len(dnames))},
+            "standardizer_std": {dnames[j]: rnd(model["std"][j]) for j in range(len(dnames))},
+            "pos_weight": rnd(model["pos_weight"]),
+        },
+        "primary_calibration": {"method": "platt", "a": rnd(calibration["a"]), "b": rnd(calibration["b"])},
         "challenger_calibration": {},    # filled at Increment 5
-        "risk_band_thresholds": {},      # filled at Increment 3 (on calibrated probability)
-        "training_window": {"slices": None},   # train/calibration/test set at Increment 3
-        "panel_rows": len(rows),
+        "risk_band_thresholds": {},      # filled at Increment 3 (on calibrated probability, on the test slice)
+        "training_window": {
+            "train_max_month_index": SLICE_T1,
+            "calibration_max_month_index": SLICE_T2,
+            "test_min_month_index": SLICE_T2 + 1,
+            "l2": L2_LAMBDA, "irls_iters": IRLS_ITERS, "horizons_months": list(HORIZONS),
+            "n_train": len(slices["train"]), "n_calibration": len(slices["calibration"]),
+            "n_test": len(slices["test"]),
+        },
+        "panel_rows": len(design["X"]),
         "panel_data_hash": panel_data_hash(panel_path),
     }
     path = Path(path)
@@ -369,6 +696,54 @@ def build_manifest(path: Path = MANIFEST_PATH, panel_path: Path = PANEL_PATH) ->
         json.dump(manifest, fh, indent=2, sort_keys=True, ensure_ascii=False)
         fh.write("\n")
     return manifest
+
+
+def check_reproducible(manifest: dict = None, panel_path: Path = PANEL_PATH, tol: float = 1e-5) -> bool:
+    """Re-fit the model and confirm the committed manifest's coefficients + calibration reproduce within
+    `tol`. Fitted floats carry cross-platform ULP noise, so this tolerance check — NOT a byte-diff — is the
+    manifest sync gate for the trained fields; it still catches real drift (a changed panel or model config)."""
+    m = manifest or load_manifest()
+    if m.get("status") != "trained":
+        return True                                        # nothing fitted to reproduce
+    model, calibration, _design, slices = train_model(panel_path)
+    pc = m["primary_coefficients"]
+    dn = list(DESIGN_FEATURES)
+
+    def _close(mapping, key, value):
+        if key not in mapping or abs(mapping[key] - value) > tol:
+            raise ManifestError(f"manifest value {key!r} not reproduced within {tol:g}")
+
+    # intercept + every coefficient (exact key set, values within tolerance)
+    if set(pc.get("features", {})) != set(model["coef"]):
+        raise ManifestError("manifest coefficient key set drifted from the model")
+    _close(pc, "intercept", model["intercept"])
+    for k, v in model["coef"].items():
+        _close(pc["features"], k, v)
+    # the FULL scoring artifact: standardizer (keys + values) + class weight — a corrupted standardizer
+    # must not pass CI (this was the Increment-2 sync-gate gap)
+    for field, vec in (("standardizer_mean", model["mean"]), ("standardizer_std", model["std"])):
+        sd = pc.get(field, {})
+        if set(sd) != set(dn):
+            raise ManifestError(f"manifest {field} key set drifted from the design features")
+        for j, name in enumerate(dn):
+            _close(sd, name, vec[j])
+    _close(pc, "pos_weight", model["pos_weight"])
+    # calibration
+    cal = m["primary_calibration"]
+    if cal.get("method") != "platt":
+        raise ManifestError("manifest calibration method drifted from 'platt'")
+    _close(cal, "a", calibration["a"])
+    _close(cal, "b", calibration["b"])
+    # training window: config constants + derived slice counts must all reproduce exactly
+    tw = m["training_window"]
+    expect = {"train_max_month_index": SLICE_T1, "calibration_max_month_index": SLICE_T2,
+              "test_min_month_index": SLICE_T2 + 1, "l2": L2_LAMBDA, "irls_iters": IRLS_ITERS,
+              "horizons_months": list(HORIZONS), "n_train": len(slices["train"]),
+              "n_calibration": len(slices["calibration"]), "n_test": len(slices["test"])}
+    for k, v in expect.items():
+        if tw.get(k) != v:
+            raise ManifestError(f"manifest training_window[{k!r}] drifted (expected {v!r}, got {tw.get(k)!r})")
+    return True
 
 
 def load_manifest(path: Path = MANIFEST_PATH) -> dict:
@@ -381,9 +756,46 @@ def load_manifest(path: Path = MANIFEST_PATH) -> dict:
         raise ManifestError(f"manifest is not valid JSON: {e}")
 
 
+def _finite_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _validate_trained_shape(m: dict) -> None:
+    """Strict nested schema for a TRAINED manifest — a malformed fitted artifact fails as ManifestError,
+    never a raw KeyError/TypeError downstream."""
+    dset = set(DESIGN_FEATURES)
+    pc = m["primary_coefficients"]
+    if not isinstance(pc, dict) or not _finite_num(pc.get("intercept")):
+        raise ManifestError("primary_coefficients.intercept must be a finite number")
+    for field in ("features", "standardizer_mean", "standardizer_std"):
+        d = pc.get(field)
+        if not isinstance(d, dict) or set(d) != dset or not all(_finite_num(x) for x in d.values()):
+            raise ManifestError(f"primary_coefficients.{field} must map every design feature to a finite number")
+    if not all(pc["standardizer_std"][k] > 0 for k in DESIGN_FEATURES):
+        raise ManifestError("primary_coefficients.standardizer_std must be strictly positive")
+    if not _finite_num(pc.get("pos_weight")) or pc["pos_weight"] <= 0:
+        raise ManifestError("primary_coefficients.pos_weight must be a positive finite number")
+    cal = m["primary_calibration"]
+    if not isinstance(cal, dict) or cal.get("method") != "platt" or not _finite_num(cal.get("a")) or not _finite_num(cal.get("b")):
+        raise ManifestError("primary_calibration must be {method:'platt', a:<finite>, b:<finite>}")
+    tw = m["training_window"]
+    if not isinstance(tw, dict):
+        raise ManifestError("training_window must be an object")
+    for k in ("train_max_month_index", "calibration_max_month_index", "test_min_month_index",
+              "irls_iters", "n_train", "n_calibration", "n_test"):
+        if not (isinstance(tw.get(k), int) and not isinstance(tw[k], bool) and tw[k] >= 0):
+            raise ManifestError(f"training_window.{k} must be a non-negative int")
+    if not _finite_num(tw.get("l2")) or not (isinstance(tw.get("horizons_months"), list)
+                                             and tw["horizons_months"]
+                                             and all(isinstance(h, int) and not isinstance(h, bool) and h > 0
+                                                     for h in tw["horizons_months"])):
+        raise ManifestError("training_window.l2 / horizons_months are malformed")
+
+
 def validate_manifest(m: dict) -> None:
     """Fail-closed schema check of a loaded manifest (used by tests + CI). Every contract-pinned field
-    must equal its source of truth, and scaffold/trained must be cross-field consistent."""
+    must equal its source of truth, scaffold/trained must be cross-field consistent, and a trained
+    manifest's nested fitted artifact must pass a strict schema (_validate_trained_shape)."""
     if not isinstance(m, dict):
         raise ManifestError("manifest must be a JSON object")
     missing = _MANIFEST_KEYS - set(m)
@@ -414,17 +826,16 @@ def validate_manifest(m: dict) -> None:
     h = m.get("panel_data_hash", "")
     if not (isinstance(h, str) and re.fullmatch(r"[0-9a-f]{64}", h)):
         raise ManifestError("panel_data_hash must be a 64-char sha256 hex string")
-    # scaffold (Increment 0) vs trained: results must match the status, so a scaffold can't be mislabeled trained
-    tw = m.get("training_window")
-    result_fields = ("primary_coefficients", "primary_calibration", "challenger_calibration", "risk_band_thresholds")
-    results_empty = (all(not m.get(f) for f in result_fields)
-                     and isinstance(tw, dict) and tw.get("slices") is None)
+    # scaffold (Increment 0) vs trained: the fitted primary model (coefficients + calibration) must match the
+    # status, so a scaffold can't be mislabeled trained and a trained manifest can't ship an empty model.
+    primary_present = bool(m.get("primary_coefficients")) and bool(m.get("primary_calibration"))
     if m["status"] == "scaffold":
-        if m["increment"] != 0 or m["model_version"] != MODEL_VERSION or not results_empty:
-            raise ManifestError("scaffold manifest must be increment 0, scaffold model_version, empty model results")
+        if m["increment"] != 0 or m["model_version"] != _SCAFFOLD_VERSION or primary_present:
+            raise ManifestError("scaffold manifest must be increment 0, scaffold model_version, and carry no fitted primary model")
     else:  # trained
-        if results_empty or m["model_version"] == MODEL_VERSION:
-            raise ManifestError("trained manifest must carry non-empty model results + a non-scaffold model_version")
+        if not primary_present or m["model_version"] == _SCAFFOLD_VERSION:
+            raise ManifestError("trained manifest must carry a fitted primary model (coefficients + calibration) + a non-scaffold model_version")
+        _validate_trained_shape(m)
 
 
 # --------------------------------------------------------------------------- CLI
@@ -454,7 +865,8 @@ def main(argv):
             if m["panel_data_hash"] != panel_data_hash():
                 print("::error:: manifest panel_data_hash is STALE — run retention.py build-manifest")
                 return 1
-            print(f"manifest OK — status={m['status']}, in sync with the committed panel")
+            check_reproducible(m)                          # re-fit + confirm the trained model reproduces (sync gate)
+            print(f"manifest OK — status={m['status']}, model {m['model_version']} reproduces within tolerance")
             return 0
         except (PanelError, ManifestError) as e:
             print(f"FAIL-CLOSED: {e}")
