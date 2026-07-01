@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Tests for `retention-risk` shared compute (Increments 0-2).
+"""Tests for `retention-risk` shared compute (Increments 0-4).
 
 Covers: (0) panel load + fail-closed validation, the canonical feature-snapshot hash, quarantined/
 protected exclusion, competing-risks label + panel-level temporal invariants, and the manifest schema;
 (1) the row-local feature builder — leakage/row-locality, missing-indicators, planted-signal presence;
 (2) the glass-box IRLS hazard model — out-of-time slices, planted-coefficient recovery, decoy top-3,
 survival/horizon/median math, exact additive explanations, Platt calibration (Brier improvement), the
-tolerance reproducibility gate, and fail-closed numerics.
+tolerance reproducibility gate, and fail-closed numerics;
+(3) out-of-time evaluation (PR-AUC / precision@k / Brier / horizon-concordance), the realism guard, and
+the calibration-slice risk bands + tier mapping;
+(4) the Layer-2 segment layer — bottom-up (model) vs top-down (empirical KM) reconciliation with the gap
+surfaced, region-band broad-only, planted-signal survival to segments, small-n suppression, determinism.
 """
 import copy
 import csv
@@ -445,7 +449,72 @@ ok(0.0 <= _b["elevated"] <= _b["high"] <= 1.0, "risk bands are ordered within [0
 ok(R.risk_tier(_b["high"] + 0.01, _b) == "high" and R.risk_tier(0.0, _b) == "low"
    and R.risk_tier((_b["elevated"] + _b["high"]) / 2, _b) == "elevated", "risk_tier maps probabilities to the correct tier")
 
-print(f"OK — {CHECKS} retention Increment 0+1+2+3 checks passed "
-      f"(contract + feature builder + glass-box hazard + eval/realism-guard; {len(rows)} person-months, "
-      f"{len(names)} design features, voluntary={ev['voluntary']}; test AUC={E['roc_auc']:.3f}, "
-      f"concordance={E['horizon_concordance']:.3f}, realism-guarded, reproducible).")
+# --------------------------------------------------------------- 10) segment layer / Layer 2 (Increment 4)
+seg = R.segment_risk(rows, model, calib, design, slices)
+ok(set(seg) == set(R.SEGMENT_COLS), "segment_risk covers every governed segment dimension")
+_rendered = [s for segs in seg.values() for s in segs if not s.get("suppressed")]
+ok(len(_rendered) > 0, "segment_risk renders segments on the committed panel")
+ok(all({"bottom_up_6mo", "top_down_6mo", "reconciliation_gap", "gap_flagged"} <= set(s) for s in _rendered),
+   "each rendered segment carries the model estimate, the empirical estimate, and their gap")
+ok(all(0.0 <= s["bottom_up_6mo"] <= 1.0 and 0.0 <= s["top_down_6mo"] <= 1.0 for s in _rendered),
+   "both segment 6-month probabilities lie within [0,1]")
+ok(all(abs(round(s["bottom_up_6mo"] - s["top_down_6mo"], 6) - s["reconciliation_gap"]) < 1e-9 for s in _rendered),
+   "the reconciliation gap is exactly bottom-up minus top-down (surfaced, never hidden)")
+ok(all(s.get("horizon_months") == 6 for s in _rendered), "each rendered segment labels its own exit window")
+# the displayed numbers are the REAL ones: independently recompute one segment's two estimates from scratch
+_cs = next(s for s in seg["function"] if s["value"] == "Customer Success")
+_idxs = [i for i in slices["test"] if rows[i]["segments"]["function"] == "Customer Success"]
+_haz = {i: R.calibrated_probability(model, calib, design["X"][i]) for i in _idxs}
+_bu = round(R._km_exit_probability(_idxs, rows, lambda i: _haz[i], 6), 6)
+_td = round(R._km_exit_probability(_idxs, rows, lambda i: design["y"][i], 6), 6)
+ok(_cs["bottom_up_6mo"] == _bu and _cs["top_down_6mo"] == _td,
+   "the surfaced segment estimates equal an independent from-scratch recomputation (not a self-consistent label)")
+# region band stays broad-only — a governance requirement, never a country-level slice
+ok(all(s["value"] in {"Americas", "EMEA", "APAC"} for s in seg["region_band"]),
+   "region_band exposes only broad regions")
+# the reconciliation is not a rubber stamp: it flags genuine bottom-up/top-down disagreement, but not everything
+_recon = R.reconciliation_summary(seg)
+ok(_recon["n_segments"] == len(_rendered), "reconciliation summary counts every rendered segment")
+ok(0 < _recon["n_flagged"] < _recon["n_segments"], "reconciliation flags real disagreements without flagging all")
+ok(_recon["max_abs_gap"] < 0.15, "no rendered segment diverges implausibly far (sanity ceiling)")
+# the planted signal survives aggregation to the segment level (segment layer inherits Layer-1 drivers) —
+# checked on BOTH the model estimate and the independent empirical estimate, so neither can carry it alone
+_comp = {s["value"]: s["bottom_up_6mo"] for s in seg["comp_position_band"]}
+_comp_td = {s["value"]: s["top_down_6mo"] for s in seg["comp_position_band"]}
+ok(_comp["below"] > _comp["within"] > _comp["above"], "underpaid segments carry higher model segment risk than overpaid")
+ok(_comp_td["below"] > _comp_td["within"] > _comp_td["above"], "the empirical rate shows the same comp-position ordering")
+_ten = {s["value"]: s["bottom_up_6mo"] for s in seg["tenure_band"]}
+ok(_ten["<1y"] < _ten["1-2y"] < _ten["2-3y"] and _ten["<1y"] < _ten["5y+"],
+   "segment risk rises monotonically off the newest-tenure floor")
+# small-n suppression hides thin segments and never leaks an estimate for them
+_supp = R.segment_risk(rows, model, calib, design, slices, min_n=10 ** 9)
+ok(all(s.get("suppressed") for segs in _supp.values() for s in segs), "an impossible threshold suppresses every segment")
+ok(all("bottom_up_6mo" not in s for segs in _supp.values() for s in segs), "a suppressed segment leaks no estimate")
+ok(all("n_employees" in s for segs in _supp.values() for s in segs), "a suppressed segment still reports its size")
+# reconciliation_summary handles the all-suppressed / empty-rendered case without crashing (default=0.0 path)
+_rs = R.reconciliation_summary(_supp)
+ok(_rs["n_segments"] == 0 and _rs["n_flagged"] == 0 and _rs["max_abs_gap"] == 0.0 and _rs["n_suppressed"] > 0,
+   "reconciliation_summary is well-defined when every segment is suppressed")
+# the small-n privacy floor CANNOT be lowered or disabled — the governance-critical guard
+for _bad in (0, -5, 10.0, True, None):
+    raises(R.ModelError, lambda b=_bad: R.segment_risk(rows, model, calib, design, slices, min_n=b),
+           f"segment_risk rejects a suppression floor of {_bad!r} (privacy floor cannot be lowered)")
+# horizon must be a positive int — a fat-fingered 0 must not read as a false 'all reconciled'
+for _bad in (0, -3, 3.0, None):
+    raises(R.ModelError, lambda b=_bad: R.segment_risk(rows, model, calib, design, slices, horizon=b),
+           f"segment_risk rejects a horizon of {_bad!r}")
+# an unknown segment dimension fails closed (ModelError), not a raw KeyError
+raises(R.ModelError, lambda: R.segment_risk(rows, model, calib, design, slices, dims=["not_a_dimension"]),
+       "segment_risk rejects an unknown segment dimension")
+# determinism + fail-closed on BOTH a length-mismatched AND a same-length-but-reordered panel
+ok(R.segment_risk(rows, model, calib, design, slices) == seg, "segment_risk is deterministic")
+raises(R.ModelError, lambda: R.segment_risk(rows[:-1], model, calib, design, slices),
+       "segment_risk fails closed when the panel length differs from the design matrix")
+raises(R.ModelError, lambda: R.segment_risk(list(reversed(rows)), model, calib, design, slices),
+       "segment_risk fails closed on a same-length but reordered panel (identity guard, not just length)")
+
+print(f"OK — {CHECKS} retention Increment 0+1+2+3+4 checks passed "
+      f"(contract + feature builder + glass-box hazard + eval/realism-guard + segment layer; {len(rows)} "
+      f"person-months, {len(names)} design features, voluntary={ev['voluntary']}; test AUC={E['roc_auc']:.3f}, "
+      f"concordance={E['horizon_concordance']:.3f}; {_recon['n_segments']} segments reconciled, "
+      f"{_recon['n_flagged']} gaps surfaced, max gap {_recon['max_abs_gap']:.3f}; realism-guarded, reproducible).")

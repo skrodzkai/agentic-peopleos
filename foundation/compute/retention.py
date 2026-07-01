@@ -797,6 +797,94 @@ def risk_tier(prob, bands):
     return "high" if prob >= bands["high"] else "elevated" if prob >= bands["elevated"] else "low"
 
 
+# --------------------------------------------------------------- segment layer / Layer 2 (Increment 4)
+
+SEG_MIN_N = 30                    # suppress a segment with fewer than this many distinct employees (small-n)
+RECONCILE_GAP = 0.02             # flag a segment where |bottom-up - top-down| 6-mo risk exceeds this
+
+
+def _km_exit_probability(idxs, rows, value_of, horizon_months):
+    """Discrete-time survival S = prod_t (1 - rate_t) over the segment's observation months, where rate_t is
+    the mean of `value_of(i)` across the person-months observed in month t; returns the exit probability
+    1 - S over up to `horizon_months`. Used BOTH ways so bottom-up and top-down are structurally identical
+    and differ only in the monthly rate: `value_of` = the 0/1 voluntary label gives the empirical
+    Kaplan-Meier estimate; `value_of` = the calibrated monthly hazard gives the model's aggregate. Each is a
+    per-month rate in [0,1], so the running product stays a valid survival probability."""
+    by_month = {}
+    for i in idxs:
+        cell = by_month.setdefault(rows[i][INDEX_COL], [0.0, 0])
+        cell[0] += value_of(i)
+        cell[1] += 1
+    surv = 1.0
+    for mi in sorted(by_month)[:horizon_months]:
+        total, at_risk = by_month[mi]
+        if at_risk:
+            surv *= (1.0 - total / at_risk)
+    return 1.0 - surv
+
+
+def segment_risk(rows, model, calibration, design, slices, dims=None, min_n=SEG_MIN_N, horizon=6):
+    """Layer-2 segment risk on the out-of-time TEST slice, computed TWO ways per segment and reconciled:
+      * BOTTOM-UP: aggregate the model's calibrated Layer-1 monthly hazards into a survival curve.
+      * TOP-DOWN: the segment's empirical Kaplan-Meier survival over the same window.
+    Both use the identical per-month survival structure, so the reconciliation gap is a pure
+    predicted-vs-observed comparison, not a formula artifact. Segments with fewer than `min_n` distinct
+    employees are SUPPRESSED (small-n) — the suppression floor can be RAISED but never lowered below
+    SEG_MIN_N, so a caller can never turn the privacy floor off. Each rendered segment carries its
+    reconciliation gap (bottom-up minus top-down) and a flag when it exceeds RECONCILE_GAP — the
+    disagreement is surfaced, never averaged away. `rows` must be the panel `design` was built from, aligned
+    index-for-identity (enforced below, not merely by length). The exit window is `horizon` months and is
+    reported on each entry as `horizon_months`; the `*_6mo` keys are the default-horizon labels."""
+    # fail closed on the governance-critical arguments (mirrors peers.py: `type() is not int` rejects bool)
+    if type(min_n) is not int or min_n < SEG_MIN_N:
+        raise ModelError(f"segment_risk: min_n must be an int >= {SEG_MIN_N} (the privacy floor; got {min_n!r})")
+    if type(horizon) is not int or horizon <= 0:
+        raise ModelError(f"segment_risk: horizon must be a positive integer (got {horizon!r})")
+    if len(rows) != len(design["X"]):
+        raise ModelError("segment_risk: rows are not aligned with the design matrix")
+    if any(rows[i][ID_COL] != design["emp"][i] or rows[i][INDEX_COL] != design["month_index"][i]
+           for i in range(len(rows))):
+        raise ModelError("segment_risk: rows are not aligned index-for-identity with the design matrix")
+    dims = dims or list(SEGMENT_COLS)
+    unknown = [d for d in dims if d not in SEGMENT_COLS]
+    if unknown:
+        raise ModelError(f"segment_risk: unknown segment dimension(s) {unknown}")
+    test = slices["test"]
+    out = {}
+    for dim in dims:
+        groups = {}
+        for i in test:
+            groups.setdefault(rows[i]["segments"][dim], []).append(i)
+        segs = []
+        for val, idxs in sorted(groups.items()):
+            n_emp = len({rows[i][ID_COL] for i in idxs})
+            entry = {"value": val, "n_employees": n_emp, "n_rows": len(idxs)}
+            if n_emp < min_n:
+                entry["suppressed"] = True
+                segs.append(entry)
+                continue
+            haz = {i: calibrated_probability(model, calibration, design["X"][i]) for i in idxs}
+            bottom_up = round(_km_exit_probability(idxs, rows, lambda i: haz[i], horizon), 6)
+            top_down = round(_km_exit_probability(idxs, rows, lambda i: design["y"][i], horizon), 6)
+            gap = round(bottom_up - top_down, 6)           # gap is exactly the two displayed numbers' difference
+            entry.update({"suppressed": False, "horizon_months": horizon,
+                          "bottom_up_6mo": bottom_up, "top_down_6mo": top_down,
+                          "reconciliation_gap": gap, "gap_flagged": abs(gap) > RECONCILE_GAP})
+            segs.append(entry)
+        out[dim] = segs
+    return out
+
+
+def reconciliation_summary(segments):
+    """Roll up the segment reconciliation: how many rendered segments disagree (bottom-up vs top-down beyond
+    RECONCILE_GAP) and the largest absolute gap — surfaced, not averaged away."""
+    rendered = [s for segs in segments.values() for s in segs if not s.get("suppressed")]
+    suppressed = sum(1 for segs in segments.values() for s in segs if s.get("suppressed"))
+    return {"n_segments": len(rendered), "n_suppressed": suppressed,
+            "n_flagged": sum(1 for s in rendered if s.get("gap_flagged")),
+            "max_abs_gap": round(max((abs(s["reconciliation_gap"]) for s in rendered), default=0.0), 6)}
+
+
 # --------------------------------------------------------------------------- model manifest (scaffold)
 
 _MANIFEST_KEYS = {
