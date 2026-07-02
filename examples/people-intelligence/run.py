@@ -8,9 +8,9 @@ compute engine. Like every arm agent it is PRESENTATION + GOVERNANCE ONLY: it do
 (foundation/render/charts.py), shows not-yet-instrumented metrics honestly, fails closed, and stops
 at a human publish gate.
 
-    python run.py                                              # draft only
-    python run.py --publish                                    # refused: needs a valid approver
-    python run.py --publish --approved-by "People Analytics Lead"
+    python3 run.py                                              # draft only
+    python3 run.py --publish                                    # refused: needs a valid approver
+    python3 run.py --publish --approved-by "People Analytics Lead"
 
 Standard library only; deterministic; offline. Each sparkline/trend point is the SAME engine
 re-evaluated at a past quarter-end (engine.series_multi) — real history, never faked.
@@ -123,7 +123,7 @@ def _narrative(r):
     ng, ob = r["net_headcount_growth"], r["out_of_band_rate"]
     p = _pctile(rpf["value"] / 1000)
     parts = [f"Revenue per FTE is <b>${round(rpf['value']/1000)}K</b> "
-             f"<span class='up'>(~{p}th percentile vs an illustrative SaaS benchmark)</span>."]
+             f"<span class='up'>(~{ch.ordinal(p)} percentile vs an illustrative SaaS benchmark)</span>."]
     if ol["status"] == "ok":
         e = ol["extras"]
         lead = "operating leverage" if e["revenue_growth_pct"] > e["headcount_growth_pct"] else "headcount-led"
@@ -178,7 +178,7 @@ def render_html(report):
     ng = r["net_headcount_growth"]
     s = report["series"]
     kpis = [
-        _kpi_card("Revenue / FTE", f"${rpf_k}K", s["revenue_per_fte"], f"~{pctile}th pctile",
+        _kpi_card("Revenue / FTE", f"${rpf_k}K", s["revenue_per_fte"], f"~{ch.ordinal(pctile)} pctile",
                   f"target ${RPF_TARGET_K}K", "up"),
         _kpi_card("Headcount", str(hc["value"]), s["headcount"], f"{ng['value']:+} / 12mo",
                   f"{hc['extras']['active']} active · {hc['extras']['on_leave']} on leave",
@@ -215,7 +215,7 @@ def render_html(report):
     body.append("<section class='beacon'><div class='head'>"
                 "<div><div class='label'>Revenue / FTE — efficiency vs the SaaS market</div>"
                 f"<div class='hero'><span class='v mono'>${rpf_k}K</span>"
-                f"<span class='pct'>~{pctile}th percentile</span></div></div>"
+                f"<span class='pct'>~{ch.ordinal(pctile)} percentile</span></div></div>"
                 "<div class='sub'>Company-level (trailing-12mo revenue / FTE). Illustrative SaaS range "
                 "≈ $94K (early) to $420K+ (PLG / infra); median ≈ $200K.</div></div>"
                 "<div class='chart'>"
@@ -345,7 +345,7 @@ def render_digest(report):
 
     lines = [f"# {COMPANY} — People Intelligence (Executive View) digest",
              f"_As of {AS_OF} · draft for review_", "",
-             f"- Revenue/FTE **${rpf_k}K** (~{_pctile(rpf_k)}th pctile vs an illustrative SaaS benchmark); operating leverage "
+             f"- Revenue/FTE **${rpf_k}K** (~{ch.ordinal(_pctile(rpf_k))} pctile vs an illustrative SaaS benchmark); operating leverage "
              f"**{v('operating_leverage')}** YoY.",
              f"- Headcount **{r['headcount']['value']}** ({r['net_headcount_growth']['value']:+} / 12mo); "
              f"voluntary attrition **{v('voluntary_attrition')}** (regrettable "

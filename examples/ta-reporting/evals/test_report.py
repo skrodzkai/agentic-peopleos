@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the TA reporting agent. Run: python evals/test_report.py
+"""Evals for the TA reporting agent. Run: python3 evals/test_report.py
 
 Plain stdlib asserts so it runs anywhere with no test framework installed.
 Covers the happy path, the fail-closed data contract, and the publish gate.

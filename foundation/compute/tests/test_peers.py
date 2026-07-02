@@ -7,7 +7,7 @@ honestly, the ordering is fully specified (peers-first, then revenue-closeness, 
 and the loader fails closed when the universe is missing, has the wrong number of subjects, carries
 a non-numeric or degenerate field, or is screened with no active criteria. The screener SCREENS and
 RECOMMENDS — it never finalizes a group or sets pay.
-Run: python foundation/compute/tests/test_peers.py
+Run: python3 foundation/compute/tests/test_peers.py
 """
 import csv
 import sys
@@ -133,8 +133,8 @@ finally:
     _P.FIT_WEIGHTS.update(_saved)
 
 # golden: pin the shipped fit-ranked order so a silent weight/score/tie-break change fails loudly
-GOLDEN_TOP = [("CREL", 89.1), ("KESC", 84.9), ("SLAP", 78.6), ("CINF", 76.0),
-              ("TIDA", 74.4), ("CEDP", 73.3), ("HELF", 70.1), ("FORS", 69.7)]
+GOLDEN_TOP = [("NORW", 84.8), ("COBA", 82.7), ("HARD", 82.3), ("BEAM", 81.8),
+              ("BRII", 80.3), ("VERW", 79.5), ("SUMM", 75.5), ("BEAI", 75.4)]
 ok([(p["company"]["ticker"], p["fit"]) for p in r["peers"][:8]] == GOLDEN_TOP,
    "the shipped fit-ranked order matches the golden (a weight/score/tie-break change is now a deliberate update)")
 

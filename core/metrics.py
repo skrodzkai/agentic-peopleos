@@ -9,7 +9,7 @@ calculate compa-ratio and flag outliers, but it is structurally forbidden from
 recommending or changing pay. The validator enforces that no metric can ever grant a
 decisional/irreversible action.
 
-CLI:  python -m core.metrics validate <registry.json>
+CLI:  python3 -m core.metrics validate <registry.json>
 """
 from __future__ import annotations
 
@@ -159,7 +159,7 @@ def validate(data) -> list:
 
 def _main(argv) -> int:
     if len(argv) != 2 or argv[0] != "validate":
-        print("usage: python -m core.metrics validate <registry.json>", file=sys.stderr)
+        print("usage: python3 -m core.metrics validate <registry.json>", file=sys.stderr)
         return 2
     try:
         data = _load_json(argv[1])

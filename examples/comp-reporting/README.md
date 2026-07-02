@@ -46,7 +46,7 @@ No dependencies — Python 3.9+ standard library only.
 
 ```bash
 cd examples/comp-reporting
-python run.py
+python3 run.py
 ```
 
 This writes the report and digest to `output/` and stops at the publish gate. Then:
@@ -59,14 +59,14 @@ cat  output/day1-digest.sample.md       # the digest a human reviews
 To see the gate enforce itself:
 
 ```bash
-python run.py --publish                                        # refused — needs a named approver
-python run.py --publish --approved-by "Total Rewards Partner"  # records the human approval
+python3 run.py --publish                                        # refused — needs a named approver
+python3 run.py --publish --approved-by "Total Rewards Partner"  # records the human approval
 ```
 
 ## Test it
 
 ```bash
-python evals/test_comp.py
+python3 evals/test_comp.py
 ```
 
 The eval covers the metric math (compa-ratio = base / midpoint), the governance invariant

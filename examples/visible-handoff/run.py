@@ -10,7 +10,7 @@ surface.
 The point isn't chat — it's that you can answer "what bad thing did this prevent?"
 in code, transcript, ledger, and evals. Run it:
 
-    python run.py
+    python3 run.py
 
 Writes output/transcript.md (the conversation) and output/events.jsonl (the ledger),
 then validates the ledger. All data is synthetic (Acme Corp). No real Slack, no network.

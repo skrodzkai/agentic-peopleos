@@ -48,9 +48,9 @@ Both are written **atomically** (temp + `os.replace`) so a crash never leaves a 
 ## The publish gate (human-in-the-loop)
 
 ```bash
-python run.py                                          # draft only — nothing sent
-python run.py --publish                                # refused: needs a valid named approver
-python run.py --publish --approved-by "People Analytics Lead"   # records the approval (PUBLISHED.json)
+python3 run.py                                          # draft only — nothing sent
+python3 run.py --publish                                # refused: needs a valid named approver
+python3 run.py --publish --approved-by "People Analytics Lead"   # records the approval (PUBLISHED.json)
 ```
 
 `--approved-by` is validated (rejects control characters / injection); the approval is recorded as

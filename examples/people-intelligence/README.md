@@ -33,14 +33,14 @@ What makes it the proof point:
 ## Run it
 ```bash
 cd examples/people-intelligence
-python run.py                                          # draft only
-python run.py --publish                                # refused: needs a valid approver
-python run.py --publish --approved-by "People Analytics Lead"
+python3 run.py                                          # draft only
+python3 run.py --publish                                # refused: needs a valid approver
+python3 run.py --publish --approved-by "People Analytics Lead"
 ```
 
 ## Test it
 ```bash
-python evals/test_people_intelligence.py
+python3 evals/test_people_intelligence.py
 ```
 The eval proves the composer is presentation-only over the engine, the charts are deterministic and
 injection-safe, the publish gate refuses an invalid approver, and it fails closed when the engine is

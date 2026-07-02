@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Evals for the ISS Pay-for-Performance Screen composer.
-Run: python evals/test_iss_pay_screen.py
+Run: python3 evals/test_iss_pay_screen.py
 
 Proves the dashboard is presentation-only over foundation/compute/iss_screen.py, renders the concern +
 all three measures + the comparison group + the qualitative triggers, is HONEST about being an

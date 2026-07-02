@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the metric registry. Run: python core/tests/test_metrics.py
+"""Evals for the metric registry. Run: python3 core/tests/test_metrics.py
 
 Proves the registry is well-formed AND that it is a measurement-GOVERNANCE system:
 no metric may grant a decisional/irreversible action.

@@ -14,8 +14,8 @@ data. ISS publishes its quantitative concern threshold table and the WLS/aggrega
 Pay-for-Performance Mechanics document; what it does NOT publish is the exact FPA threshold and the
 qualitative-evaluation outcome, which still require ISS/consultant review. This is NOT ISS's actual output.
 
-    python run.py                                              # draft only
-    python run.py --publish --approved-by "Compensation Committee Chair"
+    python3 run.py                                              # draft only
+    python3 run.py --publish --approved-by "Compensation Committee Chair"
 
 Standard library only; deterministic; offline; synthetic.
 """
@@ -103,7 +103,7 @@ def _narrative(res, committee):
     lead = (f"On an illustrative model of the public ISS methodology, {_e(COMPANY)} screens at "
             f"<b class='c-{concern.lower()}'>{concern} concern</b>{driver_txt}.")
     body = (f" CEO pay is <b>{m['mom']['value']:.2f}× the peer median</b> (MOM) while sitting at the "
-            f"<b>{m['rda']['pay_pctile']:.0f}th percentile</b> of pay vs the <b>{m['rda']['tsr_pctile']:.0f}th</b> "
+            f"<b>{ch.ordinal(m['rda']['pay_pctile'])} percentile</b> of pay vs the <b>{ch.ordinal(m['rda']['tsr_pctile'])}</b> "
             f"of 5-year TSR — an alignment gap of <b>{m['rda']['value']:.0f}</b> points (RDA).")
     if committee["available"]:
         body += (f" {len(committee['overlap'])} of the {res['comparison_group']['n_group']} ISS-derived peers "
@@ -265,8 +265,8 @@ def render_digest(report):
            ("pta", m["pta"])) if d["band"] in ("Medium", "High")) + ")."
            if report["concern"] != "Low" else "(no quantitative concern)."),
         f"- MOM **{m['mom']['value']:.2f}×** the peer median ({m['mom']['band']}); "
-        f"RDA **{m['rda']['value']:.0f}** ({m['rda']['band']}: pay {m['rda']['pay_pctile']:.0f}th pctile vs "
-        f"TSR {m['rda']['tsr_pctile']:.0f}th); PTA **{m['pta']['value']:.0f}%** ({m['pta']['band']}).",
+        f"RDA **{m['rda']['value']:.0f}** ({m['rda']['band']}: pay {ch.ordinal(m['rda']['pay_pctile'])} pctile vs "
+        f"TSR {ch.ordinal(m['rda']['tsr_pctile'])}); PTA **{m['pta']['value']:.0f}%** ({m['pta']['band']}).",
         f"- ISS-derived comparison group of **{report['comparison_group']['n_group']}** "
         + (f"({len(com['overlap'])} overlapping the committee's {com['n_core']}-company core)." if com["available"] else "names."),
         f"- Qualitative review in scope: **{len(report['triggers'])}** factors."

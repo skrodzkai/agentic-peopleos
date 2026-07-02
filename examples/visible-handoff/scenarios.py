@@ -7,7 +7,7 @@ system does when a *non-entitled* actor reacts: the registry refuses to count th
 reaction as an approval, the gated action never runs, and the agent escalates — every
 step still a row in a hash-chained ledger that validates.
 
-    python scenarios.py        # writes output/<approved|denied>.{transcript,events}.sample.*
+    python3 scenarios.py        # writes output/<approved|denied>.{transcript,events}.sample.*
 
 Deterministic and offline. All data synthetic (Acme Corp).
 """

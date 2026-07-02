@@ -22,14 +22,14 @@ Same design as the rest of the arm, with two points worth calling out:
 ## Run it
 ```bash
 cd examples/people-ops-reporting
-python run.py
+python3 run.py
 open output/report.sample.html
-python run.py --publish --approved-by "People Ops Lead"
+python3 run.py --publish --approved-by "People Ops Lead"
 ```
 
 ## Test it
 ```bash
-python evals/test_people_ops.py
+python3 evals/test_people_ops.py
 ```
 The eval proves the cards equal the engine's values, the SLA denominator includes open-and-breached
 cases, the backlog age buckets reconcile to the open count, the per-domain coverage is honest,

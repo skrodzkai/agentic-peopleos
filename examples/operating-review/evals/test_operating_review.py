@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the operating-review composer. Run: python evals/test_operating_review.py
+"""Evals for the operating-review composer. Run: python3 evals/test_operating_review.py
 
 Proves the composer is presentation-only over the engine, the coverage map is honest, and — the
 distinguishing feature — the FULL role-scoped, ledger-backed publish gate: an entitled human's

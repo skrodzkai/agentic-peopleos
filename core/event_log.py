@@ -22,7 +22,7 @@ the ledger on WORM/append-only media. The chat surface is the source of truth fo
 *conversation*; this ledger for *decisions/actions/approvals*; the HRIS/ATS for *data*.
 
 CLI:
-    python -m core.event_log validate <log.jsonl> [--registry registry.json]
+    python3 -m core.event_log validate <log.jsonl> [--registry registry.json]
 """
 from __future__ import annotations
 
@@ -369,7 +369,7 @@ def _main(argv) -> int:
         i += 1
     args = positional
     if len(args) != 2 or args[0] != "validate":
-        print("usage: python -m core.event_log validate <log.jsonl> [--registry registry.json]", file=sys.stderr)
+        print("usage: python3 -m core.event_log validate <log.jsonl> [--registry registry.json]", file=sys.stderr)
         return 2
     registry = None
     if reg_path:

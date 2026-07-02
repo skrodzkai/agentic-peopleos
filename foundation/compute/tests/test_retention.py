@@ -437,9 +437,46 @@ _fake = {**model, "coef": {**model["coef"], R.DECOY_FEATURES[0]: 999.0}}
 raises(R.ModelError, lambda: R.realism_guard(_fake, E), "realism guard trips when a decoy is forced into the top-3")
 raises(R.ModelError, lambda: R.realism_guard(model, {**E, "pr_auc": 0.8}), "realism guard trips on an implausible PR-AUC")
 raises(R.ModelError, lambda: R.realism_guard(model, {"roc_auc": 0.8}), "realism guard rejects a metrics dict missing keys")
-# risk_tier fails closed on non-finite / reversed bands (module fail-closed-numerics contract)
-raises(R.ModelError, lambda: R.risk_tier(float("nan"), m["risk_band_thresholds"]), "risk_tier rejects a non-finite probability")
+# risk_tier fails closed on non-finite / out-of-range / malformed bands (module fail-closed-numerics contract)
+_gb = m["risk_band_thresholds"]
+raises(R.ModelError, lambda: R.risk_tier(float("nan"), _gb), "risk_tier rejects a non-finite probability")
+raises(R.ModelError, lambda: R.risk_tier(1.5, _gb), "risk_tier rejects a probability > 1")
+raises(R.ModelError, lambda: R.risk_tier(-0.1, _gb), "risk_tier rejects a probability < 0")
 raises(R.ModelError, lambda: R.risk_tier(0.5, {"elevated": 0.7, "high": 0.3}), "risk_tier rejects reversed bands")
+raises(R.ModelError, lambda: R.risk_tier(0.5, {"elevated": -0.1, "high": 0.3}), "risk_tier rejects a negative threshold")
+raises(R.ModelError, lambda: R.risk_tier(0.5, {"elevated": 0.3, "high": 1.5}), "risk_tier rejects a threshold > 1")
+raises(R.ModelError, lambda: R.risk_tier(0.5, {"elevated": "x", "high": "y"}), "risk_tier rejects string bands (ModelError, not TypeError)")
+raises(R.ModelError, lambda: R.risk_tier(0.5, {"low": 0.3, "high": 0.7}), "risk_tier rejects a wrong-keyed band dict")
+
+# ---- LOCK the exact-canonical slice guard: a cherry-picked/reordered/renamed slice must fail closed ----
+# (mutation-tested: without this, a caller can pass a favorable in-band SUBSET as `test` and still get metrics)
+_canon = R.temporal_slices(design)
+raises(R.ModelError, lambda: R._validate_slices(design, {**_canon, "test": _canon["test"][:100]}),
+       "_validate_slices rejects a cherry-picked test SUBSET (not the canonical partition)")
+raises(R.ModelError, lambda: R.evaluate(model, calib, design, {**_canon, "test": _canon["test"][:100]}),
+       "evaluate() rejects a cherry-picked test subset end-to-end (no favorable-subset metrics leak)")
+raises(R.ModelError, lambda: R._validate_slices(design, {**_canon, "test": _canon["train"]}),
+       "_validate_slices rejects train rows passed as test")
+raises(R.ModelError, lambda: R._validate_slices(design, {**_canon, "test": list(reversed(_canon["test"]))}),
+       "_validate_slices rejects a REORDERED test slice")
+raises(R.ModelError, lambda: R._validate_slices(design, {**_canon, "test": _canon["test"] + [10 ** 9]}),
+       "_validate_slices rejects an out-of-range index")
+raises(R.ModelError, lambda: R._validate_slices(design, {"train": _canon["train"], "calibration": _canon["calibration"], "bogus": _canon["test"]}),
+       "_validate_slices rejects a renamed third key with ModelError (not a raw KeyError)")
+ok(R._validate_slices(design, _canon) is None, "_validate_slices accepts the canonical partition")
+
+# ---- LOCK tie-aware PR-AUC: order-independent on ties; all-tied == base rate ----
+# (mutation-tested: the naive index-tiebreak version swings identical-score AP from 0.25 to 1.0 by row order)
+_ts, _ty = [0.5, 0.5, 0.5, 0.5], [1, 0, 0, 1]
+ok(R.pr_auc(_ts, _ty) == R.pr_auc(_ts, list(reversed(_ty))), "PR-AUC is invariant to row order when all scores tie")
+ok(abs(R.pr_auc([0.5] * 10, [1, 0] * 5) - 0.5) < 1e-12, "all-tied scores give PR-AUC == the base rate (no order fluke)")
+ok(abs(R.pr_auc([0.9, 0.8, 0.7, 0.1], [1, 0, 1, 0]) - (1.0 + 2.0 / 3.0) / 2.0) < 1e-12,
+   "PR-AUC on distinct scores matches the reference average precision")
+
+# ---- horizon_concordance is fully fail-closed on its inputs ----
+raises(R.ModelError, lambda: R.horizon_concordance([float("inf"), 0.1], [2, 4], [True, True]), "concordance rejects non-finite risk")
+raises(R.ModelError, lambda: R.horizon_concordance([0.9, 0.1], [2.0, 4], [True, True]), "concordance rejects non-integer term_month")
+raises(R.ModelError, lambda: R.horizon_concordance([0.9, 0.1], [2, 4], [1, 0]), "concordance rejects non-boolean is_event")
 
 # precision@k denominator rule (a tiny population reports insufficient rather than a fluke)
 ok(R.precision_at_k([0.9, 0.1, 0.8], [1, 0, 1], [0, 0, 0], min_denom=50)["status"] == "insufficient_denominator",

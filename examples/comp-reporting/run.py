@@ -11,9 +11,9 @@ NEVER recommends or changes pay — a human (Total Rewards) owns every pay decis
 
 Standard library only; deterministic; offline.
 
-    python run.py                                   # draft only
-    python run.py --publish                         # refused: needs a named approver
-    python run.py --publish --approved-by "Name"    # records the human approval
+    python3 run.py                                   # draft only
+    python3 run.py --publish                         # refused: needs a named approver
+    python3 run.py --publish --approved-by "Name"    # records the human approval
 """
 from __future__ import annotations
 

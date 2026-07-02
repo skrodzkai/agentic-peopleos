@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the messaging surface ACL. Run: python core/tests/test_messaging.py"""
+"""Evals for the messaging surface ACL. Run: python3 core/tests/test_messaging.py"""
 import sys
 from pathlib import Path
 

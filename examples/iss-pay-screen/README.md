@@ -32,13 +32,13 @@ ISS-derived comparison group, and the qualitative factors a Medium/High concern 
 ## Run it
 ```bash
 cd examples/iss-pay-screen
-python run.py                                              # draft only
-python run.py --publish --approved-by "Compensation Committee Chair"
+python3 run.py                                              # draft only
+python3 run.py --publish --approved-by "Compensation Committee Chair"
 ```
 
 ## Test it
 ```bash
-python evals/test_iss_pay_screen.py
+python3 evals/test_iss_pay_screen.py
 ```
 
 ## Sample output

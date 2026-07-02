@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Evals for relative-TSR PSU tracking and Monte Carlo valuation.
-Run: python foundation/compute/tests/test_rtsr.py
+Run: python3 foundation/compute/tests/test_rtsr.py
 """
 from pathlib import Path
 import sys

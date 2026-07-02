@@ -6,7 +6,7 @@ RDA (perf-minus-pay percentile, ISS sign), PTA (weighted least-squares trend dif
 rule-based AGGREGATION — two/three elevated measures escalate to High, and the FPA modifies a borderline
 result in exactly the four documented ways (Low->Med, Med->Low, Med->High, High->Med; never Low<->High).
 Concern levels are exercised with synthetic fixtures so the test does not depend on the real Acme outcome.
-Run: python foundation/compute/tests/test_iss_screen.py
+Run: python3 foundation/compute/tests/test_iss_screen.py
 """
 import csv
 import sys

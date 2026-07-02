@@ -20,7 +20,7 @@ jobs:
 
       - name: Compile
         run: >
-          python -m py_compile
+          python3 -m py_compile
           core/*.py core/tests/*.py tools/*.py
           foundation/data/generate.py
           foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py foundation/compute/retention.py
@@ -42,71 +42,71 @@ jobs:
           examples/visible-handoff/scenarios.py examples/visible-handoff/render_view.py
 
       - name: Public-safety PII scan (ALL committed text, BEFORE generators run)
-        run: python tools/pii_scan.py .   # whole repo (README/docs/governance/yml/scripts); tests+evals excluded
+        run: python3 tools/pii_scan.py .   # whole repo (README/docs/governance/yml/scripts); tests+evals excluded
 
       - name: Preflight — CI/doc-linked paths exist + nothing required is untracked
-        run: python tools/preflight.py
+        run: python3 tools/preflight.py
 
       - name: Core spine evals
         run: |
-          python core/tests/test_event_log.py
-          python core/tests/test_approval_registry.py
-          python core/tests/test_content.py
-          python core/tests/test_messaging.py
-          python core/tests/test_metrics.py
+          python3 core/tests/test_event_log.py
+          python3 core/tests/test_approval_registry.py
+          python3 core/tests/test_content.py
+          python3 core/tests/test_messaging.py
+          python3 core/tests/test_metrics.py
 
       - name: Data foundation is deterministic + engine reconciles
         run: |
-          python foundation/data/generate.py
+          python3 foundation/data/generate.py
           git diff --exit-code -- foundation/data/acme \
             || (echo "::error::Acme dataset is stale — run foundation/data/generate.py and commit" && exit 1)
-          python foundation/compute/tests/test_engine.py
-          python foundation/compute/tests/test_regression.py
-          python foundation/compute/tests/test_peers.py
-          python foundation/compute/tests/test_rtsr.py
-          python foundation/compute/tests/test_iss_screen.py
-          python foundation/compute/tests/test_retention.py
+          python3 foundation/compute/tests/test_engine.py
+          python3 foundation/compute/tests/test_regression.py
+          python3 foundation/compute/tests/test_peers.py
+          python3 foundation/compute/tests/test_rtsr.py
+          python3 foundation/compute/tests/test_iss_screen.py
+          python3 foundation/compute/tests/test_retention.py
 
       - name: Retention model manifest reproduces (tolerance sync gate — fitted floats aren't byte-diffed)
-        run: python foundation/compute/retention.py validate   # re-fits + checks coefficients/calibration reproduce within tol (+ panel_data_hash, schema)
+        run: python3 foundation/compute/retention.py validate   # re-fits + checks coefficients/calibration reproduce within tol (+ panel_data_hash, schema)
 
       - name: Public-safety ticker scan (synthetic artifacts)
         run: |
-          python tools/ticker_scan.py --self-test
-          python tools/ticker_scan.py examples foundation/data vault README.md
+          python3 tools/ticker_scan.py --self-test
+          python3 tools/ticker_scan.py examples foundation/data vault README.md
 
       - name: Shared dashboard renderer + chart toolkit evals
         run: |
-          python foundation/render/tests/test_dashboard.py
-          python foundation/render/tests/test_charts.py
+          python3 foundation/render/tests/test_dashboard.py
+          python3 foundation/render/tests/test_charts.py
 
       - name: Metric registry validates
-        run: python -m core.metrics validate vault/90-people-analytics/metrics/metrics.registry.json
+        run: python3 -m core.metrics validate vault/90-people-analytics/metrics/metrics.registry.json
 
       - name: Glossary is in sync with the registry
         run: |
-          python tools/render_glossary.py
+          python3 tools/render_glossary.py
           git diff --exit-code -- vault/90-people-analytics/metrics vault/90-people-analytics/metrics-glossary.md \
             || (echo "::error::metrics glossary is stale — run tools/render_glossary.py and commit" && exit 1)
 
       - name: Analytics arm — headcount-reporting eval
         working-directory: examples/headcount-reporting
-        run: python evals/test_headcount.py
+        run: python3 evals/test_headcount.py
 
       - name: Analytics arm — attrition / people-ops / operating-review / people-intelligence evals
         run: |
-          (cd examples/attrition-reporting && python evals/test_attrition.py)
-          (cd examples/people-ops-reporting && python evals/test_people_ops.py)
-          (cd examples/operating-review && python evals/test_operating_review.py)
-          (cd examples/people-intelligence && python evals/test_people_intelligence.py)
+          (cd examples/attrition-reporting && python3 evals/test_attrition.py)
+          (cd examples/people-ops-reporting && python3 evals/test_people_ops.py)
+          (cd examples/operating-review && python3 evals/test_operating_review.py)
+          (cd examples/people-intelligence && python3 evals/test_people_intelligence.py)
 
       - name: Analytics arm dashboards are in sync with the engine (deterministic)
         run: |
-          (cd examples/headcount-reporting && python run.py)
-          (cd examples/attrition-reporting && python run.py)
-          (cd examples/people-ops-reporting && python run.py)
-          (cd examples/operating-review && python run.py --publish --approved-by hr.business-partner)
-          (cd examples/people-intelligence && python run.py)
+          (cd examples/headcount-reporting && python3 run.py)
+          (cd examples/attrition-reporting && python3 run.py)
+          (cd examples/people-ops-reporting && python3 run.py)
+          (cd examples/operating-review && python3 run.py --publish --approved-by hr.business-partner)
+          (cd examples/people-intelligence && python3 run.py)
           git diff --exit-code -- \
             examples/headcount-reporting/output/report.sample.html examples/headcount-reporting/output/day1-digest.sample.md \
             examples/attrition-reporting/output/report.sample.html examples/attrition-reporting/output/day1-digest.sample.md \
@@ -119,68 +119,68 @@ jobs:
       - name: Executive comp arm — peer-builder eval
         working-directory: examples/executive-comp-peer-builder
         run: |
-          python evals/test_peer_builder.py
-          python run.py
+          python3 evals/test_peer_builder.py
+          python3 run.py
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
             || (echo "::error::executive-comp peer-builder output is stale — run examples/executive-comp-peer-builder/run.py and commit" && exit 1)
 
       - name: Executive comp arm — rTSR PSU valuation eval
         working-directory: examples/rtsr-psu-valuation
         run: |
-          python evals/test_rtsr_psu.py
-          python run.py
+          python3 evals/test_rtsr_psu.py
+          python3 run.py
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
             || (echo "::error::rTSR PSU valuation output is stale — run examples/rtsr-psu-valuation/run.py and commit" && exit 1)
 
       - name: Executive comp arm — ISS pay-for-performance screen eval
         working-directory: examples/iss-pay-screen
         run: |
-          python evals/test_iss_pay_screen.py
-          python run.py
+          python3 evals/test_iss_pay_screen.py
+          python3 run.py
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
             || (echo "::error::ISS pay-for-performance screen output is stale — run examples/iss-pay-screen/run.py and commit" && exit 1)
 
       - name: Operating-review decision ledger validates (registry-backed)
         run: |
-          python -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
+          python3 -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
             --registry examples/visible-handoff/approval_registry.json
 
       - name: TA reporting eval
         working-directory: examples/ta-reporting
-        run: python evals/test_report.py
+        run: python3 evals/test_report.py
 
       - name: Comp reporting eval
         working-directory: examples/comp-reporting
-        run: python evals/test_comp.py
+        run: python3 evals/test_comp.py
 
       - name: Visible-handoff eval
         working-directory: examples/visible-handoff
-        run: python evals/test_handoff.py
+        run: python3 evals/test_handoff.py
 
       - name: Ledger validates on replay (approval registry re-verified)
         run: |
-          (cd examples/visible-handoff && python run.py)
-          python -m core.event_log validate examples/visible-handoff/output/events.jsonl \
+          (cd examples/visible-handoff && python3 run.py)
+          python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
             --registry examples/visible-handoff/approval_registry.json
 
       - name: Both handoff outcomes validate (approved + denied)
         run: |
-          (cd examples/visible-handoff && python scenarios.py)
-          python -m core.event_log validate examples/visible-handoff/output/denied.events.sample.jsonl \
+          (cd examples/visible-handoff && python3 scenarios.py)
+          python3 -m core.event_log validate examples/visible-handoff/output/denied.events.sample.jsonl \
             --registry examples/visible-handoff/approval_registry.json
 
       - name: Rendered ledger view is in sync with the ledger
         run: |
-          (cd examples/visible-handoff && python render_view.py)
+          (cd examples/visible-handoff && python3 render_view.py)
           git diff --exit-code -- examples/visible-handoff/output/ledger.sample.html \
             || (echo "::error::ledger.sample.html is stale — run examples/visible-handoff/render_view.py and commit" && exit 1)
 
       - name: Vault lint
-        run: python tools/vault_lint.py vault
+        run: python3 tools/vault_lint.py vault
 
       - name: Public-safety PII scan (committed data/outputs/vault)
         run: |
-          python tools/pii_scan.py \
+          python3 tools/pii_scan.py \
             examples/ta-reporting/output examples/ta-reporting/data \
             examples/comp-reporting/output examples/comp-reporting/data \
             examples/rtsr-psu-valuation/output examples/rtsr-psu-valuation/data \

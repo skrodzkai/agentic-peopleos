@@ -30,7 +30,7 @@ No dependencies — Python 3.9+ standard library only.
 
 ```bash
 cd examples/ta-reporting
-python run.py
+python3 run.py
 ```
 
 This writes the report and digest to `output/` and stops at the publish gate. Then:
@@ -43,14 +43,14 @@ cat  output/day1-digest.sample.md       # the digest a human reviews
 To see the gate enforce itself:
 
 ```bash
-python run.py --publish                          # refused — needs a named approver
-python run.py --publish --approved-by "Dana Lopez"   # records the human approval
+python3 run.py --publish                          # refused — needs a named approver
+python3 run.py --publish --approved-by "Dana Lopez"   # records the human approval
 ```
 
 ## Test it
 
 ```bash
-python evals/test_report.py
+python3 evals/test_report.py
 ```
 
 The eval covers the happy path plus the fail-closed data contract (missing / empty / malformed

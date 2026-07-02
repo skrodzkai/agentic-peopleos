@@ -7,9 +7,9 @@ estimates an illustrative terminal-price fair value with a deterministic Monte C
 The sample mirrors a common public software-company rTSR structure, but all issuer, peer, price, and
 assumption data is synthetic. This is decision-support math, not accounting/legal/investment advice.
 
-    python run.py
-    python run.py --publish
-    python run.py --publish --approved-by "Compensation Committee Chair"
+    python3 run.py
+    python3 run.py --publish
+    python3 run.py --publish --approved-by "Compensation Committee Chair"
 """
 from __future__ import annotations
 
@@ -177,7 +177,7 @@ def _payout_curve_svg(curve):
     for p, v in rows:
         body.append(f"<circle cx='{sx(p):.1f}' cy='{sy(v):.1f}' r='5' fill='{ch.CYAN2}'/>")
         body.append(f"<text x='{sx(p):.1f}' y='{sy(v)-10:.1f}' text-anchor='middle' "
-                    f"font-family=\"'JetBrains Mono',monospace\" font-size='10' fill='{ch.INK}'>{p:g}th</text>")
+                    f"font-family=\"'JetBrains Mono',monospace\" font-size='10' fill='{ch.INK}'>{ch.ordinal(p)}</text>")
         body.append(f"<text x='{sx(p):.1f}' y='{sy(v)+20:.1f}' text-anchor='middle' "
                     f"font-family=\"'JetBrains Mono',monospace\" font-size='10' fill='{ch.MUTED}'>{v:g}%</text>")
     for p in (0, 25, 55, 75, 100):

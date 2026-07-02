@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the decision ledger as a dark HTML view (presentation helper, not a test).
 
-    python render_view.py        # reads output/events.jsonl -> output/ledger.sample.html
+    python3 render_view.py        # reads output/events.jsonl -> output/ledger.sample.html
 
 It re-validates the ledger and shows the integrity verdict. Skrodzkai house style.
 """
@@ -84,7 +84,7 @@ def main():
             f"{''.join(rows)}"
             f"<div class='foot'>Every action binds to an entitled approval by causation + scope. "
             f"Re-derive entitlement and detect tampering: "
-            f"<code style='color:#8db1ce'>python -m core.event_log validate output/events.jsonl --registry …</code></div>"
+            f"<code style='color:#8db1ce'>python3 -m core.event_log validate output/events.jsonl --registry …</code></div>"
             f"</div></body></html>")
     OUT.write_text(doc, encoding="utf-8")
     print(f"wrote {OUT.name} ({'valid' if not violations else 'INVALID'})")

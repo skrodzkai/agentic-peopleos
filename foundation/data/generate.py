@@ -7,7 +7,7 @@ seeded, so the same dataset is produced on every machine (the arm agents and the
 on that determinism). No real people, companies, or PII — ids are obviously synthetic (E-0001),
 and the public PII scan (tools/pii_scan.py) runs clean over the output.
 
-    python foundation/data/generate.py        # writes foundation/data/acme/*.csv
+    python3 foundation/data/generate.py        # writes foundation/data/acme/*.csv
 
 Tables (one row per entity):
   workers.csv            HRIS — the backbone (org, status, comp, rating, demographics, dates)
@@ -318,19 +318,17 @@ def generate():
                   "market_cap_usd": int(round(ttm * 7.5 / 1_000_000) * 1_000_000),
                   "employees": active_emp, "total_assets_usd": int(round(ttm * 1.6 / 1_000_000) * 1_000_000),
                   "is_subject": "yes"}]
-    used_names, used_tk, n, guard = set(), {"ACMQ"} | REAL_TICKERS, 0, 0
+    used_tk, n, guard = {"ACMQ"} | REAL_TICKERS, 0, 0
     while n < 220:
         guard += 1
         if guard > 50_000:                                      # bounded: never spin forever on an exhausted pool
-            raise RuntimeError("peer-universe generation exceeded its retry budget; widen the name/ticker pool")
+            raise RuntimeError("peer-universe generation exceeded its retry budget; widen the ticker pool")
         sector, subs, rev_per_emp, mc_mult, asset_int, suffixes = rng_peer.choices(SECTORS, weights=SECTOR_W)[0]
         subindustry = rng_peer.choices([s for s, _ in subs], weights=[w for _, w in subs])[0]
-        name = f"{rng_peer.choice(PREFIX)} {rng_peer.choice(suffixes)}"
-        if name in used_names or name.casefold() in _PEER_REAL_NAMES:   # never mint a real, recognizable name
-            continue
-        # derive a 4-char ticker; rotate ONLY the final letter (bounded to 26 tries, A after Z) to dodge
-        # collisions with prior peers and the real-ticker deny-list. If a base is exhausted, drop the name.
-        base = (name.split()[0][:3] + name.split()[1][:1]).upper()
+        prefix = rng_peer.choice(PREFIX)
+        # derive a 4-char ticker from the prefix; rotate ONLY the final letter (bounded to 26 tries, A after Z)
+        # to dodge collisions with prior peers and the real-ticker deny-list. If a base is exhausted, drop it.
+        base = prefix[:4].upper().ljust(4, "X")
         tk = base
         for _ in range(26):
             if tk not in used_tk:
@@ -339,7 +337,13 @@ def generate():
             tk = base[:3] + (chr(ord(last) + 1) if last < "Z" else "A")
         if tk in used_tk:
             continue
-        used_names.add(name)
+        # OBVIOUSLY-SYNTHETIC name: a numbered issuer label, so it can NEVER collide with a real company name
+        # (no real company is "Cinder 042"). The coined prefix adds a little variety; the sequential number
+        # guarantees fiction. This is stronger than a best-effort real-name deny-list, which two audits showed
+        # can't keep up with a finite word pool. The deny-list is kept only as a cheap belt-and-suspenders.
+        name = f"{prefix} {n + 1:03d}"
+        if name.casefold() in _PEER_REAL_NAMES:                 # unreachable for a numbered name, but harmless
+            continue
         used_tk.add(tk)
         # revenue: log-uniform $12M..$1.6B, beta-skewed toward small-cap so there's a real cluster near Acme
         lo, hi = 150_000_000, 5_000_000_000
@@ -375,12 +379,14 @@ def generate():
         anchor = 9_000_000 * (c["market_cap_usd"] / 6_000_000_000.0) ** 0.40   # CEO pay ~ size, SUBLINEAR (no $90M tails)
         if is_subj:
             # The subject is deliberately positioned for a borderline/Medium ISS story (a clean pass would
-            # not exercise the screen, an absurd fail isn't realistic): CEO pay ~2.2x the peer median with
-            # a steady ~30% ramp, a SOFT TSR (+7% over 5y), and below-median financials. Explicit +
-            # deterministic for control; clearly illustrative synthetic positioning.
+            # not exercise the screen, an absurd fail — e.g. pay at the 100th percentile — isn't realistic):
+            # CEO pay above the peer median with a steady ramp, a SOFT TSR (+7% over 5y), and below-median
+            # financials, so PAY OUTRUNS TSR (a Medium RDA — the pay-for-performance misalignment measure)
+            # while MOM stays modest. Explicit + deterministic for control; clearly illustrative synthetic
+            # positioning (retuned when the synthetic peer universe changed the subject's self-peer group).
             self_peers = [o["ticker"] for o in pool[:12]]
             med = anchor                             # ≈ peer-median annual CEO pay anchor
-            pays = [int(round(med * f / 1000) * 1000) for f in (1.68, 1.80, 1.94, 2.08, 2.20)]
+            pays = [int(round(med * f / 1000) * 1000) for f in (1.25, 1.37, 1.49, 1.61, 1.73)]
             tsr = [104.0, 109.0, 113.0, 110.0, 107.0]
             fe = 16.0                                # strong financials ≈ high pay -> FPA neutral, no escalation
         else:

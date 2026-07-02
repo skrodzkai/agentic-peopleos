@@ -2,9 +2,9 @@
 _FY2026 proxy season · synthetic · draft for committee review_
 
 - **Anticipated concern: Medium** (driven by RDA).
-- MOM **1.89×** the peer median (Low); RDA **-55** (Medium: pay 100th pctile vs TSR 45th); PTA **-6%** (Low).
-- ISS-derived comparison group of **20** (8 overlapping the committee's 15-company core).
-- Qualitative review in scope: **5** factors.
+- MOM **1.44×** the peer median (Low); RDA **-58** (Medium: pay 91st pctile vs TSR 33rd); PTA **-7%** (Low).
+- ISS-derived comparison group of **24** (11 overlapping the committee's 15-company core).
+- Qualitative review in scope: **4** factors.
 
 _Illustrative model of ISS's PUBLISHED methodology on synthetic data — NOT ISS's actual output. ISS
 publishes its threshold table + WLS mechanics (Pay-for-Performance Mechanics doc); the exact FPA

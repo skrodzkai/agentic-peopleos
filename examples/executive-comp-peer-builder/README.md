@@ -29,14 +29,14 @@ This separation is the point: a board can challenge a *score* ("who set those we
 ## Run it
 ```bash
 cd examples/executive-comp-peer-builder
-python run.py                                              # draft only
-python run.py --publish                                    # refused: needs a named committee approver
-python run.py --publish --approved-by "Compensation Committee Chair"
+python3 run.py                                              # draft only
+python3 run.py --publish                                    # refused: needs a named committee approver
+python3 run.py --publish --approved-by "Compensation Committee Chair"
 ```
 
 ## Test it
 ```bash
-python evals/test_peer_builder.py
+python3 evals/test_peer_builder.py
 ```
 
 ## Sample output

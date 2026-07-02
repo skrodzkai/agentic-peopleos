@@ -54,9 +54,9 @@ transcript, ledger, and evals:
 
 ```bash
 # from the repo root
-python examples/visible-handoff/run.py                      # request → recommendation → ✅ → publish
-python examples/visible-handoff/evals/test_handoff.py       # spoofed/bot/duplicate/injected/tampered — all caught
-python -m core.event_log validate examples/visible-handoff/output/events.jsonl \
+python3 examples/visible-handoff/run.py                      # request → recommendation → ✅ → publish
+python3 examples/visible-handoff/evals/test_handoff.py       # spoofed/bot/duplicate/injected/tampered — all caught
+python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
     --registry examples/visible-handoff/approval_registry.json      # full integrity: chain + re-verified approvals
 ```
 
@@ -165,15 +165,15 @@ relative-TSR PSU tracking, and human-owned committee decisions.
 
 - **[Talent Acquisition reporting agent](examples/ta-reporting/)** — the recruiting-pipeline
   reporting agent: open requisitions, the weekly operating report **citing the canonical metric
-  registry**, a Day-1 digest, and a **human publish gate**. Run it: `cd examples/ta-reporting && python run.py`.
+  registry**, a Day-1 digest, and a **human publish gate**. Run it: `cd examples/ta-reporting && python3 run.py`.
 - **[Compensation reporting agent](examples/comp-reporting/)** — the **Total Rewards** report and
   **measurement governance**: the registry forbids the comp metrics' `recommend_pay_change`/`change_salary`,
   so the agent flags out-of-band pay but **never recommends or changes a salary**.
-  Run it: `cd examples/comp-reporting && python run.py`.
+  Run it: `cd examples/comp-reporting && python3 run.py`.
 - **[Visible handoff](examples/visible-handoff/)** — the governance spine end to end: a cited
   recommendation in `#people-analytics`, an **entitled human approves with a ✅**, and only then does
   the gated publish run — every step a row in a hash-chained ledger.
-  Run it: `cd examples/visible-handoff && python run.py`.
+  Run it: `cd examples/visible-handoff && python3 run.py`.
 
 ---
 
@@ -185,6 +185,7 @@ The controls above are documented, each tied to the working code:
 - [approval-registry](governance/approval-registry.md) — role-scoped, pool-based approvals
 - [hitl-matrix](governance/hitl-matrix.md) — reversibility × impact; what's never agent-autonomous
 - [model-and-agent-cards](governance/model-and-agent-cards.md) — per-agent transparency card (NIST AI RMF "Map")
+- [retention-risk-model-card](governance/retention-risk-model-card.md) — the governed retention-risk model: purpose, **prohibited uses**, fairness, explanation limits, employee-facing boundaries
 - [change-request-template](governance/change-request-template.md) — every behavior change is a controlled experiment
 - [prompt-injection-threat-model](governance/prompt-injection-threat-model.md)
 - [data-classification](governance/data-classification.md) — no direct identifiers in the vault or ledger (pseudonymous, heuristic backstop)

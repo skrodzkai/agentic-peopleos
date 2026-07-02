@@ -7,9 +7,9 @@ an honest instrumentation-coverage map, and — because this is the consequentia
 artifact — it ships behind the FULL role-scoped, ledger-backed approval gate (not the lightweight
 named-approver gate the leaf agents use):
 
-    python run.py                                               # draft only
-    python run.py --publish --approved-by hr.business-partner   # entitled human → recorded + published
-    python run.py --publish --approved-by obs.engineering       # NOT entitled → denied + escalation (refused)
+    python3 run.py                                               # draft only
+    python3 run.py --publish --approved-by hr.business-partner   # entitled human → recorded + published
+    python3 run.py --publish --approved-by obs.engineering       # NOT entitled → denied + escalation (refused)
 
 The approval is recorded in a hash-chained ledger, re-verified against the approval registry
 (entitlement + channel ACL + point-in-time registry version). Standard library only; deterministic.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the shared dashboard renderer. Run: python foundation/render/tests/test_dashboard.py
+"""Evals for the shared dashboard renderer. Run: python3 foundation/render/tests/test_dashboard.py
 
 Proves the renderer is well-formed, escapes ALL interpolated values (including dataset-derived
 strings), cites the registry, surfaces data_pending honestly, and is deterministic.

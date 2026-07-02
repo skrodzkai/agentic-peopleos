@@ -10,7 +10,7 @@ ledger, and evals. All data is synthetic (Acme Corp). No real Slack, no network,
 
 ![Decision ledger — visible handoff](output/ledger.sample.png)
 
-*The decision ledger for this handoff (render it yourself: `python render_view.py`).*
+*The decision ledger for this handoff (render it yourself: `python3 render_view.py`).*
 
 ## What it prevents (and proves with an eval)
 
@@ -29,19 +29,19 @@ ledger, and evals. All data is synthetic (Acme Corp). No real Slack, no network,
 
 ```bash
 # from the repo root
-python examples/visible-handoff/run.py
+python3 examples/visible-handoff/run.py
 cat examples/visible-handoff/output/transcript.md     # the conversation surface
 cat examples/visible-handoff/output/events.jsonl      # the decision ledger (one row per event)
 
 # full integrity check — re-verifies the approval registry, not just the chain
-python -m core.event_log validate examples/visible-handoff/output/events.jsonl \
+python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
   --registry examples/visible-handoff/approval_registry.json
 ```
 
 Try the adversarial paths:
 
 ```bash
-python examples/visible-handoff/evals/test_handoff.py   # spoofed/bot/duplicate/retracted/injected/tampered — all caught
+python3 examples/visible-handoff/evals/test_handoff.py   # spoofed/bot/duplicate/retracted/injected/tampered — all caught
 ```
 
 ## Both outcomes are committed (read without running anything)
@@ -57,7 +57,7 @@ not just the happy path:
 In the denied transcript the observer's ✅ *appears in chat* — you can't stop someone adding an
 emoji — but the registry re-derives entitlement and refuses to count it, so the action never
 runs. **The ledger validates in both cases**; it just records an escalation instead of an
-action. Regenerate: `python examples/visible-handoff/scenarios.py`.
+action. Regenerate: `python3 examples/visible-handoff/scenarios.py`.
 
 ## Three sources of record
 

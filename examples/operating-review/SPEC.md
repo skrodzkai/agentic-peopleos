@@ -22,9 +22,9 @@ Diversity: `leadership_diversity`. Plus a coverage map over **all 11 domains**.
 Unlike the leaf reporting agents (named-approver demo), this agent wires the real gate:
 
 ```bash
-python run.py                                               # draft only — nothing sent
-python run.py --publish --approved-by hr.business-partner   # entitled human → approved + published
-python run.py --publish --approved-by obs.engineering       # NOT entitled → denied + escalation (refused)
+python3 run.py                                               # draft only — nothing sent
+python3 run.py --publish --approved-by hr.business-partner   # entitled human → approved + published
+python3 run.py --publish --approved-by obs.engineering       # NOT entitled → denied + escalation (refused)
 ```
 
 - `--approved-by` is an **actor id**, adjudicated by the [`ApprovalRegistry`](../../core/approval_registry.py).

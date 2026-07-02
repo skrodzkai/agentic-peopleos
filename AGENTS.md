@@ -10,57 +10,63 @@ hold no secrets.
 This block mirrors `.github/workflows/ci.yml`; keep the two in sync.
 
 ```bash
-python -m py_compile core/*.py core/tests/*.py tools/*.py \
+python3 -m py_compile core/*.py core/tests/*.py tools/*.py \
   foundation/data/generate.py foundation/compute/*.py foundation/compute/tests/*.py \
   foundation/render/*.py foundation/render/tests/*.py examples/*/run.py examples/*/evals/*.py
 # public-safety + release preflight
-python tools/pii_scan.py .                  # whole repo (tests/evals excluded)
-python tools/preflight.py                   # CI/doc-linked paths exist + nothing required is untracked
+python3 tools/pii_scan.py .                  # whole repo (tests/evals excluded)
+python3 tools/preflight.py                   # CI/doc-linked paths exist + nothing required is untracked
 # core spine
-python core/tests/test_event_log.py
-python core/tests/test_approval_registry.py
-python core/tests/test_content.py
-python core/tests/test_messaging.py
-python core/tests/test_metrics.py
+python3 core/tests/test_event_log.py
+python3 core/tests/test_approval_registry.py
+python3 core/tests/test_content.py
+python3 core/tests/test_messaging.py
+python3 core/tests/test_metrics.py
 # data foundation is deterministic + compute reconciles
-python foundation/data/generate.py          # then `git diff --exit-code -- foundation/data/acme` (deterministic)
-python foundation/compute/tests/test_engine.py
-python foundation/compute/tests/test_regression.py
-python foundation/compute/tests/test_peers.py
+python3 foundation/data/generate.py          # then `git diff --exit-code -- foundation/data/acme` (deterministic)
+python3 foundation/compute/tests/test_engine.py
+python3 foundation/compute/tests/test_regression.py
+python3 foundation/compute/tests/test_peers.py
 # shared renderer + chart toolkit
-python foundation/render/tests/test_dashboard.py
-python foundation/render/tests/test_charts.py
+python3 foundation/render/tests/test_dashboard.py
+python3 foundation/render/tests/test_charts.py
 # measurement governance
-python -m core.metrics validate vault/90-people-analytics/metrics/metrics.registry.json
-python tools/render_glossary.py             # then `git diff --exit-code` on vault/90-people-analytics (glossary in sync)
+python3 -m core.metrics validate vault/90-people-analytics/metrics/metrics.registry.json
+python3 tools/render_glossary.py             # then `git diff --exit-code` on vault/90-people-analytics (glossary in sync)
 # Analytics arm (eval + run, then `git diff --exit-code` on each output/report.sample.* + digest)
-(cd examples/headcount-reporting && python evals/test_headcount.py && python run.py)
-(cd examples/attrition-reporting && python evals/test_attrition.py && python run.py)
-(cd examples/people-ops-reporting && python evals/test_people_ops.py && python run.py)
-(cd examples/operating-review && python evals/test_operating_review.py && python run.py --publish --approved-by hr.business-partner)
-(cd examples/people-intelligence && python evals/test_people_intelligence.py && python run.py)
+(cd examples/headcount-reporting && python3 evals/test_headcount.py && python3 run.py)
+(cd examples/attrition-reporting && python3 evals/test_attrition.py && python3 run.py)
+(cd examples/people-ops-reporting && python3 evals/test_people_ops.py && python3 run.py)
+(cd examples/operating-review && python3 evals/test_operating_review.py && python3 run.py --publish --approved-by hr.business-partner)
+(cd examples/people-intelligence && python3 evals/test_people_intelligence.py && python3 run.py)
 # Executive Compensation arm (eval + run, then `git diff --exit-code` on each output/report.sample.html + day1-digest.sample.md)
-(cd examples/executive-comp-peer-builder && python evals/test_peer_builder.py && python run.py)
-(cd examples/rtsr-psu-valuation && python evals/test_rtsr_psu.py && python run.py)
-(cd examples/iss-pay-screen && python evals/test_iss_pay_screen.py && python run.py)
+(cd examples/executive-comp-peer-builder && python3 evals/test_peer_builder.py && python3 run.py)
+(cd examples/rtsr-psu-valuation && python3 evals/test_rtsr_psu.py && python3 run.py)
+(cd examples/iss-pay-screen && python3 evals/test_iss_pay_screen.py && python3 run.py)
 # shared exec-comp compute engines
-python foundation/compute/tests/test_rtsr.py
-python foundation/compute/tests/test_iss_screen.py
+python3 foundation/compute/tests/test_rtsr.py
+python3 foundation/compute/tests/test_iss_screen.py
 # retention-risk model (glass-box hazard + eval + segment layer)
-python foundation/compute/tests/test_retention.py
-python foundation/compute/retention.py validate   # re-fits + reproduces coefficients/calibration/bands + provenance
+python3 foundation/compute/tests/test_retention.py
+python3 foundation/compute/retention.py validate   # re-fits + reproduces coefficients/calibration/bands + provenance
 # reference example agents
-(cd examples/ta-reporting && python evals/test_report.py)
-(cd examples/comp-reporting && python evals/test_comp.py)
-(cd examples/visible-handoff && python evals/test_handoff.py)
+(cd examples/ta-reporting && python3 evals/test_report.py)
+(cd examples/comp-reporting && python3 evals/test_comp.py)
+(cd examples/visible-handoff && python3 evals/test_handoff.py)
 # both handoff outcomes + ledger integrity (approved AND denied)
-(cd examples/visible-handoff && python scenarios.py)
-python -m core.event_log validate examples/visible-handoff/output/events.jsonl \
+(cd examples/visible-handoff && python3 scenarios.py)
+python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
   --registry examples/visible-handoff/approval_registry.json
-python -m core.event_log validate examples/visible-handoff/output/denied.events.sample.jsonl \
+python3 -m core.event_log validate examples/visible-handoff/output/denied.events.sample.jsonl \
   --registry examples/visible-handoff/approval_registry.json
-python tools/vault_lint.py vault
+python3 tools/vault_lint.py vault
 ```
+
+CI byte-diffs the deterministic **HTML + Markdown + JSONL** outputs against a fresh run, so a drifted number
+fails the build. The committed **`report.sample.png`** screenshots are **illustrative snapshots** re-rendered
+from the same HTML — they are *not* byte-freshness-gated (cross-platform rendering is non-deterministic), so
+the HTML/MD is the source of truth and the PNG is a convenience preview. Regenerate a PNG from its
+`report.sample.html` if the underlying data changes.
 
 Standard library only; deterministic; offline; fail-closed. The decision ledger
 (`core/event_log.py`) is the source of record for decisions/actions/approvals; the HRIS/ATS for

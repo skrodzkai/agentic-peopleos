@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Evals for the People Intelligence (Executive View) composer.
-Run: python evals/test_people_intelligence.py
+Run: python3 evals/test_people_intelligence.py
 
 Proves the marquee is presentation-only over the engine, the charts render deterministically and
 injection-safe, the SVG <defs> ids don't collide across tiles, the publish gate refuses an invalid

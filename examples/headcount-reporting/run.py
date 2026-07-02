@@ -7,9 +7,9 @@ ones into a dark operating dashboard, and lists the not-yet-instrumented ones HO
 section (never a fabricated number). It cites the metric registry, fails closed, and stops at a human
 publish gate.
 
-    python run.py                                          # draft only
-    python run.py --publish                                # refused: needs a valid named approver
-    python run.py --publish --approved-by "People Analytics Lead"
+    python3 run.py                                          # draft only
+    python3 run.py --publish                                # refused: needs a valid named approver
+    python3 run.py --publish --approved-by "People Analytics Lead"
 
 Standard library only; deterministic; offline.
 """

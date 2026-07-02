@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Adversarial evals for the visible handoff. Run: python evals/test_handoff.py
+"""Adversarial evals for the visible handoff. Run: python3 evals/test_handoff.py
 
 Every check names the bad thing it prevents.
 """

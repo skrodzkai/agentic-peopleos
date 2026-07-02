@@ -37,9 +37,9 @@ accounting advice, legal advice, tax advice, investment advice, or an auditor-ap
 
 ```bash
 cd examples/rtsr-psu-valuation
-python run.py                                                # draft artifacts
-python run.py --publish                                      # refused: missing reviewer label
-python run.py --publish --approved-by "Compensation Committee Chair"  # demo publish marker
+python3 run.py                                                # draft artifacts
+python3 run.py --publish                                      # refused: missing reviewer label
+python3 run.py --publish --approved-by "Compensation Committee Chair"  # demo publish marker
 ```
 
 The `--approved-by` flag is a lightweight demo control, not the full role-scoped, ledger-backed
@@ -48,7 +48,7 @@ approval registry used by the operating-review example.
 ## Test it
 
 ```bash
-python evals/test_rtsr_psu.py
+python3 evals/test_rtsr_psu.py
 ```
 
 The reusable math lives in [`foundation/compute/rtsr.py`](../../foundation/compute/rtsr.py); this

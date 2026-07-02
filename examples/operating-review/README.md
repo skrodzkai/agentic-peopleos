@@ -30,20 +30,20 @@ ledger-verified approval for the published run (recommendation → approval → 
 ## Run it
 ```bash
 cd examples/operating-review
-python run.py                                               # draft only
-python run.py --publish --approved-by hr.business-partner   # entitled → published (ledger recorded)
-python run.py --publish --approved-by obs.engineering       # not entitled → denied + escalation (refused)
+python3 run.py                                               # draft only
+python3 run.py --publish --approved-by hr.business-partner   # entitled → published (ledger recorded)
+python3 run.py --publish --approved-by obs.engineering       # not entitled → denied + escalation (refused)
 ```
 
 Verify the decision ledger:
 ```bash
-python -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
+python3 -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
   --registry examples/visible-handoff/approval_registry.json
 ```
 
 ## Test it
 ```bash
-python evals/test_operating_review.py
+python3 evals/test_operating_review.py
 ```
 The eval proves the composer is presentation-only, the coverage map matches the engine, and the full
 ledger gate: entitled → approved + verified + published; non-entitled → denied + escalated + refused;

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Known-answer evals for the stdlib OLS used by the adjusted pay gap.
-Run: python foundation/compute/tests/test_regression.py
+Run: python3 foundation/compute/tests/test_regression.py
 """
 import sys
 from pathlib import Path

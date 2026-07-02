@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the compensation reporting agent. Run: python evals/test_comp.py
+"""Evals for the compensation reporting agent. Run: python3 evals/test_comp.py
 
 Plain stdlib asserts so it runs anywhere with no test framework installed.
 Covers the metric math, the governance invariant (agent never recommends/changes

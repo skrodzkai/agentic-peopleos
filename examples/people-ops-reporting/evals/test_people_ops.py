@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the people-ops-reporting agent. Run: python evals/test_people_ops.py"""
+"""Evals for the people-ops-reporting agent. Run: python3 evals/test_people_ops.py"""
 import contextlib
 import io
 import sys

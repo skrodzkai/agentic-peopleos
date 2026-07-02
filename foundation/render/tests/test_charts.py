@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the deterministic SVG chart toolkit. Run: python foundation/render/tests/test_charts.py
+"""Evals for the deterministic SVG chart toolkit. Run: python3 foundation/render/tests/test_charts.py
 
 Proves every chart is deterministic (same inputs -> identical bytes, so a committed dashboard can be
 byte-diffed), well-formed SVG, and escapes caller-supplied labels (no markup injection through a
@@ -108,5 +108,11 @@ ok("id='ascriptonload_track'" in mal,
 # ---- a couple of semantics: forest plot flags a CI that clears 0 in the risk color ----
 ok(c.RED in forest, "forest_plot draws a significant (CI-excludes-0) row in the risk color")
 ok("_track'" in beacon and "url(#ps" in beacon, "percentile_strip paints the (auto-id) gradient track")
+
+# ---- ordinal formatting: a percentile ending in 1/2/3 must not render as 'th' (the '62th' bug) ----
+ok([c.ordinal(n) for n in (1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 62, 100, 113)]
+   == ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "23rd", "62nd", "100th", "113th"],
+   "ordinal() gives correct English ordinals incl. the 11-13 exceptions and 21st/62nd")
+ok(c.ordinal(62.0) == "62nd" and c.ordinal("62") == "62nd", "ordinal() coerces float/str percentiles to int")
 
 print(f"OK — {passed} chart-toolkit checks passed.")

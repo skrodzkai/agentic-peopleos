@@ -6,8 +6,8 @@ regrettable, total, involuntary), first-year/90-day attrition, 12-month retentio
 hotspots — all computed by `foundation/compute/engine.py`, cited from the registry, with the
 annualization method stated plainly. The two un-instrumented mobility metrics are shown honestly.
 
-    python run.py
-    python run.py --publish --approved-by "People Analytics Lead"
+    python3 run.py
+    python3 run.py --publish --approved-by "People Analytics Lead"
 
 Standard library only; deterministic; offline.
 """

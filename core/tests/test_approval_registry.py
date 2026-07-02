@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the approval registry. Run: python core/tests/test_approval_registry.py"""
+"""Evals for the approval registry. Run: python3 core/tests/test_approval_registry.py"""
 import sys
 from pathlib import Path
 

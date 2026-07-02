@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the event ledger. Run: python core/tests/test_event_log.py
+"""Evals for the event ledger. Run: python3 core/tests/test_event_log.py
 
 Each check answers 'what bad thing did this prevent?'
 """

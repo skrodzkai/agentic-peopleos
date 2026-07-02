@@ -1,11 +1,11 @@
 # Acme Corp — Executive Comp Peer Group (Compensation Committee) digest
 _FY2026 proxy season · synthetic universe · draft for committee review_
 
-- Screened **220 public companies** → **29 in-band candidates**: same sub-industry (**Application Software**), within **0.5–2.0×** on **revenue and market cap** (headcount is a soft fit factor, not a gate); then fit-ranked into a **15-company recommended core peer group** + a **14-company watchlist**.
-- Acme Corp: **$852M** revenue, **$6.4B** market cap, **2023** employees — at the **~62th percentile** of the group (median peer **$802M**).
-- Recommended core: **15** companies (closest match **Crestline Logic**, fit **89**); watchlist of **14** in-band alternates.
-- Group revenue spans **$463M–$1.7B**; market cap **$3.9B–$12.7B**.
-- Excluded: **27** same-industry on size alone, **164** as a different sub-industry — every exclusion on the record with its failing criterion.
+- Screened **220 public companies** → **31 in-band candidates**: same sub-industry (**Application Software**), within **0.5–2.0×** on **revenue and market cap** (headcount is a soft fit factor, not a gate); then fit-ranked into a **15-company recommended core peer group** + a **16-company watchlist**.
+- Acme Corp: **$852M** revenue, **$6.4B** market cap, **2023** employees — at the **~68th percentile** of the group (median peer **$762M**).
+- Recommended core: **15** companies (closest match **North 049**, fit **85**); watchlist of **16** in-band alternates.
+- Group revenue spans **$433M–$1.2B**; market cap **$3.3B–$12.7B**.
+- Excluded: **27** same-industry on size alone, **162** as a different sub-industry — every exclusion on the record with its failing criterion.
 - Target percentiles carried forward: Base salary P45–55, Target STI / bonus P50–60, Total target cash P50–60, LTI / equity (target) P50–65, Total direct comp P50–65 (committee policy; applied only after the peer group is approved).
 
 _The screen RECOMMENDS; the Compensation Committee approves the final peer group (human-in-the-loop)._

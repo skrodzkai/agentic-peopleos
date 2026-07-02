@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for content typing + injection defense. Run: python core/tests/test_content.py"""
+"""Evals for content typing + injection defense. Run: python3 core/tests/test_content.py"""
 import sys
 from pathlib import Path
 

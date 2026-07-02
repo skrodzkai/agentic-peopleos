@@ -4,7 +4,7 @@
 These prove the engine's numbers tie out (headcount, the net-growth bridge, span math,
 distributions reconcile to 100%, turnover splits sum to total) and that the engine is
 governance-safe (read-only — no method can change a record) and honest about missing data.
-Run: python foundation/compute/tests/test_engine.py
+Run: python3 foundation/compute/tests/test_engine.py
 """
 import sys
 from datetime import date, datetime, timedelta

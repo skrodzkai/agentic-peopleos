@@ -8,8 +8,8 @@ Safety, Compliance & Ethics, Learning & Development, self-service deflection) ar
 per-domain coverage section — their source tables aren't modeled in the synthetic foundation yet, so
 they are listed, never estimated.
 
-    python run.py
-    python run.py --publish --approved-by "People Ops Lead"
+    python3 run.py
+    python3 run.py --publish --approved-by "People Ops Lead"
 
 Standard library only; deterministic; offline.
 """

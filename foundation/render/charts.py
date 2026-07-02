@@ -63,6 +63,14 @@ def _f(x: float, nd: int = 1) -> str:
     return f"{x:.{nd}f}"
 
 
+def ordinal(n) -> str:
+    """English ordinal for a non-negative integer: 1->'1st', 2->'2nd', 3->'3rd', 11->'11th', 62->'62nd',
+    100->'100th'. Used for percentile copy so a value ending in 1/2/3 never renders as '62th'."""
+    n = int(n)
+    suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
 def _scale(d0, d1, r0, r1):
     span = (d1 - d0) or 1
     m = (r1 - r0) / span

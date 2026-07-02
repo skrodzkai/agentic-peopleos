@@ -4,8 +4,8 @@
 This is a defense-in-depth backstop for portfolio examples. Source code and tests may contain
 real ticker fixtures deliberately; sample data, generated dashboards, and public docs should not.
 
-    python tools/ticker_scan.py examples foundation/data
-    python tools/ticker_scan.py --self-test
+    python3 tools/ticker_scan.py examples foundation/data
+    python3 tools/ticker_scan.py --self-test
 """
 import re
 import sys

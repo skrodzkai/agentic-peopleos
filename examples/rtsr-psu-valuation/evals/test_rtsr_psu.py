@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Evals for the rTSR PSU valuation example.
-Run: python evals/test_rtsr_psu.py
+Run: python3 evals/test_rtsr_psu.py
 """
 import contextlib
 import io

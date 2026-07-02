@@ -18,9 +18,9 @@ SVG toolkit (foundation/render/charts.py), is transparent about every exclusion,
 committee's target-percentile policy forward to the benchmarking arm, fails closed, and stops at a
 human approval gate — because finalizing the peer group is a committee decision, not the model's.
 
-    python run.py                                              # draft only
-    python run.py --publish                                    # refused: needs a named committee approver
-    python run.py --publish --approved-by "Compensation Committee Chair"
+    python3 run.py                                              # draft only
+    python3 run.py --publish                                    # refused: needs a named committee approver
+    python3 run.py --publish --approved-by "Compensation Committee Chair"
 
 Standard library only; deterministic; offline. The universe is synthetic — no real issuer, ticker,
 or proxy is represented.
@@ -156,7 +156,7 @@ def _narrative(subj, sub_ind, n_universe, n_peers, top, median_rev, pctile, excl
             f"<b>{n_core}-company recommended core peer group</b> + a <b>{n_watch}-company watchlist</b> "
             f"(headcount, a soft factor, shapes the rank, not membership). "
             f"Closest match: <span class='up'><b>{_e(tc['company_name'])}</b> (fit {top['fit']:.0f})</span>. "
-            f"{_e(COMPANY)}'s <b>{_money(subj['revenue_usd'])}</b> revenue sits near the <b>{pctile}th percentile</b> "
+            f"{_e(COMPANY)}'s <b>{_money(subj['revenue_usd'])}</b> revenue sits near the <b>{ch.ordinal(pctile)} percentile</b> "
             f"of the in-band group (median <b>{_money(median_rev)}</b>). "
             f"<span class='warn'>The fit score orders the group; the screen — not the score — decides membership.</span>")
 
@@ -290,7 +290,7 @@ def render_html(report):
     body.append("<section class='beacon'><div class='head'>"
                 f"<div><div class='label'>Subject company · {_e(subj['ticker'])}</div>"
                 f"<div class='hero'><span class='v mono'>{_e(COMPANY)}</span>"
-                f"<span class='pct'>~{pctile}th percentile of the {n_peers} in-band candidates</span></div></div>"
+                f"<span class='pct'>~{ch.ordinal(pctile)} percentile of the {n_peers} in-band candidates</span></div></div>"
                 f"<div class='subjfacts'>{factrow}</div></div>"
                 "<div class='chart'>"
                 # no `target=` here: the median is already a labeled tick, and an amber "target" marker
@@ -388,7 +388,7 @@ def render_digest(report):
         f"**{len(report['core'])}-company recommended core peer group** + a **{len(report['watchlist'])}-company "
         f"watchlist**.",
         f"- {COMPANY}: **{_money(subj['revenue_usd'])}** revenue, **{_money(subj['market_cap_usd'])}** market cap, "
-        f"**{subj['employees']}** employees — at the **~{report['subj_pctile']}th percentile** of the group "
+        f"**{subj['employees']}** employees — at the **~{ch.ordinal(report['subj_pctile'])} percentile** of the group "
         f"(median peer **{_money(report['median_rev'])}**).",
         f"- Recommended core: **{len(report['core'])}** companies (closest match **{top['company_name']}**, "
         f"fit **{report['peers'][0]['fit']:.0f}**); watchlist of **{len(report['watchlist'])}** in-band alternates.",
@@ -580,7 +580,7 @@ def main(argv=None) -> int:
     print(f"{COMPANY} Executive Comp — Peer Group Builder ({AS_OF})")
     print(f"  {report['n_peers']} peers of {report['n_universe']} screened "
           f"(core {len(report['core'])} + watchlist {len(report['watchlist'])}) | "
-          f"{COMPANY} at ~{report['subj_pctile']}th pctile | median peer {_money(report['median_rev'])}")
+          f"{COMPANY} at ~{ch.ordinal(report['subj_pctile'])} pctile | median peer {_money(report['median_rev'])}")
     print("  wrote report.sample.html and day1-digest.sample.md")
     if args.publish:
         print(f"\nPeer group approved by {approver}. Recorded locally (no external send).")

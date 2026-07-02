@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the headcount-reporting agent. Run: python evals/test_headcount.py
+"""Evals for the headcount-reporting agent. Run: python3 evals/test_headcount.py
 
 Proves the agent is presentation-only over the engine (every rendered number equals the engine's),
 surfaces data_pending honestly, never emits a decisional instruction, fails closed, and the publish

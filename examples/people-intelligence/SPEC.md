@@ -49,7 +49,7 @@ and stops at a human publish gate.
 ## Run
 ```bash
 cd examples/people-intelligence
-python run.py                                          # draft
-python run.py --publish --approved-by "People Analytics Lead"
-python evals/test_people_intelligence.py
+python3 run.py                                          # draft
+python3 run.py --publish --approved-by "People Analytics Lead"
+python3 evals/test_people_intelligence.py
 ```

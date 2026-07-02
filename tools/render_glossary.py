@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the human-readable metric glossary from the canonical registry.
 
-    python tools/render_glossary.py
+    python3 tools/render_glossary.py
 
 Reads vault/90-people-analytics/metrics/metrics.registry.json and writes one Markdown
 page per domain (under metrics/) plus the index (metrics-glossary.md). The registry is the

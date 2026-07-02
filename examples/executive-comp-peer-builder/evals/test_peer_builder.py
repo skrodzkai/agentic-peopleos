@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Evals for the Executive Compensation Peer Group Builder.
-Run: python evals/test_peer_builder.py
+Run: python3 evals/test_peer_builder.py
 
 Proves the agent is presentation-only over the shared screener, the hybrid is built correctly (a hard
 screen for membership + a fit-rank that orders but never gates), the core/watchlist split is right,

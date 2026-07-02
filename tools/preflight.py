@@ -2,7 +2,7 @@
 """Pre-push preflight: the public repo only shows TRACKED files, so assert the critical paths
 exist and that nothing required is left untracked before a push.
 
-    python tools/preflight.py
+    python3 tools/preflight.py
 
 Checks:
   1. Every critical entrypoint/tree CI and the docs depend on exists on disk.

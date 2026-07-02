@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evals for the attrition-reporting agent. Run: python evals/test_attrition.py"""
+"""Evals for the attrition-reporting agent. Run: python3 evals/test_attrition.py"""
 import contextlib
 import io
 import sys

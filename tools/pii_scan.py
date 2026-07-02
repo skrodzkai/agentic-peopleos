@@ -6,7 +6,7 @@ check: it greps the data/output/knowledge artifacts that actually ship in the pu
 (sample CSVs, generated reports/ledgers, the vault) for obvious direct identifiers. Test files
 are intentionally excluded — adversarial PII fixtures live there on purpose.
 
-    python tools/pii_scan.py <path> [<path> ...]      # exits non-zero on any hit
+    python3 tools/pii_scan.py <path> [<path> ...]      # exits non-zero on any hit
 
 Heuristic only (see core/pii.py) — a backstop, not a guarantee.
 """

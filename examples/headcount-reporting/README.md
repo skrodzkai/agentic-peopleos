@@ -30,7 +30,7 @@ No dependencies — Python 3.9+ standard library only.
 
 ```bash
 cd examples/headcount-reporting
-python run.py                          # writes output/, stops at the publish gate
+python3 run.py                          # writes output/, stops at the publish gate
 open output/report.sample.html         # the dashboard (macOS; use your browser)
 cat  output/day1-digest.sample.md      # the digest a human reviews
 ```
@@ -38,14 +38,14 @@ cat  output/day1-digest.sample.md      # the digest a human reviews
 Publish gate:
 
 ```bash
-python run.py --publish                                        # refused — needs a valid approver
-python run.py --publish --approved-by "People Analytics Lead"  # records the approval (PUBLISHED.json)
+python3 run.py --publish                                        # refused — needs a valid approver
+python3 run.py --publish --approved-by "People Analytics Lead"  # records the approval (PUBLISHED.json)
 ```
 
 ## Test it
 
 ```bash
-python evals/test_headcount.py
+python3 evals/test_headcount.py
 ```
 
 The eval proves the agent is presentation-only (every rendered KPI equals the engine's value),

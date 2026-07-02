@@ -5,9 +5,9 @@ Reads open requisitions, computes the weekly operating report deterministically,
 renders a branded HTML dashboard + a Day-1 digest, and STOPS at a human publish
 gate. All data is synthetic. Standard library only (Python 3.9+).
 
-    python run.py                                   # draft only — nothing is sent
-    python run.py --publish                         # refused: needs a named approver
-    python run.py --publish --approved-by "Name"    # records the human approval
+    python3 run.py                                   # draft only — nothing is sent
+    python3 run.py --publish                         # refused: needs a named approver
+    python3 run.py --publish --approved-by "Name"    # records the human approval
 
 Fails closed: on missing/malformed/contract-violating data it writes no report,
 marks any prior output `.stale`, prints a clean message, and exits non-zero.

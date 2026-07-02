@@ -22,7 +22,7 @@ Checks (exit 1 on any error):
 
 Optional staleness report with --as-of YYYY-MM-DD (warnings, non-failing):
 review-due in the past, or last-reviewed > 365 days old.
-Usage: python tools/vault_lint.py vault [--as-of 2026-01-15]
+Usage: python3 tools/vault_lint.py vault [--as-of 2026-01-15]
 """
 import sys
 from datetime import datetime

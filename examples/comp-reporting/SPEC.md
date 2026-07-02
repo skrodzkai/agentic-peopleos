@@ -81,9 +81,9 @@ Violations are reported with the offending `emp_id` and field.
 `run.py` produces a **draft** and stops. Distribution is a separate, explicit human step:
 
 ```bash
-python run.py                                          # draft only — nothing is sent
-python run.py --publish                                # refused: the gate requires a named approver
-python run.py --publish --approved-by "Total Rewards Partner"   # records who approved
+python3 run.py                                          # draft only — nothing is sent
+python3 run.py --publish                                # refused: the gate requires a named approver
+python3 run.py --publish --approved-by "Total Rewards Partner"   # records who approved
 ```
 
 There is no email/Slack/send tool in `tools.yaml` by design — the human owns distribution.

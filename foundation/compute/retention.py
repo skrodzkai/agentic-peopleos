@@ -24,8 +24,8 @@ stdlib only; deterministic; offline; fail-closed. NOTE: the accuracy CHALLENGER 
 full test-slice evaluation + realism guard is Increment 3.
 
 CLI:
-    python foundation/compute/retention.py validate         # panel + manifest schema + model reproducibility
-    python foundation/compute/retention.py build-manifest   # (re)train the model + emit the canonical manifest
+    python3 foundation/compute/retention.py validate         # panel + manifest schema + model reproducibility
+    python3 foundation/compute/retention.py build-manifest   # (re)train the model + emit the canonical manifest
 """
 import csv
 import hashlib
@@ -652,7 +652,10 @@ SYNTHETIC_VALIDATION = "synthetic-only — demonstrates mechanics, not external 
 
 def pr_auc(scores, y):
     """Average precision (area under the precision-recall curve) — the headline discrimination metric under
-    heavy class imbalance. Ties broken deterministically by index."""
+    heavy class imbalance. TIE-AWARE / order-independent: rows with an equal score form a block, and every
+    positive in the block is credited the precision at the block's LAST rank (pessimistic — a positive tied
+    with negatives gets no rank credit for merely appearing first by index). So the AP depends only on the
+    scores, never on input row order (all-tied scores => the base rate, not a fluke 1.0)."""
     if len(scores) != len(y):
         raise ModelError("pr_auc: length mismatch")
     if any(not math.isfinite(s) for s in scores):
@@ -661,13 +664,22 @@ def pr_auc(scores, y):
     P = sum(y)
     if P == 0 or P == len(y):
         raise ModelError("pr_auc needs both classes present")
-    order = sorted(range(len(scores)), key=lambda i: (-scores[i], i))
-    tp = 0
+    order = sorted(range(len(scores)), key=lambda i: -scores[i])
     ap = 0.0
-    for rank, i in enumerate(order, start=1):
-        if y[i] == 1:
-            tp += 1
-            ap += tp / rank
+    tp = 0                                                 # positives seen through the end of the current block
+    rank = 0                                               # rows processed through the end of the current block
+    i, n = 0, len(order)
+    while i < n:
+        j = i
+        while j + 1 < n and scores[order[j + 1]] == scores[order[i]]:
+            j += 1
+        block = order[i:j + 1]
+        g_pos = sum(1 for k in block if y[k] == 1)
+        tp += g_pos
+        rank += len(block)
+        if g_pos:
+            ap += g_pos * (tp / rank)                      # every positive in the block shares the block-end precision
+        i = j + 1
     return ap / P
 
 
@@ -726,6 +738,12 @@ def horizon_concordance(risk, term_month, is_event):
     Equal termination months are not orderable and are skipped."""
     if not (len(risk) == len(term_month) == len(is_event)):
         raise ModelError("horizon_concordance: length mismatch")
+    if any(not math.isfinite(r) for r in risk):
+        raise ModelError("horizon_concordance: non-finite risk score")
+    if not all(isinstance(t, int) and not isinstance(t, bool) for t in term_month):
+        raise ModelError("horizon_concordance: term_month values must be integers")
+    if not all(isinstance(e, bool) for e in is_event):
+        raise ModelError("horizon_concordance: is_event values must be booleans")
     n = len(risk)
     conc = comp = 0.0
     for i in range(n):
@@ -747,28 +765,18 @@ def horizon_concordance(risk, term_month, is_event):
 
 
 def _validate_slices(design, slices):
-    """Fail closed unless train/calibration/test are the canonical out-of-time slices: each non-empty, indices
-    in range, mutually disjoint, and honoring the month-index boundaries (train <= SLICE_T1 < calibration <=
-    SLICE_T2 < test). Stops a caller from passing train rows as `test` (leakage) or an empty/overlapping slice
-    and getting normal-looking numbers back."""
-    mi = design["month_index"]
-    seen = set()
+    """Fail closed unless train/calibration/test are EXACTLY the canonical out-of-time partition
+    `temporal_slices(design)` — every row assigned, none dropped, none reordered across bands. Boundary +
+    disjointness checks alone are not enough: a caller could pass a cherry-picked in-band SUBSET of the test
+    rows and still get normal-looking (but selectively favorable) metrics back. Requiring exact equality to
+    the canonical partition closes that, and also catches an empty/overlapping/out-of-range slice."""
+    if not {"train", "calibration", "test"} <= set(slices):   # superset, not strict-subset: a renamed 3rd key
+        raise ModelError("_validate_slices: missing one of train/calibration/test")  # -> ModelError, not KeyError
+    canon = temporal_slices(design)
     for name in ("train", "calibration", "test"):
-        s = slices.get(name)
-        if not s:
-            raise ModelError(f"_validate_slices: slice {name!r} is empty or missing")
-        for i in s:
-            if not (isinstance(i, int) and not isinstance(i, bool) and 0 <= i < len(design["X"])):
-                raise ModelError(f"_validate_slices: index {i!r} out of range in {name!r}")
-            if i in seen:
-                raise ModelError("_validate_slices: slices are not disjoint")
-            seen.add(i)
-    if not all(mi[i] <= SLICE_T1 for i in slices["train"]):
-        raise ModelError("_validate_slices: train slice crosses the calibration boundary")
-    if not all(SLICE_T1 < mi[i] <= SLICE_T2 for i in slices["calibration"]):
-        raise ModelError("_validate_slices: calibration slice is outside its month-index band")
-    if not all(mi[i] > SLICE_T2 for i in slices["test"]):
-        raise ModelError("_validate_slices: test slice crosses into train/calibration months")
+        if list(slices[name]) != canon[name]:
+            raise ModelError(f"_validate_slices: {name!r} slice is not the canonical temporal partition "
+                             f"(cherry-picked/reordered/empty slices are rejected)")
 
 
 def evaluate(model=None, calibration=None, design=None, slices=None, panel_path=PANEL_PATH):
@@ -853,13 +861,19 @@ def risk_bands(probs):
 
 def risk_tier(prob, bands):
     """Map a calibrated probability to a support tier (never an adverse-action label). Fails closed on a
-    probability outside [0,1]/non-finite or reversed bands, honoring the module's fail-closed-numerics
-    contract (a calibrated probability is always in [0,1], so anything else is a caller error, not a 'low')."""
+    probability outside [0,1]/non-finite, and on malformed bands — bands must be exactly {elevated, high}
+    with finite thresholds satisfying 0 <= elevated <= high <= 1 (a string/negative/>1 band is a caller
+    error surfaced as ModelError, never a silent 'low' or a raw TypeError)."""
     if not math.isfinite(prob) or not (0.0 <= prob <= 1.0):
         raise ModelError(f"risk_tier: probability {prob!r} outside [0,1]")
-    if not (bands["elevated"] <= bands["high"]):
-        raise ModelError("risk_tier: bands not ordered (elevated <= high)")
-    return "high" if prob >= bands["high"] else "elevated" if prob >= bands["elevated"] else "low"
+    if not (isinstance(bands, dict) and set(bands) == {"elevated", "high"}):
+        raise ModelError("risk_tier: bands must be exactly {elevated, high}")
+    lo, hi = bands["elevated"], bands["high"]
+    if not (_finite_num(lo) and _finite_num(hi)):
+        raise ModelError("risk_tier: band thresholds must be finite numbers")
+    if not (0.0 <= lo <= hi <= 1.0):
+        raise ModelError("risk_tier: bands must satisfy 0 <= elevated <= high <= 1")
+    return "high" if prob >= hi else "elevated" if prob >= lo else "low"
 
 
 # --------------------------------------------------------------- segment layer / Layer 2 (Increment 4)
