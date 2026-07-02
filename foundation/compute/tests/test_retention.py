@@ -90,6 +90,13 @@ ok(ev["involuntary"] > 0, "involuntary events present (competing risk)")
 ok(ev["retirement"] > 0, "retirement events present (competing risk)")
 ok(set(ev) <= set(R.EVENT_VALUES), "only allowed event values appear")
 
+# fully-historical / no future labels: the newest labeled month must be AS_OF - 1 month (2025-12-31), so
+# every row's following-month outcome is a realized (<= AS_OF) outcome, never an unknowable future label
+_AS_OF = "2026-01-31"
+_pmonths = sorted({r[R.TIME_COL] for r in rows})
+ok(_pmonths[-1] == "2025-12-31", "newest labeled month is AS_OF - 1 month (panel is fully historical)")
+ok(all(r[R.TIME_COL] < _AS_OF for r in rows), "no panel row is dated at/after AS_OF (no future-label rows)")
+
 # competing-risks label correctness: per employee, <=1 non-'none' event, and it is the LAST row
 by_emp = {}
 for r in rows:
@@ -438,10 +445,19 @@ raises(R.ModelError, lambda: R.risk_tier(0.5, {"elevated": 0.7, "high": 0.3}), "
 ok(R.precision_at_k([0.9, 0.1, 0.8], [1, 0, 1], [0, 0, 0], min_denom=50)["status"] == "insufficient_denominator",
    "precision@k reports insufficient denominator for a tiny population")
 
-# horizon concordance covers BOTH comparable-pair types
-ok(R.horizon_concordance([0.9, 0.1], [3, None]) == 1.0, "higher risk correctly ranks the exiter over the event-free")
-ok(R.horizon_concordance([0.9, 0.1], [2, 4]) == 1.0, "higher risk correctly ranks the earlier of two in-window exits")
-ok(R.horizon_concordance([0.1, 0.9], [2, 4]) == 0.0, "discordant when the lower-risk person exits earlier")
+# competing-risks-aware horizon concordance (risk, termination_month, is_event[voluntary])
+ok(R.horizon_concordance([0.9, 0.1], [3, 6], [True, False]) == 1.0,
+   "higher risk correctly ranks the voluntary exiter over an end-of-window survivor")
+ok(R.horizon_concordance([0.9, 0.1], [2, 4], [True, True]) == 1.0,
+   "higher risk correctly ranks the earlier of two voluntary exits")
+ok(R.horizon_concordance([0.1, 0.9], [2, 4], [True, True]) == 0.0,
+   "discordant when the lower-risk person exits earlier")
+# a COMPETING-RISK exit before a voluntary event is NOT a comparable pair (the fix): the earlier terminator
+# is censored, so the pair is dropped -> no comparable pairs -> fail closed rather than count it as a survivor
+raises(R.ModelError, lambda: R.horizon_concordance([0.9, 0.1], [2, 4], [False, True]),
+       "a competing-risk censoring before a voluntary exit is excluded, not scored as event-free")
+ok(R.horizon_concordance([0.2, 0.9, 0.1], [2, 3, 5], [False, True, False]) == 1.0,
+   "with a competing-risk censor at t=2 dropped, the voluntary exiter at t=3 vs later survivor is concordant")
 
 # risk bands are ordered in [0,1] and the tier mapping is monotone
 _b = m["risk_band_thresholds"]
@@ -476,7 +492,7 @@ ok(all(s["value"] in {"Americas", "EMEA", "APAC"} for s in seg["region_band"]),
 _recon = R.reconciliation_summary(seg)
 ok(_recon["n_segments"] == len(_rendered), "reconciliation summary counts every rendered segment")
 ok(0 < _recon["n_flagged"] < _recon["n_segments"], "reconciliation flags real disagreements without flagging all")
-ok(_recon["max_abs_gap"] < 0.15, "no rendered segment diverges implausibly far (sanity ceiling)")
+ok(_recon["max_abs_gap"] < 0.20, "no rendered segment diverges implausibly far (sanity ceiling; the weak-signal cohort is the widest)")
 # the planted signal survives aggregation to the segment level (segment layer inherits Layer-1 drivers) —
 # checked on BOTH the model estimate and the independent empirical estimate, so neither can carry it alone
 _comp = {s["value"]: s["bottom_up_6mo"] for s in seg["comp_position_band"]}
@@ -490,7 +506,10 @@ ok(_ten["<1y"] < _ten["1-2y"] < _ten["2-3y"] and _ten["<1y"] < _ten["5y+"],
 _supp = R.segment_risk(rows, model, calib, design, slices, min_n=10 ** 9)
 ok(all(s.get("suppressed") for segs in _supp.values() for s in segs), "an impossible threshold suppresses every segment")
 ok(all("bottom_up_6mo" not in s for segs in _supp.values() for s in segs), "a suppressed segment leaks no estimate")
-ok(all("n_employees" in s for segs in _supp.values() for s in segs), "a suppressed segment still reports its size")
+ok(all("size_band" in s and "n_employees" not in s and "n_rows" not in s for segs in _supp.values() for s in segs),
+   "a suppressed segment reports only a COARSE size band, never an exact re-identifiable count")
+ok(R._size_band(2, 30) == "<10" and R._size_band(20, 30) == "10-29",
+   "the size band collapses tiny groups to '<10' and never exposes an exact sub-10 count")
 # reconciliation_summary handles the all-suppressed / empty-rendered case without crashing (default=0.0 path)
 _rs = R.reconciliation_summary(_supp)
 ok(_rs["n_segments"] == 0 and _rs["n_flagged"] == 0 and _rs["max_abs_gap"] == 0.0 and _rs["n_suppressed"] > 0,

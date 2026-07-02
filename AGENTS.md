@@ -46,6 +46,9 @@ python tools/render_glossary.py             # then `git diff --exit-code` on vau
 # shared exec-comp compute engines
 python foundation/compute/tests/test_rtsr.py
 python foundation/compute/tests/test_iss_screen.py
+# retention-risk model (glass-box hazard + eval + segment layer)
+python foundation/compute/tests/test_retention.py
+python foundation/compute/retention.py validate   # re-fits + reproduces coefficients/calibration/bands + provenance
 # reference example agents
 (cd examples/ta-reporting && python evals/test_report.py)
 (cd examples/comp-reporting && python evals/test_comp.py)

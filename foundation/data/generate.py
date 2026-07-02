@@ -28,6 +28,7 @@ from pathlib import Path
 # so the generator (don't-mint) and the loader (don't-accept) can never drift. Side-effect-free import.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from foundation.compute.peers import REAL_TICKERS as _PEER_REAL_TICKERS  # noqa: E402
+from foundation.compute.peers import REAL_COMPANY_NAMES as _PEER_REAL_NAMES  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "acme"
 AS_OF = date(2026, 1, 31)              # synthetic "today"
@@ -280,20 +281,20 @@ def generate():
     rng_peer = random.Random(SEED + 11)
     ttm = sum(f["revenue_usd"] for f in fin[-4:])               # Acme trailing-12-month revenue
     active_emp = sum(1 for w in employees if w["status"] in ("active", "on_leave"))
-    PREFIX = ["North", "Vantage", "Cobalt", "Meridian", "Apex", "Lumen", "Quanta", "Sable", "Ridge",
+    PREFIX = ["North", "Vantage", "Cobalt", "Meridian", "Apex", "Fairwind", "Quanta", "Sable", "Ridge",
               "Cinder", "Vertex", "Helio", "Onyx", "Brightwater", "Cedar", "Aster", "Polaris", "Nimbus",
               "Beacon", "Forge", "Harbor", "Summit", "Tiderock", "Granite", "Cypress", "Falcon", "Ironwood",
-              "Slate", "Aurora", "Driftwood", "Kestrel", "Mistral", "Basalt", "Verdant", "Halcyon", "Crestline"]
+              "Slate", "Aurora", "Driftwood", "Kestrel", "Thornwood", "Basalt", "Verdant", "Halcyon", "Crestline"]
     # (sector, [(subindustry, weight)...], rev/employee_$, market-cap/revenue, asset-intensity, [name suffixes]).
     # IT dominates and Application Software dominates IT, mirroring Acme's market — so a tight, same-
     # sub-industry screen still funnels to a credible peer set out of a deliberately broad starting universe.
     SECTORS = [
         ("Information Technology",
          [("Application Software", 52), ("Systems Software", 28), ("IT Services", 20)], 290_000, 9.0, 1.4,
-         ["Systems", "Software", "Cloud", "Logic", "Technologies", "Analytics", "Platforms", "Digital"]),
+         ["Compute", "Stack", "Cloud", "Logic", "Labs", "Analytics", "Platforms", "Digital"]),
         ("Communication Services",
          [("Interactive Media", 1), ("Internet Services", 1)], 380_000, 7.0, 1.6,
-         ["Networks", "Media", "Wireless", "Interactive", "Connect"]),
+         ["Streams", "Media", "Wireless", "Interactive", "Connect"]),
         ("Health Care",
          [("Health Care Technology", 1), ("Life Sciences Tools", 1)], 240_000, 4.5, 1.9,
          ["Bio", "Health", "Therapeutics", "Diagnostics", "Sciences"]),
@@ -305,7 +306,7 @@ def generate():
          ["Retail", "Brands", "Commerce", "Goods", "Group"]),
         ("Financials",
          [("Financial Exchanges", 1), ("Capital Markets", 1)], 520_000, 5.5, 6.0,
-         ["Capital", "Financial", "Holdings", "Partners", "Markets"]),
+         ["Ledger", "Advisory", "Holdings", "Exchange", "Markets"]),
     ]
     SECTOR_W = [48, 12, 13, 13, 7, 7]                           # IT-heavy, mirroring Acme's market
     # Tickers we refuse to mint: a real, recognizable ticker would undermine the "obviously synthetic"
@@ -325,7 +326,7 @@ def generate():
         sector, subs, rev_per_emp, mc_mult, asset_int, suffixes = rng_peer.choices(SECTORS, weights=SECTOR_W)[0]
         subindustry = rng_peer.choices([s for s, _ in subs], weights=[w for _, w in subs])[0]
         name = f"{rng_peer.choice(PREFIX)} {rng_peer.choice(suffixes)}"
-        if name in used_names:
+        if name in used_names or name.casefold() in _PEER_REAL_NAMES:   # never mint a real, recognizable name
             continue
         # derive a 4-char ticker; rotate ONLY the final letter (bounded to 26 tries, A after Z) to dodge
         # collisions with prior peers and the real-ticker deny-list. If a base is exhausted, drop the name.
@@ -421,12 +422,16 @@ def generate():
     def _pme(d):                                           # previous month-end
         return date(d.year, d.month, 1) - timedelta(days=1)
 
+    # The panel is FULLY HISTORICAL: the newest labeled month is AS_OF - 1 month, so every row's `event_next`
+    # (the following-month outcome) references a month <= AS_OF — a realized, already-observed outcome as of
+    # AS_OF. The AS_OF month itself is never a labeled row (its following month would be the future), so the
+    # panel contains no future/unknowable labels.
     months = []
-    cur = AS_OF
+    cur = _pme(AS_OF)
     for _ in range(H):
         months.append(cur)
         cur = _pme(cur)
-    months.reverse()                                       # oldest -> newest, length H
+    months.reverse()                                       # oldest -> newest, length H (newest = AS_OF - 1 month)
     mi = {m: i for i, m in enumerate(months)}
 
     def _absm(d):                                          # absolute month index (year*12+month)

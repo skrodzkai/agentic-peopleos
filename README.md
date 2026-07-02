@@ -194,8 +194,8 @@ The controls above are documented, each tied to the working code:
 - [people-operating-cadence](governance/people-operating-cadence.md) — how a human still runs it
 
 **Measurement governance.** Every number a reporting agent emits is defined *once* in a
-canonical [metric registry](vault/90-people-analytics/metrics/metrics.registry.json) — **68
-metrics across 11 People domains** (ISO 30414-aligned), each tagged Core KPI / Diagnostic /
+canonical [metric registry](vault/90-people-analytics/metrics/metrics.registry.json) — **72
+metrics across 12 People domains** (ISO 30414-aligned), each tagged Core KPI / Diagnostic /
 Operational Alert with an implementation protocol and, where it differs, the correct group
 formula. Each metric also declares what an agent **may** do (calculate, trend, flag) and what
 it **must not** (e.g. change or recommend pay) — and [`core/metrics.py`](core/metrics.py)

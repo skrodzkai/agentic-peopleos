@@ -40,6 +40,8 @@ SCHEMA_VERSION = "1.0.0"
 FEATURE_VERSION = "1.0.0"
 MODEL_VERSION = "1.0.0"                   # Increment 2: the trained glass-box hazard model
 _SCAFFOLD_VERSION = "0.0.0-scaffold"      # sentinel used before a model is trained (Increment 0)
+TRAINED_INCREMENT = 3                     # the increment that produced the current trained manifest (pinned both
+                                          # in build_manifest and validate_manifest so provenance can't be faked)
 
 ROOT = Path(__file__).resolve().parents[2]
 PANEL_PATH = ROOT / "foundation" / "data" / "acme" / "retention_panel.csv"
@@ -299,12 +301,14 @@ def build_design(rows):
     never coded as a positive.
 
     Returns a dict: feature_names, X (list[list[float]]), y (1 iff the following-month outcome is a
-    voluntary exit), emp, month_index, month — the last three for the out-of-time temporal splits (by
-    calendar month, NOT employee-grouped: the same person legitimately appears in earlier slices) below.
+    voluntary exit), emp, month_index, month — the middle three for the out-of-time temporal splits (by
+    calendar month, NOT employee-grouped: the same person legitimately appears in earlier slices) below —
+    and event (the raw competing-risks outcome per row, so the survival concordance can tell a competing-risk
+    exit apart from an end-of-window survivor; NOT a model input).
     """
     miss = sorted(MISSABLE)
     names = list(MODEL_FEATURES) + [f"{c}{MISSING_SUFFIX}" for c in miss]
-    X, y, emp, midx, month = [], [], [], [], []
+    X, y, emp, midx, month, event = [], [], [], [], [], []
     for r in rows:
         ev = r.get(LABEL_COL)
         if ev not in EVENT_VALUES:                        # fail closed — never silently coerce a bad label to y=0
@@ -320,7 +324,8 @@ def build_design(rows):
         emp.append(r[ID_COL])
         midx.append(r[INDEX_COL])
         month.append(r[TIME_COL])
-    return {"feature_names": names, "X": X, "y": y, "emp": emp, "month_index": midx, "month": month}
+        event.append(ev)                                  # raw competing-risks outcome (voluntary/involuntary/retirement/none)
+    return {"feature_names": names, "X": X, "y": y, "emp": emp, "month_index": midx, "month": month, "event": event}
 
 
 # --------------------------------------------------------------- glass-box hazard model (Increment 2)
@@ -538,6 +543,7 @@ def platt_calibrate(model, design, calib_idx, iters=60):
     if npos == 0 or npos == len(yt):
         raise ModelError("calibration slice has a single class — Platt scaling needs both")
     a, b = 1.0, 0.0
+    stepped = False
     for _ in range(iters):
         g0 = g1 = h00 = h01 = h11 = 0.0
         for li, yi in zip(L, yt):
@@ -551,7 +557,13 @@ def platt_calibrate(model, design, calib_idx, iters=60):
             h11 += s
         det = h00 * h11 - h01 * h01
         if abs(det) < 1e-12:
+            # A singular 2-param system means the calibration logits are degenerate (e.g. ~constant): the
+            # slope is unidentifiable. Fail CLOSED rather than silently return the unfitted identity {a:1,b:0}
+            # (which would leave probabilities uncalibrated). If Newton already stepped, keep the fitted a,b.
+            if not stepped:
+                raise ModelError("platt_calibrate: singular calibration system (degenerate logits) — cannot fit")
             break
+        stepped = True
         da = (h11 * g0 - h01 * g1) / det
         db = (-h01 * g0 + h00 * g1) / det
         a += da
@@ -595,6 +607,8 @@ def rank_auc(scores, y):
     Fails closed on a length mismatch, non-binary labels, or a single-class input."""
     if len(scores) != len(y):
         raise ModelError("rank_auc: length mismatch")
+    if any(not math.isfinite(s) for s in scores):
+        raise ModelError("rank_auc: non-finite score")
     _binary_labels(y)
     npos = sum(1 for v in y if v == 1)
     nneg = len(y) - npos
@@ -641,6 +655,8 @@ def pr_auc(scores, y):
     heavy class imbalance. Ties broken deterministically by index."""
     if len(scores) != len(y):
         raise ModelError("pr_auc: length mismatch")
+    if any(not math.isfinite(s) for s in scores):
+        raise ModelError("pr_auc: non-finite score")
     _binary_labels(y)
     P = sum(y)
     if P == 0 or P == len(y):
@@ -661,6 +677,12 @@ def precision_at_k(scores, y, groups, k_frac=PRECISION_K_FRAC, min_denom=PRECISI
     flags never reach min_denom (Codex build-note: Acme's active pop can be small)."""
     if not (len(scores) == len(y) == len(groups)):
         raise ModelError("precision_at_k: length mismatch")
+    if any(not math.isfinite(s) for s in scores):
+        raise ModelError("precision_at_k: non-finite score")
+    if not (0.0 < k_frac <= 1.0):
+        raise ModelError(f"precision_at_k: k_frac {k_frac!r} must be in (0,1]")
+    if not (isinstance(min_denom, int) and not isinstance(min_denom, bool) and min_denom >= 1):
+        raise ModelError(f"precision_at_k: min_denom {min_denom!r} must be a positive int")
     _binary_labels(y)
     by_g = {}
     for i in range(len(scores)):
@@ -677,40 +699,43 @@ def precision_at_k(scores, y, groups, k_frac=PRECISION_K_FRAC, min_denom=PRECISI
 
 
 def _test_outcomes(model, calibration, design, slices):
-    """Per employee active in the TEST slice: a risk score (max calibrated monthly hazard over their test
-    rows) and their voluntary exit month within the window (or None = event-free / censored) — the inputs
-    to the survival concordance."""
+    """Per employee active in the TEST slice, the inputs to the survival concordance: a risk score (max
+    calibrated monthly hazard over their test rows), the month their observation TERMINATES in the window,
+    and whether that termination is the VOLUNTARY event (True) or a censoring (False). Their last test row's
+    raw event decides it: a voluntary exit is the event; an involuntary/retirement exit is a COMPETING-RISK
+    censoring at that month (not event-free); an at-window-edge 'none' is administrative censoring. Treating
+    a competing-risk exit as event-free would wrongly count them as a survivor in pairs — the bug this fixes."""
     by_emp = {}
     for i in slices["test"]:
         by_emp.setdefault(design["emp"][i], []).append(i)
-    risk, exit_month = [], []
+    risk, term_month, is_event = [], [], []
     for e, idxs in by_emp.items():
         idxs.sort(key=lambda i: design["month_index"][i])
         risk.append(max(calibrated_probability(model, calibration, design["X"][i]) for i in idxs))
-        ex = next((design["month_index"][i] for i in idxs if design["y"][i] == 1), None)
-        exit_month.append(ex)
-    return risk, exit_month
+        last = idxs[-1]                                    # terminating test row (highest month index for this employee)
+        term_month.append(design["month_index"][last])
+        is_event.append(design["event"][last] == TARGET_EVENT)   # voluntary = event; competing-risk / admin edge = censored
+    return risk, term_month, is_event
 
 
-def horizon_concordance(risk, exit_month):
-    """Survival C-index over comparable pairs: comparable when one voluntarily exits and the other is
-    event-free through the window, OR both exit in-window at different months. Concordant when the higher
-    risk score belongs to the earlier / actual exiter (ties in score score 0.5)."""
-    if len(risk) != len(exit_month):
+def horizon_concordance(risk, term_month, is_event):
+    """Competing-risks-aware survival C-index (Harrell). A pair is COMPARABLE only when the one who
+    terminates earlier does so via the voluntary EVENT (not a censoring) — so a competing-risk exit or an
+    end-of-window survivor is never treated as an observed 'stayed longer' when it precedes a voluntary exit.
+    Concordant when the earlier voluntary exiter carries the higher risk score (equal scores score 0.5).
+    Equal termination months are not orderable and are skipped."""
+    if not (len(risk) == len(term_month) == len(is_event)):
         raise ModelError("horizon_concordance: length mismatch")
     n = len(risk)
     conc = comp = 0.0
     for i in range(n):
         for j in range(i + 1, n):
-            ei, ej = exit_month[i], exit_month[j]
-            if ei is None and ej is None:
+            ti, tj = term_month[i], term_month[j]
+            if ti == tj:
+                continue                                   # same month -> cannot order
+            earlier, later = (i, j) if ti < tj else (j, i)
+            if not is_event[earlier]:                      # earlier terminator was CENSORED -> pair not usable
                 continue
-            if ei is not None and ej is not None:
-                if ei == ej:
-                    continue
-                earlier, later = (i, j) if ei < ej else (j, i)
-            else:
-                earlier, later = (i, j) if ei is not None else (j, i)
             comp += 1
             if risk[earlier] > risk[later]:
                 conc += 1.0
@@ -721,26 +746,50 @@ def horizon_concordance(risk, exit_month):
     return conc / comp
 
 
+def _validate_slices(design, slices):
+    """Fail closed unless train/calibration/test are the canonical out-of-time slices: each non-empty, indices
+    in range, mutually disjoint, and honoring the month-index boundaries (train <= SLICE_T1 < calibration <=
+    SLICE_T2 < test). Stops a caller from passing train rows as `test` (leakage) or an empty/overlapping slice
+    and getting normal-looking numbers back."""
+    mi = design["month_index"]
+    seen = set()
+    for name in ("train", "calibration", "test"):
+        s = slices.get(name)
+        if not s:
+            raise ModelError(f"_validate_slices: slice {name!r} is empty or missing")
+        for i in s:
+            if not (isinstance(i, int) and not isinstance(i, bool) and 0 <= i < len(design["X"])):
+                raise ModelError(f"_validate_slices: index {i!r} out of range in {name!r}")
+            if i in seen:
+                raise ModelError("_validate_slices: slices are not disjoint")
+            seen.add(i)
+    if not all(mi[i] <= SLICE_T1 for i in slices["train"]):
+        raise ModelError("_validate_slices: train slice crosses the calibration boundary")
+    if not all(SLICE_T1 < mi[i] <= SLICE_T2 for i in slices["calibration"]):
+        raise ModelError("_validate_slices: calibration slice is outside its month-index band")
+    if not all(mi[i] > SLICE_T2 for i in slices["test"]):
+        raise ModelError("_validate_slices: test slice crosses into train/calibration months")
+
+
 def evaluate(model=None, calibration=None, design=None, slices=None, panel_path=PANEL_PATH):
     """Out-of-time TEST-slice evaluation. Every number here is SYNTHETIC-VALIDATION only (mechanics, not
     external accuracy). Discrimination metrics use the raw logit (rank-equivalent); Brier uses calibrated
-    probabilities."""
+    probabilities. Fails closed unless the slices are the canonical out-of-time partition."""
     if model is None:
         model, calibration, design, slices = train_model(panel_path)
+    _validate_slices(design, slices)
     test = slices["test"]
-    if not test:
-        raise ModelError("empty test slice")
     scores = [_logit(model, design["X"][i]) for i in test]
     cprob = [calibrated_probability(model, calibration, design["X"][i]) for i in test]
     ytest = [design["y"][i] for i in test]
     groups = [design["month_index"][i] for i in test]
-    risk, exit_month = _test_outcomes(model, calibration, design, slices)
+    risk, term_month, is_event = _test_outcomes(model, calibration, design, slices)
     return {
         "roc_auc": rank_auc(scores, ytest),
         "pr_auc": pr_auc(scores, ytest),
         "precision_at_k": precision_at_k(scores, ytest, groups),
         "brier": brier_score(cprob, ytest),
-        "horizon_concordance": horizon_concordance(risk, exit_month),
+        "horizon_concordance": horizon_concordance(risk, term_month, is_event),
         "base_rate": sum(ytest) / len(ytest),
         "n_test_rows": len(test),
         "n_test_employees": len(risk),
@@ -757,12 +806,20 @@ def realism_guard(model, metrics):
     for k in ("roc_auc", "pr_auc", "precision_at_k"):
         if k not in metrics:
             raise ModelError(f"realism_guard: metrics missing {k!r}")
+    for k in ("roc_auc", "pr_auc"):                       # a NaN/inf metric must not slip a comparison
+        if not (math.isfinite(metrics[k]) and 0.0 <= metrics[k] <= 1.0):
+            raise ModelError(f"realism_guard: metric {k!r} is not a finite value in [0,1] ({metrics[k]!r})")
+    pk = metrics["precision_at_k"]
+    if not (isinstance(pk, dict) and pk.get("status") in ("ok", "insufficient_denominator")):
+        raise ModelError("realism_guard: malformed precision_at_k")
+    if pk["status"] == "ok" and not (isinstance(pk.get("precision"), (int, float))
+                                     and math.isfinite(pk["precision"]) and 0.0 <= pk["precision"] <= 1.0):
+        raise ModelError("realism_guard: precision_at_k precision is not a finite value in [0,1]")
     v = []
     if metrics["roc_auc"] > REALISM_AUC_MAX:
         v.append(f"ROC-AUC {metrics['roc_auc']:.3f} > {REALISM_AUC_MAX}")
     if metrics["pr_auc"] > REALISM_PR_AUC_MAX:
         v.append(f"PR-AUC {metrics['pr_auc']:.3f} > {REALISM_PR_AUC_MAX}")
-    pk = metrics["precision_at_k"]
     if pk["status"] == "ok" and pk["precision"] == 1.0:
         v.append("precision@k is a perfect 1.0")
     dec = set(DECOY_FEATURES) & {k for k, _ in sorted(model["coef"].items(), key=lambda kv: -abs(kv[1]))[:3]}
@@ -781,7 +838,14 @@ def _percentile(sorted_vals, q):
 
 def risk_bands(probs):
     """Calibrated-probability cutoffs for the low / elevated / high tiers (elevated = 85th pctile, high =
-    97th). Computed on the CALIBRATION slice so no test-slice information leaks into the committed thresholds."""
+    97th). Computed on the CALIBRATION slice so no test-slice information leaks into the committed thresholds.
+    Fails closed on an empty set or any probability outside [0,1]/non-finite (a poisoned input can't set a
+    band)."""
+    if not probs:
+        raise ModelError("risk_bands: empty probability set")
+    for p in probs:
+        if not math.isfinite(p) or not (0.0 <= p <= 1.0):
+            raise ModelError(f"risk_bands: probability {p!r} outside [0,1]")
     s = sorted(probs)
     return {"elevated": round(_percentile(s, BAND_ELEVATED_PCTILE), COEF_DP),
             "high": round(_percentile(s, BAND_HIGH_PCTILE), COEF_DP)}
@@ -789,9 +853,10 @@ def risk_bands(probs):
 
 def risk_tier(prob, bands):
     """Map a calibrated probability to a support tier (never an adverse-action label). Fails closed on a
-    non-finite probability or reversed bands, honoring the module's fail-closed-numerics contract."""
-    if not math.isfinite(prob):
-        raise ModelError(f"risk_tier: non-finite probability {prob!r}")
+    probability outside [0,1]/non-finite or reversed bands, honoring the module's fail-closed-numerics
+    contract (a calibrated probability is always in [0,1], so anything else is a caller error, not a 'low')."""
+    if not math.isfinite(prob) or not (0.0 <= prob <= 1.0):
+        raise ModelError(f"risk_tier: probability {prob!r} outside [0,1]")
     if not (bands["elevated"] <= bands["high"]):
         raise ModelError("risk_tier: bands not ordered (elevated <= high)")
     return "high" if prob >= bands["high"] else "elevated" if prob >= bands["elevated"] else "low"
@@ -801,6 +866,15 @@ def risk_tier(prob, bands):
 
 SEG_MIN_N = 30                    # suppress a segment with fewer than this many distinct employees (small-n)
 RECONCILE_GAP = 0.02             # flag a segment where |bottom-up - top-down| 6-mo risk exceeds this
+SEG_REID_CUTOFF = 10             # below this, even the coarse size band collapses to "<10" (re-identification-safe)
+
+
+def _size_band(n_emp, floor):
+    """A COARSE size bucket for a suppressed segment — never the exact tiny count. A suppressed group is by
+    definition below the floor; reporting exactly '2' or '3' is a residual re-identification signal, so we
+    expose only '<10' or '10-<floor>'. Rendered (non-suppressed) segments are >= the floor and report their
+    exact size, which is not a re-identification risk."""
+    return f"<{SEG_REID_CUTOFF}" if n_emp < SEG_REID_CUTOFF else f"{SEG_REID_CUTOFF}-{floor - 1}"
 
 
 def _km_exit_probability(idxs, rows, value_of, horizon_months):
@@ -829,8 +903,9 @@ def segment_risk(rows, model, calibration, design, slices, dims=None, min_n=SEG_
       * TOP-DOWN: the segment's empirical Kaplan-Meier survival over the same window.
     Both use the identical per-month survival structure, so the reconciliation gap is a pure
     predicted-vs-observed comparison, not a formula artifact. Segments with fewer than `min_n` distinct
-    employees are SUPPRESSED (small-n) — the suppression floor can be RAISED but never lowered below
-    SEG_MIN_N, so a caller can never turn the privacy floor off. Each rendered segment carries its
+    employees are SUPPRESSED (small-n): they carry NO estimate and only a COARSE size_band (never an exact
+    re-identifiable count) — the suppression floor can be RAISED but never lowered below SEG_MIN_N, so a
+    caller can never turn the privacy floor off. Each rendered segment carries its
     reconciliation gap (bottom-up minus top-down) and a flag when it exceeds RECONCILE_GAP — the
     disagreement is surfaced, never averaged away. `rows` must be the panel `design` was built from, aligned
     index-for-identity (enforced below, not merely by length). The exit window is `horizon` months and is
@@ -849,6 +924,7 @@ def segment_risk(rows, model, calibration, design, slices, dims=None, min_n=SEG_
     unknown = [d for d in dims if d not in SEGMENT_COLS]
     if unknown:
         raise ModelError(f"segment_risk: unknown segment dimension(s) {unknown}")
+    _validate_slices(design, slices)                       # canonical out-of-time slices only (no train-as-test, no empty)
     test = slices["test"]
     out = {}
     for dim in dims:
@@ -858,11 +934,10 @@ def segment_risk(rows, model, calibration, design, slices, dims=None, min_n=SEG_
         segs = []
         for val, idxs in sorted(groups.items()):
             n_emp = len({rows[i][ID_COL] for i in idxs})
-            entry = {"value": val, "n_employees": n_emp, "n_rows": len(idxs)}
-            if n_emp < min_n:
-                entry["suppressed"] = True
-                segs.append(entry)
+            if n_emp < min_n:                              # small-n: suppress the estimate AND coarsen the size
+                segs.append({"value": val, "suppressed": True, "size_band": _size_band(n_emp, min_n)})
                 continue
+            entry = {"value": val, "n_employees": n_emp, "n_rows": len(idxs)}
             haz = {i: calibrated_probability(model, calibration, design["X"][i]) for i in idxs}
             bottom_up = round(_km_exit_probability(idxs, rows, lambda i: haz[i], horizon), 6)
             top_down = round(_km_exit_probability(idxs, rows, lambda i: design["y"][i], horizon), 6)
@@ -917,7 +992,7 @@ def build_manifest(path: Path = MANIFEST_PATH, panel_path: Path = PANEL_PATH) ->
         "feature_version": FEATURE_VERSION,
         "model_version": MODEL_VERSION,
         "status": "trained",
-        "increment": 3,
+        "increment": TRAINED_INCREMENT,
         "target_event": TARGET_EVENT,
         "label_column": LABEL_COL,
         "event_values": list(EVENT_VALUES),
@@ -968,6 +1043,14 @@ def check_reproducible(manifest: dict = None, panel_path: Path = PANEL_PATH, tol
     if m.get("status") != "trained":
         return True                                        # nothing fitted to reproduce
     model, calibration, _design, slices = train_model(panel_path)
+    # provenance must be REAL, not decorative: a manifest that re-fits but declares the wrong version /
+    # increment / row-count is false release metadata and must fail the sync gate (not just the coefficients).
+    if m.get("model_version") != MODEL_VERSION:
+        raise ManifestError(f"manifest model_version {m.get('model_version')!r} != {MODEL_VERSION!r}")
+    if m.get("increment") != TRAINED_INCREMENT:
+        raise ManifestError(f"manifest increment {m.get('increment')!r} != trained increment {TRAINED_INCREMENT}")
+    if m.get("panel_rows") != len(_design["X"]):
+        raise ManifestError(f"manifest panel_rows {m.get('panel_rows')!r} != actual design rows {len(_design['X'])}")
     pc = m["primary_coefficients"]
     dn = list(DESIGN_FEATURES)
 
@@ -1031,7 +1114,9 @@ def _validate_trained_shape(m: dict) -> None:
     never a raw KeyError/TypeError downstream."""
     dset = set(DESIGN_FEATURES)
     pc = m["primary_coefficients"]
-    if not isinstance(pc, dict) or not _finite_num(pc.get("intercept")):
+    if not isinstance(pc, dict) or set(pc) != {"intercept", "features", "standardizer_mean", "standardizer_std", "pos_weight"}:
+        raise ManifestError("primary_coefficients must have exactly {intercept, features, standardizer_mean, standardizer_std, pos_weight}")
+    if not _finite_num(pc.get("intercept")):
         raise ManifestError("primary_coefficients.intercept must be a finite number")
     for field in ("features", "standardizer_mean", "standardizer_std"):
         d = pc.get(field)
@@ -1042,11 +1127,14 @@ def _validate_trained_shape(m: dict) -> None:
     if not _finite_num(pc.get("pos_weight")) or pc["pos_weight"] <= 0:
         raise ManifestError("primary_coefficients.pos_weight must be a positive finite number")
     cal = m["primary_calibration"]
-    if not isinstance(cal, dict) or cal.get("method") != "platt" or not _finite_num(cal.get("a")) or not _finite_num(cal.get("b")):
-        raise ManifestError("primary_calibration must be {method:'platt', a:<finite>, b:<finite>}")
+    if not isinstance(cal, dict) or set(cal) != {"method", "a", "b"} or cal.get("method") != "platt" \
+            or not _finite_num(cal.get("a")) or not _finite_num(cal.get("b")):
+        raise ManifestError("primary_calibration must be exactly {method:'platt', a:<finite>, b:<finite>}")
     tw = m["training_window"]
-    if not isinstance(tw, dict):
-        raise ManifestError("training_window must be an object")
+    if not isinstance(tw, dict) or set(tw) != {"train_max_month_index", "calibration_max_month_index",
+                                               "test_min_month_index", "l2", "irls_iters", "horizons_months",
+                                               "n_train", "n_calibration", "n_test"}:
+        raise ManifestError("training_window has unexpected or missing keys")
     for k in ("train_max_month_index", "calibration_max_month_index", "test_min_month_index",
               "irls_iters", "n_train", "n_calibration", "n_test"):
         if not (isinstance(tw.get(k), int) and not isinstance(tw[k], bool) and tw[k] >= 0):
@@ -1057,8 +1145,9 @@ def _validate_trained_shape(m: dict) -> None:
                                                      for h in tw["horizons_months"])):
         raise ManifestError("training_window.l2 / horizons_months are malformed")
     rb = m.get("risk_band_thresholds")
-    if not isinstance(rb, dict) or not _finite_num(rb.get("elevated")) or not _finite_num(rb.get("high")):
-        raise ManifestError("risk_band_thresholds must be {elevated:<finite>, high:<finite>}")
+    if not isinstance(rb, dict) or set(rb) != {"elevated", "high"} \
+            or not _finite_num(rb.get("elevated")) or not _finite_num(rb.get("high")):
+        raise ManifestError("risk_band_thresholds must be exactly {elevated:<finite>, high:<finite>}")
     if not (0.0 <= rb["elevated"] <= rb["high"] <= 1.0):
         raise ManifestError("risk_band_thresholds must satisfy 0 <= elevated <= high <= 1")
 
@@ -1097,6 +1186,8 @@ def validate_manifest(m: dict) -> None:
     h = m.get("panel_data_hash", "")
     if not (isinstance(h, str) and re.fullmatch(r"[0-9a-f]{64}", h)):
         raise ManifestError("panel_data_hash must be a 64-char sha256 hex string")
+    if m.get("challenger_calibration") != {}:              # reserved-empty until Increment 5 — fail closed on any payload
+        raise ManifestError("challenger_calibration must be {} until the Increment-5 challenger lands")
     # scaffold (Increment 0) vs trained: the fitted primary model (coefficients + calibration) must match the
     # status, so a scaffold can't be mislabeled trained and a trained manifest can't ship an empty model.
     primary_present = bool(m.get("primary_coefficients")) and bool(m.get("primary_calibration"))
@@ -1104,8 +1195,12 @@ def validate_manifest(m: dict) -> None:
         if m["increment"] != 0 or m["model_version"] != _SCAFFOLD_VERSION or primary_present:
             raise ManifestError("scaffold manifest must be increment 0, scaffold model_version, and carry no fitted primary model")
     else:  # trained
-        if not primary_present or m["model_version"] == _SCAFFOLD_VERSION:
-            raise ManifestError("trained manifest must carry a fitted primary model (coefficients + calibration) + a non-scaffold model_version")
+        if not primary_present:
+            raise ManifestError("trained manifest must carry a fitted primary model (coefficients + calibration)")
+        if m["model_version"] != MODEL_VERSION:
+            raise ManifestError(f"trained manifest model_version must be {MODEL_VERSION!r} (got {m['model_version']!r})")
+        if m["increment"] != TRAINED_INCREMENT:
+            raise ManifestError(f"trained manifest increment must be {TRAINED_INCREMENT} (got {m['increment']!r})")
         _validate_trained_shape(m)
 
 

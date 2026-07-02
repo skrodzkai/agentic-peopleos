@@ -51,6 +51,27 @@ REAL_TICKERS = frozenset({
     "NOVA", "MTRX", "PULS", "JUNO", "KITE", "FLUX", "LUMA", "HUBX", "RIVR", "NSTR",
 })
 
+# Real, recognizable COMPANY NAMES the synthetic generator refuses to MINT (and this loader refuses to
+# LOAD). The peer generator composes names as "{Prefix} {Suffix}" from generic business words, so some
+# combinations land on real companies ("Apex Systems", "Aurora Networks", ...). A real name in a synthetic
+# universe undermines the "obviously synthetic" guarantee on a public portfolio, so the generator skips any
+# composed name in this set and this loader rejects a universe that contains one. Single source of truth —
+# the generator imports this exact set. Case-insensitive match (compared on casefold). Best-effort, not a
+# claim of completeness: the composed names are algorithmically synthetic and screened against this list.
+REAL_COMPANY_NAMES = frozenset(n.casefold() for n in {
+    "Apex Systems", "Apex Technologies", "Aurora Networks", "Sable Systems", "Sable Networks",
+    "Onyx Software", "Onyx Systems", "Polaris Financial", "Polaris Capital", "Polaris Software",
+    "Quanta Technologies", "Quanta Capital", "Cypress Bio", "Cypress Systems", "Meridian Technologies",
+    "Meridian Financial", "Vantage Systems", "Vantage Software", "Lumen Networks", "Lumen Technologies",
+    "Vertex Technologies", "Vertex Partners", "Vertex Systems", "Forge Software", "Nimbus Software",
+    "Cobalt Systems", "Cobalt Networks", "Harbor Networks", "Beacon Software", "Beacon Technologies",
+    "Summit Software", "Summit Systems", "Granite Systems", "Falcon Software", "Helio Systems",
+    "Slate Software", "Slate Capital", "Kestrel Systems", "Aster Health", "Cedar Networks", "North Software",
+    "Halcyon Systems", "Halcyon Capital", "Crestline Capital", "Ridge Health", "Ridge Systems",
+    "Ironwood Systems", "Basalt Systems", "Brightwater Systems", "Summit Capital",
+    "Aster Diagnostics", "Aster Labs", "Aster Health", "Aurora Diagnostics", "Cypress Diagnostics",
+})
+
 # Default screen — the disclosed-market norm for exec-comp peer construction: the HARD gates are
 # revenue and market cap (each 0.5x-2.0x of the subject) plus a same-sub-industry match. HEADCOUNT is
 # deliberately NOT a hard gate — in practice it is a *secondary/soft* factor (e.g. Datadog files it
@@ -120,6 +141,10 @@ class PeerUniverse:
         minted_real = sorted(set(tickers) & REAL_TICKERS)
         if minted_real:
             raise PeerDataError(f"peer universe mints real, recognizable tickers: {minted_real}")
+        # name integrity: a synthetic universe must never carry a real, recognizable company name
+        minted_names = sorted({r["company_name"] for r in rows if r["company_name"].strip().casefold() in REAL_COMPANY_NAMES})
+        if minted_names:
+            raise PeerDataError(f"peer universe mints real, recognizable company names: {minted_names}")
         subjects = [r for r in rows if r.get("is_subject") == "yes"]
         if len(subjects) != 1:
             raise PeerDataError(

@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from foundation.compute.peers import (  # noqa: E402
-    PeerUniverse, PeerDataError, DEFAULT_CRITERIA, _NUM,
+    PeerUniverse, PeerDataError, DEFAULT_CRITERIA, _NUM, REAL_COMPANY_NAMES,
 )
 
 passed = 0
@@ -44,6 +44,10 @@ REAL = {"AAPL", "MSFT", "AMZN", "GOOG", "GOOGL", "META", "NVDA", "TSLA", "CRM", 
 tickers = [c["ticker"] for c in u.candidates] + [u.subject["ticker"]]
 ok(len(tickers) == len(set(tickers)), "every ticker in the universe is unique")
 ok(not (set(tickers) & REAL), "no minted ticker collides with a well-known real ticker")
+# ---- public-safety: no minted COMPANY NAME collides with a real, recognizable company (deny-list) ----
+_allnames = [c["company_name"] for c in u.candidates] + [u.subject["company_name"]]
+ok(not any(n.casefold() in REAL_COMPANY_NAMES for n in _allnames),
+   "no minted company name collides with a real, recognizable company name")
 
 # ---- default screen: structure ----
 r = u.screen()
@@ -129,8 +133,8 @@ finally:
     _P.FIT_WEIGHTS.update(_saved)
 
 # golden: pin the shipped fit-ranked order so a silent weight/score/tie-break change fails loudly
-GOLDEN_TOP = [("CREL", 89.1), ("HARA", 85.7), ("KESS", 84.9), ("NIMS", 81.0),
-              ("SLAP", 78.6), ("CINS", 78.1), ("CINF", 76.0), ("TIDA", 74.4)]
+GOLDEN_TOP = [("CREL", 89.1), ("KESC", 84.9), ("SLAP", 78.6), ("CINF", 76.0),
+              ("TIDA", 74.4), ("CEDP", 73.3), ("HELF", 70.1), ("FORS", 69.7)]
 ok([(p["company"]["ticker"], p["fit"]) for p in r["peers"][:8]] == GOLDEN_TOP,
    "the shipped fit-ranked order matches the golden (a weight/score/tie-break change is now a deliberate update)")
 
@@ -229,6 +233,8 @@ bad_cases = {
     "duplicate ticker": [_row("DUP", "yes"), _row("DUP", "no")],
     "real ticker minted": [_row("SUBJ", "yes"), _row("AAPL", "no")],
     "malformed ticker": [_row("SUBJ", "yes"), _row("b@d", "no")],
+    "real company name minted": [_row("SUBJ", "yes"), dict(_row("XYZQ", "no"), company_name="Apex Systems")],
+    "real company name minted (case-insensitive)": [_row("SUBJ", "yes"), dict(_row("WXYZ", "no"), company_name="cobalt networks")],
 }
 for label, rows in bad_cases.items():
     with tempfile.TemporaryDirectory() as d:
