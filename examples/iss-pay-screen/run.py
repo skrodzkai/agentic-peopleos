@@ -3,8 +3,10 @@
 
 The Executive Compensation arm's board-anticipation agent: a dark dashboard that shows how the ISS
 quantitative pay-for-performance screen would likely read the subject — the overall concern level, the
-three measures (MOM / RDA / PTA) against their bands, the ISS-derived comparison group and its overlap
-with the committee's own peer group, and the qualitative factors a Medium/High concern puts in scope.
+three measures (MOM / RDA / PTA) against their bands, the ISS-derived comparison group, and the qualitative
+factors a Medium/High concern puts in scope. This demo runs on a SEPARATE SYNTHETIC universe (issuers S0NN,
+synthetic pay/TSR) from the peer-builder's real peer group, so no real company ever carries a fabricated
+pay/TSR figure.
 
 Like every arm agent it is PRESENTATION + GOVERNANCE ONLY: it runs no screening math (every value comes
 from foundation/compute/iss_screen.py), fails closed, and stops at a human approval gate.
@@ -106,8 +108,8 @@ def _narrative(res, committee):
             f"<b>{ch.ordinal(m['rda']['pay_pctile'])} percentile</b> of pay vs the <b>{ch.ordinal(m['rda']['tsr_pctile'])}</b> "
             f"of 5-year TSR — an alignment gap of <b>{m['rda']['value']:.0f}</b> points (RDA).")
     if committee["available"]:
-        body += (f" {len(committee['overlap'])} of the {res['comparison_group']['n_group']} ISS-derived peers "
-                 f"overlap the committee's {committee['n_core']}-company core group.")
+        body += (" This ISS demo runs on a <b>separate synthetic universe</b> from the peer-builder's real peer "
+                 "group (disjoint by design, so no real company ever carries a fabricated pay/TSR figure).")
     tail = " <span class='warn'>The screen anticipates the board read; a human committee decides the response.</span>"
     return lead + body + tail
 

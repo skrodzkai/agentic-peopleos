@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from foundation.compute.peers import (  # noqa: E402
-    PeerUniverse, PeerDataError, DEFAULT_CRITERIA, _NUM, REAL_COMPANY_NAMES,
+    PeerUniverse, PeerDataError, DEFAULT_CRITERIA, _NUM,
 )
 
 passed = 0
@@ -34,28 +34,26 @@ u = PeerUniverse()
 ok(u.subject is not None and u.subject["is_subject"] == "yes", "loader finds the subject company")
 ok(u.subject["ticker"] == "ACMQ" and u.subject["company_name"] == "Acme Corp", "subject is Acme (ticker ACMQ)")
 ok(all(c["is_subject"] != "yes" for c in u.candidates), "candidates exclude the subject")
-ok(len(u.candidates) == 220, "universe has 220 candidate companies")
+ok(len(u.candidates) == 50, "universe has 50 real candidate companies")
 ok(all(isinstance(c[k], int) for c in u.candidates for k in _NUM), "numeric fields are parsed to int")
 ok(u.subject not in u.candidates, "subject is not also a candidate")
 
-# ---- public-safety: no minted ticker collides with a well-known real ticker, all tickers unique ----
-REAL = {"AAPL", "MSFT", "AMZN", "GOOG", "GOOGL", "META", "NVDA", "TSLA", "CRM", "ORCL", "LUMN",
-        "GRAB", "DRIP", "MERC", "SPY", "QQQ", "VTI", "IBM", "INTC", "AMD"}
+# ---- the PEERS are real public companies (a peer screen benchmarks against real comps); the SUBJECT is the
+#      only synthetic issuer. Tickers unique; ACMQ = synthetic Acme; provenance in governance/real-peer-data.md.
 tickers = [c["ticker"] for c in u.candidates] + [u.subject["ticker"]]
 ok(len(tickers) == len(set(tickers)), "every ticker in the universe is unique")
-ok(not (set(tickers) & REAL), "no minted ticker collides with a well-known real ticker")
-# ---- public-safety: no minted COMPANY NAME collides with a real, recognizable company (deny-list) ----
-_allnames = [c["company_name"] for c in u.candidates] + [u.subject["company_name"]]
-ok(not any(n.casefold() in REAL_COMPANY_NAMES for n in _allnames),
-   "no minted company name collides with a real, recognizable company name")
+ok(u.subject["ticker"] == "ACMQ", "the subject issuer is the synthetic Acme (ACMQ)")
+_expect_real = {"GTLB", "KVYO", "MNDY", "BILL", "PCTY", "BSY"}
+ok(_expect_real <= {c["ticker"] for c in u.candidates},
+   "the peer universe is drawn from real public companies (e.g. GTLB/KVYO/MNDY/BILL/PCTY/BSY)")
 
 # ---- default screen: structure ----
 r = u.screen()
 for key in ("subject", "criteria", "active_criteria", "results", "peers", "n_peers", "n_candidates"):
     ok(key in r, f"screen result has '{key}'")
 ok(r["criteria"] == DEFAULT_CRITERIA, "no-arg screen uses the shipped default criteria")
-ok(r["n_candidates"] == len(u.candidates) == 220, "n_candidates counts the universe")
-ok(len(r["results"]) == 220, "every candidate is evaluated (one result each)")
+ok(r["n_candidates"] == len(u.candidates) == 50, "n_candidates counts the universe")
+ok(len(r["results"]) == 50, "every candidate is evaluated (one result each)")
 ok(set(r["active_criteria"]) == {"revenue", "market_cap", "gics"},
    "default HARD screen = revenue + market cap + sub-industry (headcount is a soft fit factor, not a gate)")
 ok("employees" not in r["active_criteria"], "headcount is NOT a hard gate by default")
@@ -93,7 +91,7 @@ ok(off_hc and all(p["is_peer"] for p in off_hc),
 # A tight screen funnels a broad universe down to a small minority: not 1-2, not half the universe.
 appsw = [c for c in u.candidates if c["gics_subindustry"] == subj["gics_subindustry"]]
 frac = r["n_peers"] / r["n_candidates"]
-ok(0.03 <= frac <= 0.25, f"peer group is a credible minority of the universe ({r['n_peers']}/{r['n_candidates']})")
+ok(0.05 <= frac <= 0.40, f"peer group is a credible minority of the universe ({r['n_peers']}/{r['n_candidates']})")
 ok(2 < r["n_peers"] < len(appsw),
    "the size screen keeps a usable group but rejects some same-sub-industry candidates (it actually filters)")
 
@@ -132,11 +130,12 @@ finally:
     _P.FIT_WEIGHTS.clear()
     _P.FIT_WEIGHTS.update(_saved)
 
-# golden: pin the shipped fit-ranked order so a silent weight/score/tie-break change fails loudly
-GOLDEN_TOP = [("NORW", 84.8), ("COBA", 82.7), ("HARD", 82.3), ("BEAM", 81.8),
-              ("BRII", 80.3), ("VERW", 79.5), ("SUMM", 75.5), ("BEAI", 75.4)]
-ok([(p["company"]["ticker"], p["fit"]) for p in r["peers"][:8]] == GOLDEN_TOP,
-   "the shipped fit-ranked order matches the golden (a weight/score/tie-break change is now a deliberate update)")
+# golden: pin the shipped fit-ranked order (REAL peers) so a silent weight/score/tie-break change fails loudly
+GOLDEN_TOP = [("DSGX", 84.8), ("APPF", 81.3), ("GTLB", 77.6), ("QLYS", 67.4), ("ZETA", 64.6),
+              ("QTWO", 59.5), ("KVYO", 58.6), ("MANH", 46.9), ("PCOR", 44.0), ("BILL", 37.2),
+              ("MNDY", 34.5), ("PCTY", 33.2), ("PEGA", 21.2), ("GWRE", 20.8), ("BSY", 19.2)]
+ok([(p["company"]["ticker"], p["fit"]) for p in r["peers"]] == GOLDEN_TOP,
+   "the shipped fit-ranked REAL peer group matches the golden (a weight/score/tie-break change is a deliberate update)")
 
 # a company identical in size to the subject scores 100; a band edge scores 0; the math is exact
 from foundation.compute.peers import _fit as _fitfn, _closeness  # noqa: E402
@@ -231,11 +230,10 @@ bad_cases = {
     "non-numeric field": [dict(_row("SUBJ", "yes"), revenue_usd="N/A"), _row("BAR", "no")],
     "non-positive subject": [_row("SUBJ", "yes", rev=0), _row("BAR", "no")],
     "duplicate ticker": [_row("DUP", "yes"), _row("DUP", "no")],
-    "real ticker minted": [_row("SUBJ", "yes"), _row("AAPL", "no")],
     "malformed ticker": [_row("SUBJ", "yes"), _row("b@d", "no")],
-    "real company name minted": [_row("SUBJ", "yes"), dict(_row("XYZQ", "no"), company_name="Apex Systems")],
-    "real company name minted (case-insensitive)": [_row("SUBJ", "yes"), dict(_row("WXYZ", "no"), company_name="cobalt networks")],
 }
+# NOTE: real tickers/names are no longer rejected — the peers are intentionally REAL public companies now
+# (the subject Acme is the only synthetic issuer). The loader's job is schema/uniqueness/subject integrity.
 for label, rows in bad_cases.items():
     with tempfile.TemporaryDirectory() as d:
         _write_universe(d, rows)

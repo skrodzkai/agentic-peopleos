@@ -8,7 +8,7 @@ then a transparent fit-rank for ordering — and stops at a human approval gate.
 ## Inputs
 - `foundation/compute/peers.py` — the shared screener: the per-criterion pass/fail **gate** and the
   size-fit **rank**. The agent does **no** screening or ranking math.
-- `foundation/data/acme/peer_universe.csv` — the synthetic public-company universe (subject = the same
+- `foundation/data/acme/peer_universe.csv` — a universe of REAL public companies (as-disclosed public financials, illustrative snapshot; provenance in `governance/real-peer-data.md`) with a synthetic subject (= the same
   Acme Corp the rest of the portfolio uses).
 - `foundation/render/charts.py` — the deterministic SVG chart toolkit.
 
@@ -58,4 +58,4 @@ then a transparent fit-rank for ordering — and stops at a human approval gate.
 - **Publish gate** — `--publish` requires `--approved-by "<name>"` matching a strict charset (control
   chars + trailing-newline rejected via `re.fullmatch`); the approval record is part of the
   all-or-nothing write transaction.
-- **Synthetic only** — no real issuer, ticker, or proxy is represented.
+- **Real peers, synthetic subject** — the candidate peers are real public companies with as-disclosed public financials (a dated, illustrative snapshot; provenance in `governance/real-peer-data.md`); the subject (Acme) is synthetic.

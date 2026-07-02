@@ -110,7 +110,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full model.
 The **People Analytics & reporting** arm is a set of agents that turn the metric registry into
 governed operating dashboards. They share one design: a **shared compute engine**
 ([`foundation/compute/engine.py`](foundation/compute/engine.py)) is the single source of math over a
-[synthetic data foundation](foundation/data/), a **shared dark renderer**
+[synthetic data foundation](foundation/data/) (synthetic throughout, except the exec-comp peer universe — real public companies, see [real-peer-data](governance/real-peer-data.md)), a **shared dark renderer**
 ([`foundation/render/dashboard.py`](foundation/render/dashboard.py)) plus a deterministic
 [SVG chart toolkit](foundation/render/charts.py) draw every dashboard, and each agent is
 **presentation + governance only** — it does no metric math, cites the registry, shows
@@ -142,7 +142,9 @@ board-level scrutiny: peer group construction, proxy-backed benchmarking, target
 relative-TSR PSU tracking, and human-owned committee decisions.
 
 - **[Executive Comp Peer Group Builder](examples/executive-comp-peer-builder/)** — builds a defensible
-  peer group the way a compensation committee does. A **hard, transparent screen** decides membership
+  peer group the way a compensation committee does, screening a synthetic subject (Acme) against a universe
+  of **real public companies** (as-disclosed public financials — a dated, illustrative snapshot; provenance
+  in [real-peer-data](governance/real-peer-data.md)). A **hard, transparent screen** decides membership
   (same GICS sub-industry, plus revenue and market cap each within **0.5–2.0×** of the subject; headcount
   is a disclosed soft fit factor), then a **revenue-weighted size-fit rank** orders the in-band group into a recommended core
   + a substitution watchlist. It documents every same-industry size exclusion, carries the committee's
@@ -249,8 +251,8 @@ This is a set of conventions and templates, not a runtime or an SDK. Bring your
 own LLM client and scheduler. The reference pattern is intentionally simple:
 plain files, plain Python, explicit budgets, and visible audit trails.
 
-The patterns here are proven: the same operating system runs a 30+ agent autonomous fleet,
-including an always-on trading floor, in production today.
+The patterns here are proven: the same operating system runs a 30+ agent autonomous fleet
+in production today.
 
 ## License
 

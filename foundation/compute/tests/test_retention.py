@@ -386,7 +386,7 @@ raises(R.ModelError, lambda: R._standardizer([[1.0, 2.0]], []), "standardizer wi
 raises(R.ModelError, lambda: R._sigmoid(float("nan")), "a non-finite logit fails closed")
 raises(R.ModelError, lambda: R._solve([[0.0, 0.0], [0.0, 0.0]], [1.0, 1.0]), "a singular system fails closed")
 
-# eval helpers fail closed on invalid inputs (lengths, labels, ranges) — Codex Inc-2 HIGH
+# eval helpers fail closed on invalid inputs (lengths, labels, ranges) fail closed
 raises(R.ModelError, lambda: R.rank_auc([0.1], [0, 1, 1]), "rank_auc length mismatch rejected")
 raises(R.ModelError, lambda: R.rank_auc([0.1, 0.2], [0, 2]), "rank_auc non-binary label rejected")
 raises(R.ModelError, lambda: R.brier_score([1.2, 0.1], [1, 0]), "brier probability out of [0,1] rejected")
@@ -397,7 +397,7 @@ raises(R.ModelError, lambda: R._logit(model, [0.0] * (len(model["feature_names"]
 raises(R.ModelError, lambda: R.platt_calibrate(model, {**design, "y": [0] * len(design["y"])}, slices["calibration"]),
        "a single-class calibration slice is rejected")
 
-# the FULL trained artifact is protected (Codex Inc-2 HIGH): a corrupted standardizer / window fails the gate
+# the FULL trained artifact is protected: a corrupted standardizer / window fails the gate
 _ms = copy.deepcopy(m); _ms["primary_coefficients"]["standardizer_mean"][R.DESIGN_FEATURES[0]] = 999999.0
 raises(R.ManifestError, lambda: R.check_reproducible(_ms), "a corrupted standardizer fails the reproducibility gate")
 _mw = copy.deepcopy(m); _mw["training_window"]["n_train"] += 1
@@ -440,6 +440,9 @@ raises(R.ModelError, lambda: R.realism_guard(model, {"roc_auc": 0.8}), "realism 
 # risk_tier fails closed on non-finite / out-of-range / malformed bands (module fail-closed-numerics contract)
 _gb = m["risk_band_thresholds"]
 raises(R.ModelError, lambda: R.risk_tier(float("nan"), _gb), "risk_tier rejects a non-finite probability")
+raises(R.ModelError, lambda: R.risk_tier(True, _gb), "risk_tier rejects a bool probability (True is not 1.0)")
+raises(R.ModelError, lambda: R.risk_tier(None, _gb), "risk_tier rejects a None probability (ModelError, not TypeError)")
+raises(R.ModelError, lambda: R.risk_tier("0.5", _gb), "risk_tier rejects a string probability (ModelError, not TypeError)")
 raises(R.ModelError, lambda: R.risk_tier(1.5, _gb), "risk_tier rejects a probability > 1")
 raises(R.ModelError, lambda: R.risk_tier(-0.1, _gb), "risk_tier rejects a probability < 0")
 raises(R.ModelError, lambda: R.risk_tier(0.5, {"elevated": 0.7, "high": 0.3}), "risk_tier rejects reversed bands")
@@ -463,6 +466,8 @@ raises(R.ModelError, lambda: R._validate_slices(design, {**_canon, "test": _cano
        "_validate_slices rejects an out-of-range index")
 raises(R.ModelError, lambda: R._validate_slices(design, {"train": _canon["train"], "calibration": _canon["calibration"], "bogus": _canon["test"]}),
        "_validate_slices rejects a renamed third key with ModelError (not a raw KeyError)")
+raises(R.ModelError, lambda: R._validate_slices(design, {**_canon, "bogus": _canon["test"]}),
+       "_validate_slices rejects an EXTRA unused slice key (exact key set, not a superset)")
 ok(R._validate_slices(design, _canon) is None, "_validate_slices accepts the canonical partition")
 
 # ---- LOCK tie-aware PR-AUC: order-independent on ties; all-tied == base rate ----

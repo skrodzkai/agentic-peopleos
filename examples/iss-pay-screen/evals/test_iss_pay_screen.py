@@ -72,7 +72,7 @@ ok("<script" not in page, "no <script> in the dashboard")
 ok(not re.search(r"\bE-\d{4}\b", page) and not re.search(r"\bC-\d{4}\b", page), "no per-person ids appear")
 ok(not ({"NOVA", "MTRX", "PULS", "JUNO", "AAPL", "MSFT", "LUMN"} & set(re.findall(r"\b[A-Z]{2,5}\b", page))),
    "no well-known real ticker is rendered")
-for term in ("BlackLine", "OpenClaw", "sk-"):
+for term in ("Contoso", "Initech", "sk-"):
     ok(term not in page, f"no '{term}' leakage")
 
 # ---- governance: the engine the agent reads has no decisional / pay-setting mutator ----

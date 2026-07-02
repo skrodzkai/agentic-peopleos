@@ -42,10 +42,10 @@ except ValueError as e:
     ok("30" in str(e), "wrong averaging window fails closed")
 
 # ---- Percentile convention: issuer ranked with the comparator companies, ties use average rank ----
-ranked = {"ISSUER": 1.40, "P1": 1.00, "P2": 1.20, "P3": 1.60, "P4": 1.80}
-ok(percentile_rank(ranked, "ISSUER") == 50.0, "middle rank in five names is the 50th percentile")
-ties = {"ISSUER": 1.10, "P1": 1.10, "P2": 0.90, "P3": 1.30}
-ok(percentile_rank(ties, "ISSUER") == 50.0, "ties use average rank")
+ranked = {"ACMQ": 1.40, "P1Q": 1.00, "P2Q": 1.20, "P3Q": 1.60, "P4Q": 1.80}
+ok(percentile_rank(ranked, "ACMQ") == 50.0, "middle rank in five names is the 50th percentile")
+ties = {"ACMQ": 1.10, "P1Q": 1.10, "P2Q": 0.90, "P3Q": 1.30}
+ok(percentile_rank(ties, "ACMQ") == 50.0, "ties use average rank")
 
 # ---- Payout curve: below threshold is zero; interpolation and max cap are explicit ----
 ok(curve.payout(24.99) == 0.0, "below threshold pays zero")
@@ -63,26 +63,26 @@ except RTSRError:
 
 # ---- Performance evaluation: only companies in the index at both endpoints are comparators ----
 companies = [
-    {"ticker": "ISSUER", "name": "Synthetic Issuer", "role": "issuer", "index_start": True, "index_end": True},
-    {"ticker": "P1", "name": "Peer One", "role": "peer", "index_start": True, "index_end": True},
-    {"ticker": "P2", "name": "Peer Two", "role": "peer", "index_start": True, "index_end": True},
-    {"ticker": "P3", "name": "Peer Three", "role": "peer", "index_start": True, "index_end": False},
+    {"ticker": "ACMQ", "name": "Synthetic Issuer", "role": "issuer", "index_start": True, "index_end": True},
+    {"ticker": "P1Q", "name": "Peer One", "role": "peer", "index_start": True, "index_end": True},
+    {"ticker": "P2Q", "name": "Peer Two", "role": "peer", "index_start": True, "index_end": True},
+    {"ticker": "P3Q", "name": "Peer Three", "role": "peer", "index_start": True, "index_end": False},
 ]
 prices = {
-    "ISSUER": {"start": [10.0] * 30, "end": [14.0] * 30, "dividends": 0.0},
-    "P1": {"start": [10.0] * 30, "end": [12.0] * 30, "dividends": 0.0},
-    "P2": {"start": [10.0] * 30, "end": [16.0] * 30, "dividends": 0.0},
-    "P3": {"start": [10.0] * 30, "end": [20.0] * 30, "dividends": 0.0},
+    "ACMQ": {"start": [10.0] * 30, "end": [14.0] * 30, "dividends": 0.0},
+    "P1Q": {"start": [10.0] * 30, "end": [12.0] * 30, "dividends": 0.0},
+    "P2Q": {"start": [10.0] * 30, "end": [16.0] * 30, "dividends": 0.0},
+    "P3Q": {"start": [10.0] * 30, "end": [20.0] * 30, "dividends": 0.0},
 }
 perf = evaluate_performance(companies, prices, curve)
-ok(perf["included_peer_tickers"] == ["P1", "P2"], "comparators must be index members at start and end")
+ok(perf["included_peer_tickers"] == ["P1Q", "P2Q"], "comparators must be index members at start and end")
 ok(perf["issuer_percentile"] == 50.0, "issuer percentile is ranked against included peers")
 ok(round(perf["payout_percent"], 4) == 91.6667, "performance evaluation applies the payout curve")
 
 real_ticker_companies = [dict(c) for c in companies]
 real_ticker_companies[1]["ticker"] = "NOVA"
 real_ticker_prices = dict(prices)
-real_ticker_prices["NOVA"] = prices["P1"]
+real_ticker_prices["NOVA"] = prices["P1Q"]
 try:
     evaluate_performance(real_ticker_companies, real_ticker_prices, curve)
     ok(False, "real ticker collisions are rejected in performance tracking")
@@ -94,13 +94,13 @@ ok(collision_examples <= REAL_TICKERS, "shared real-ticker deny-list covers rTSR
 
 # ---- Monte Carlo valuation: deterministic seed, risk-neutral stock-settled payoff, no real data needed ----
 valuation_input = {
-    "issuer": "ISSUER",
-    "tickers": ["ISSUER", "P1", "P2", "P3"],
-    "spot_prices": {"ISSUER": 100.0, "P1": 100.0, "P2": 100.0, "P3": 100.0},
-    "volatilities": {"ISSUER": 0.0, "P1": 0.0, "P2": 0.0, "P3": 0.0},
-    "dividend_yields": {"ISSUER": 0.0, "P1": 0.0, "P2": 0.0, "P3": 0.0},
-    "correlations": {a: {b: (1.0 if a == b else 0.0) for b in ["ISSUER", "P1", "P2", "P3"]}
-                     for a in ["ISSUER", "P1", "P2", "P3"]},
+    "issuer": "ACMQ",
+    "tickers": ["ACMQ", "P1Q", "P2Q", "P3Q"],
+    "spot_prices": {"ACMQ": 100.0, "P1Q": 100.0, "P2Q": 100.0, "P3Q": 100.0},
+    "volatilities": {"ACMQ": 0.0, "P1Q": 0.0, "P2Q": 0.0, "P3Q": 0.0},
+    "dividend_yields": {"ACMQ": 0.0, "P1Q": 0.0, "P2Q": 0.0, "P3Q": 0.0},
+    "correlations": {a: {b: (1.0 if a == b else 0.0) for b in ["ACMQ", "P1Q", "P2Q", "P3Q"]}
+                     for a in ["ACMQ", "P1Q", "P2Q", "P3Q"]},
     "risk_free_rate": 0.0,
     "performance_years": 3.0,
     "paths": 256,
@@ -116,13 +116,13 @@ ok("fair_value_standard_error" in v1 and v1["fair_value_standard_error"] == 0.0,
    "Monte Carlo valuation reports standard error; zero-vol paths have zero SE")
 
 dividend_case = dict(valuation_input)
-dividend_case["tickers"] = ["ISSUER", "P1"]
-dividend_case["spot_prices"] = {"ISSUER": 100.0, "P1": 100.0}
-dividend_case["volatilities"] = {"ISSUER": 0.0, "P1": 0.0}
-dividend_case["dividend_yields"] = {"ISSUER": 0.10, "P1": 0.0}
+dividend_case["tickers"] = ["ACMQ", "P1Q"]
+dividend_case["spot_prices"] = {"ACMQ": 100.0, "P1Q": 100.0}
+dividend_case["volatilities"] = {"ACMQ": 0.0, "P1Q": 0.0}
+dividend_case["dividend_yields"] = {"ACMQ": 0.10, "P1Q": 0.0}
 dividend_case["correlations"] = {
-    "ISSUER": {"ISSUER": 1.0, "P1": 0.0},
-    "P1": {"ISSUER": 0.0, "P1": 1.0},
+    "ACMQ": {"ACMQ": 1.0, "P1Q": 0.0},
+    "P1Q": {"ACMQ": 0.0, "P1Q": 1.0},
 }
 dividend_case["paths"] = 32
 vd = monte_carlo_valuation(dividend_case, curve)
@@ -146,13 +146,13 @@ except RTSRError:
     ok(True, "non-integer path count is rejected")
 
 bad_real_ticker = dict(valuation_input)
-bad_real_ticker["tickers"] = ["ISSUER", "NOVA"]
-bad_real_ticker["spot_prices"] = {"ISSUER": 100.0, "NOVA": 100.0}
-bad_real_ticker["volatilities"] = {"ISSUER": 0.0, "NOVA": 0.0}
-bad_real_ticker["dividend_yields"] = {"ISSUER": 0.0, "NOVA": 0.0}
+bad_real_ticker["tickers"] = ["ACMQ", "NOVA"]
+bad_real_ticker["spot_prices"] = {"ACMQ": 100.0, "NOVA": 100.0}
+bad_real_ticker["volatilities"] = {"ACMQ": 0.0, "NOVA": 0.0}
+bad_real_ticker["dividend_yields"] = {"ACMQ": 0.0, "NOVA": 0.0}
 bad_real_ticker["correlations"] = {
-    "ISSUER": {"ISSUER": 1.0, "NOVA": 0.0},
-    "NOVA": {"ISSUER": 0.0, "NOVA": 1.0},
+    "ACMQ": {"ACMQ": 1.0, "NOVA": 0.0},
+    "NOVA": {"ACMQ": 0.0, "NOVA": 1.0},
 }
 try:
     monte_carlo_valuation(bad_real_ticker, curve)
@@ -168,17 +168,17 @@ except RTSRError:
     ok(True, "out-of-range percentile payout is rejected")
 
 tied_companies = [
-    {"ticker": "ISSUER", "name": "Issuer", "role": "issuer", "index_start": True, "index_end": True},
-    {"ticker": "P1", "name": "Peer One", "role": "peer", "index_start": True, "index_end": True},
-    {"ticker": "P2", "name": "Peer Two", "role": "peer", "index_start": True, "index_end": True},
+    {"ticker": "ACMQ", "name": "Issuer", "role": "issuer", "index_start": True, "index_end": True},
+    {"ticker": "P1Q", "name": "Peer One", "role": "peer", "index_start": True, "index_end": True},
+    {"ticker": "P2Q", "name": "Peer Two", "role": "peer", "index_start": True, "index_end": True},
 ]
 tied_prices = {
-    "ISSUER": {"start": [10.0] * 30, "end": [12.0] * 30, "dividends": 0.0},
-    "P1": {"start": [10.0] * 30, "end": [12.0] * 30, "dividends": 0.0},
-    "P2": {"start": [10.0] * 30, "end": [9.0] * 30, "dividends": 0.0},
+    "ACMQ": {"start": [10.0] * 30, "end": [12.0] * 30, "dividends": 0.0},
+    "P1Q": {"start": [10.0] * 30, "end": [12.0] * 30, "dividends": 0.0},
+    "P2Q": {"start": [10.0] * 30, "end": [9.0] * 30, "dividends": 0.0},
 }
 tied = evaluate_performance(tied_companies, tied_prices, curve)
-ok([r["rank"] for r in tied["ranked"] if r["ticker"] in ("ISSUER", "P1")] == [1, 1],
+ok([r["rank"] for r in tied["ranked"] if r["ticker"] in ("ACMQ", "P1Q")] == [1, 1],
    "display ranks are tie-aware and match percentile tie handling")
 
 print(f"OK — {passed} rTSR engine checks passed.")

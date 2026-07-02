@@ -79,8 +79,10 @@ ok("P45–55" in page and "P50–65" in page and "Total direct comp" in page,
 ok("0.5–2.0×" in page, "the hard-screen bands are shown")
 ok("headcount · soft" in page.lower(), "headcount is labeled as a soft rank factor")
 
-# ---- honest about the synthetic universe + the human gate, in both the page and the digest ----
-ok("synthetic" in page.lower() and "no real issuer" in digest.lower(), "synthetic-universe disclaimer present")
+# ---- honest about the REAL-peer universe (illustrative snapshot, synthetic subject) + the human gate ----
+ok("real public peers" in page.lower() and "illustrative" in page.lower(), "real-peer disclaimer present in the page")
+ok("real public-company peers" in digest.lower() and "illustrative snapshot" in digest.lower()
+   and "acme) is synthetic" in digest.lower(), "digest discloses real peers + illustrative snapshot + synthetic subject")
 ok("Compensation Committee" in page and "Compensation Committee" in digest, "the human approver is named")
 
 # ---- determinism: same universe -> identical bytes ----
@@ -95,9 +97,11 @@ ok(len(ids) == len(set(ids)), f"no duplicate SVG ids ({len(ids)} ids, all unique
 ok("<script" not in page, "the dashboard contains no <script>")
 ok(not re.search(r"\bE-\d{4}\b", page) and not re.search(r"\bC-\d{4}\b", page),
    "no per-person employee/contractor ids appear (aggregate/company-level only)")
-ok(not ({"LUMN", "GRAB", "DRIP", "MERC", "AAPL", "MSFT"} & set(re.findall(r"\b[A-Z]{2,5}\b", page))),
-   "no well-known real ticker is rendered")
-for term in ("BlackLine", "OpenClaw", "sk-"):
+# the peer TICKERS are intentionally real (this arm benchmarks against real comps); but no OUT-OF-UNIVERSE
+# mega-cap ticker should ever leak in — those aren't peers and their presence would signal a bug
+ok(not ({"AAPL", "MSFT", "AMZN", "GOOGL", "NVDA", "META"} & set(re.findall(r"\b[A-Z]{2,5}\b", page))),
+   "no out-of-universe mega-cap ticker is rendered (real peers are intentional; mega-caps are not peers)")
+for term in ("Contoso", "Initech", "sk-"):
     ok(term not in page, f"no '{term}' leakage in the dashboard")
 
 # a company name carrying HTML is ESCAPED — inject into a company that actually RENDERS (the top peer

@@ -60,10 +60,11 @@ be used on, real people.
 ## Human-in-the-loop & the ledger
 
 - The model **recommends context for a planning conversation**; a human owns every consequential decision.
-- Any per-employee scoring is **synthetic-IDs-only, approval-gated, and routed through People Analytics /
-  HRBP** — never a manager-facing "who will quit" board.
-- The decision ledger logs **hashes / IDs / score / band / disposition / outcome — never raw sensitive
-  features**.
+- Any per-employee scoring (a **future increment**, not built here) **will be** synthetic-IDs-only,
+  approval-gated, and routed through People Analytics / HRBP — never a manager-facing "who will quit" board.
+- The decision-ledger **design** logs **hashes / IDs / score / band / disposition / outcome — never raw
+  sensitive features** (the ledger primitive is built in `core/event_log.py`; wiring the retention scores
+  through it is a future increment).
 
 ## Prohibited uses (must-not)
 
@@ -76,12 +77,30 @@ be used on, real people.
 - **Must not** drive a comp change directly — a `comp review suggested` flag routes to the separate
   comp-governance process; it never changes pay.
 
-## Fairness
+## Fairness — NOT YET SHIPPED (do not rely on this build for a fairness determination)
 
-A **thick fairness card** is the intended governance surround (this increment ships the segment reconciliation
-+ small-n suppression + the retained neutral audit stratum; the full group-calibration / FPR-FNR /
-equal-opportunity / subgroup-precision@k report with confidence intervals and documented remediation is the
-fairness-audit increment). Four-fifths alone is treated as **too thin**.
+The **thick fairness card** is the intended governance surround but is **future-state** — it does **not** exist
+in this build and this model must **not** be represented as fairness-validated. What ships today is the
+*scaffolding* for it: the segment reconciliation, small-n suppression, protected attributes excluded from
+inputs, and a retained neutral audit stratum. What is **NOT built yet** (the fairness-audit increment): group
+calibration, FPR/FNR and equal-opportunity gaps, subgroup precision@k, confidence intervals, and documented
+remediation. Four-fifths (adverse-impact ratio) alone is treated as **too thin**. Until the fairness layer
+exists, treat any group-level use as unvalidated.
+
+## Employee-facing & privacy boundaries
+
+For a real deployment (this is a synthetic demo), the model card carries the operational boundaries — not just
+the governance docs:
+- **Notice** — employees in scope are informed the model exists, what it is for (planning, not adverse action),
+  and what data classes feed it; it is never a covert score.
+- **Human review & appeal** — a person owns every consequential decision; an affected employee can request a
+  human review of any planning action taken in reference to a score. No automated adverse action.
+- **Data-subject rights** — access / correction / erasure requests are honored on the features and any retained
+  score (GDPR Art. 15-17); see [data-retention-and-erasure](data-retention-and-erasure.md). The ledger keeps
+  hashes/IDs/score/band/disposition, **never raw sensitive features**, so the proof survives erasure of the
+  person.
+- **Score retention** — scores are retained only as long as the planning cycle needs them, then expired on the
+  documented retention schedule; a stale score is never carried forward as a standing label.
 
 ## Failure mode
 

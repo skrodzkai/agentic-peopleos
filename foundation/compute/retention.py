@@ -498,9 +498,13 @@ def survival_curve(hazards):
 
 
 def horizon_probability(hazards, h_months):
-    """P(voluntary exit within the next h_months) = 1 - prod(1 - lambda) over that horizon."""
+    """P(voluntary exit within the next h_months) = 1 - prod(1 - lambda) over that horizon. Fails closed if
+    fewer than h_months hazards are supplied — silently truncating would return a shorter-horizon probability
+    mislabeled as the requested one (e.g. a 6-month number returned for P(exit <= 12mo))."""
     if not isinstance(h_months, int) or isinstance(h_months, bool) or h_months < 0:
         raise ModelError("horizon must be a non-negative int")
+    if len(hazards) < h_months:
+        raise ModelError(f"horizon_probability: need >= {h_months} hazards, got {len(hazards)}")
     window = hazards[:h_months]
     _check_hazards(window)
     s = 1.0
@@ -572,7 +576,7 @@ def platt_calibrate(model, design, calib_idx, iters=60):
         # iteration difference from libm ULP noise moves a,b by << the manifest rounding/tolerance.
         if abs(da) < 1e-10 and abs(db) < 1e-10:
             break
-    # NB: base rate drifts UP across the window (train ~1.19% -> test ~1.79%); Platt is anchored to the
+    # NB: base rate drifts UP across the window (train ~1.07% -> test ~1.83%); Platt is anchored to the
     # calibration-slice prevalence, so out-of-time surfaced probabilities track calibration, not test.
     if not (math.isfinite(a) and math.isfinite(b)):
         raise ModelError("non-finite Platt calibration parameters")
@@ -686,7 +690,7 @@ def pr_auc(scores, y):
 def precision_at_k(scores, y, groups, k_frac=PRECISION_K_FRAC, min_denom=PRECISION_MIN_DENOM):
     """Top-decile precision, computed PER window (calendar month) then POOLED, so a tiny single window can't
     trip or hide it. Returns {precision|None, n_flagged, status} — 'insufficient_denominator' if the pooled
-    flags never reach min_denom (Codex build-note: Acme's active pop can be small)."""
+    flags never reach min_denom (Acme's active pop can be small)."""
     if not (len(scores) == len(y) == len(groups)):
         raise ModelError("precision_at_k: length mismatch")
     if any(not math.isfinite(s) for s in scores):
@@ -770,8 +774,8 @@ def _validate_slices(design, slices):
     disjointness checks alone are not enough: a caller could pass a cherry-picked in-band SUBSET of the test
     rows and still get normal-looking (but selectively favorable) metrics back. Requiring exact equality to
     the canonical partition closes that, and also catches an empty/overlapping/out-of-range slice."""
-    if not {"train", "calibration", "test"} <= set(slices):   # superset, not strict-subset: a renamed 3rd key
-        raise ModelError("_validate_slices: missing one of train/calibration/test")  # -> ModelError, not KeyError
+    if set(slices) != {"train", "calibration", "test"}:       # EXACTLY these three keys — no missing, no extra
+        raise ModelError("_validate_slices: slices must be exactly {train, calibration, test}")
     canon = temporal_slices(design)
     for name in ("train", "calibration", "test"):
         if list(slices[name]) != canon[name]:
@@ -861,10 +865,13 @@ def risk_bands(probs):
 
 def risk_tier(prob, bands):
     """Map a calibrated probability to a support tier (never an adverse-action label). Fails closed on a
-    probability outside [0,1]/non-finite, and on malformed bands — bands must be exactly {elevated, high}
-    with finite thresholds satisfying 0 <= elevated <= high <= 1 (a string/negative/>1 band is a caller
-    error surfaced as ModelError, never a silent 'low' or a raw TypeError)."""
-    if not math.isfinite(prob) or not (0.0 <= prob <= 1.0):
+    probability that is not a finite real number (bool/str/None -> ModelError, never a raw TypeError, and
+    True/False are NOT treated as 1/0), and on malformed bands — bands must be exactly {elevated, high} with
+    finite thresholds satisfying 0 <= elevated <= high <= 1 (a string/negative/>1 band is a caller error
+    surfaced as ModelError, never a silent 'low')."""
+    if not _finite_num(prob):                              # rejects bool/str/None BEFORE any comparison
+        raise ModelError(f"risk_tier: probability must be a finite number (got {prob!r})")
+    if not (0.0 <= prob <= 1.0):
         raise ModelError(f"risk_tier: probability {prob!r} outside [0,1]")
     if not (isinstance(bands, dict) and set(bands) == {"elevated", "high"}):
         raise ModelError("risk_tier: bands must be exactly {elevated, high}")

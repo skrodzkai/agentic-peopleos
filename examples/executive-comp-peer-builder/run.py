@@ -22,8 +22,9 @@ human approval gate — because finalizing the peer group is a committee decisio
     python3 run.py --publish                                    # refused: needs a named committee approver
     python3 run.py --publish --approved-by "Compensation Committee Chair"
 
-Standard library only; deterministic; offline. The universe is synthetic — no real issuer, ticker,
-or proxy is represented.
+Standard library only; deterministic; offline. The candidate PEERS are real public companies with
+as-disclosed public financials (a dated, illustrative snapshot; provenance in governance/real-peer-data.md);
+only the subject (Acme) is synthetic.
 """
 from __future__ import annotations
 
@@ -46,11 +47,11 @@ REPORT = OUT / "report.sample.html"
 DIGEST = OUT / "day1-digest.sample.md"
 COMPANY = "Acme Corp"
 AS_OF = "FY2026"
-PERIOD = "FY2026 proxy season · synthetic universe"
+PERIOD = "FY2026 proxy season · real public peers · illustrative snapshot"
 AGENT = "executive-comp-peer-builder"
 SCOPE = "publish.exec_comp_peer_group"
 APPROVER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .,'&()-]{0,79}$")
-CORE_N = 15          # the recommended core peer group; in-band peers beyond it become the watchlist
+CORE_N = 12          # the recommended core peer group; in-band peers beyond it become the watchlist
 
 # The committee's target-percentile policy as RANGES (disclosed practice is a band centered near the
 # median, not a single point), carried forward to the benchmarking arm AFTER the peer group is approved.
@@ -299,7 +300,7 @@ def render_html(report):
                                       [(q1, f"25th · ${round(q1)}M"), (med, f"median · ${round(med)}M"),
                                        (q3, f"75th · ${round(q3)}M")],
                                       you_label=COMPANY, unit_prefix="$", unit_suffix="M")
-                + "<div class='cap'>Revenue position within the screened peer group (synthetic universe).</div></div></section>")
+                + "<div class='cap'>Revenue position within the screened peer group (real public peers; illustrative snapshot).</div></div></section>")
 
     grid = []
     funnel = ch.waterfall([("Universe", n_universe, "total"),
@@ -366,7 +367,7 @@ def render_html(report):
                 "fit-ranked order; the <b>Compensation Committee</b> approves the final list. The agent runs no "
                 "screening or ranking math — every PASS/FAIL and fit score is computed by the shared screener.</div>"
                 "<div class='pills'>"
-                "<span class='pill'>Synthetic universe</span>"
+                "<span class='pill'>Real peers · synthetic subject</span>"
                 f"<span class='pill'>{n_peers} of {n_universe} screened</span>"
                 "<span class='pill'>Hard gate + size-fit rank</span>"
                 "<span class='pill'>Committee approves</span></div></footer>")
@@ -399,7 +400,7 @@ def render_digest(report):
         "(committee policy; applied only after the peer group is approved).",
         "",
         "_The screen RECOMMENDS; the Compensation Committee approves the final peer group (human-in-the-loop)._",
-        "_Synthetic public-company universe — no real issuer, ticker, or proxy is represented._",
+        "_Real public-company peers (as-disclosed public financials, an illustrative snapshot — see governance/real-peer-data.md); the subject (Acme) is synthetic._",
         "_Publish gate: a named committee approver must sign off before this group is used for benchmarking._",
     ]
     return "\n".join(lines) + "\n"

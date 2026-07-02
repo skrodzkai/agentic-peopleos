@@ -138,7 +138,7 @@ try:
 except LedgerError:
     ok(True, "PII in a payload is refused at append (heuristic backstop)")
 
-# === Codex adversarial regressions — each is an exploit the validator must catch ===
+# === Adversarial regressions — each is an exploit the validator must catch ===
 import json as _json  # noqa: E402
 from core.approval_registry import ApprovalRegistry, ACME  # noqa: E402
 

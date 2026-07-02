@@ -16,6 +16,16 @@ from foundation.compute.peers import REAL_TICKERS  # noqa: E402
 
 SCAN_SUFFIXES = {".csv", ".json", ".jsonl", ".md", ".txt", ".html", ".yml", ".yaml"}
 SKIP_PARTS = {"tests", "evals", "__pycache__", ".git", "node_modules"}
+# The exec-comp PEER-BUILDER arm intentionally benchmarks against REAL public companies (real tickers +
+# as-disclosed public financials, sourced in governance/real-peer-data.md), so its data + rendered outputs
+# are ALLOWED to carry real tickers. Everything else must stay synthetic. Match by path substring.
+REAL_PEER_ALLOW = ("acme/peer_universe.csv", "real-peer-data.md",
+                   "executive-comp-peer-builder/output/")
+
+
+def _allowed_real(path):
+    s = str(path).replace("\\", "/")
+    return any(frag in s for frag in REAL_PEER_ALLOW)
 # One-letter real tickers such as C/V/T are too collision-prone in prose and report labels. The
 # structured peer loader still rejects exact ticker fields; this text scan guards real-looking
 # public artifact symbols of 2-6 characters.
@@ -32,11 +42,12 @@ def _iter_files(roots):
     for root in roots:
         p = Path(root)
         if p.is_file():
-            if p.suffix in SCAN_SUFFIXES and not (set(p.parts) & SKIP_PARTS):
+            if p.suffix in SCAN_SUFFIXES and not (set(p.parts) & SKIP_PARTS) and not _allowed_real(p):
                 yield p
         elif p.is_dir():
             for f in sorted(p.rglob("*")):
-                if f.is_file() and f.suffix in SCAN_SUFFIXES and not (set(f.parts) & SKIP_PARTS):
+                if f.is_file() and f.suffix in SCAN_SUFFIXES and not (set(f.parts) & SKIP_PARTS) \
+                        and not _allowed_real(f):
                     yield f
 
 

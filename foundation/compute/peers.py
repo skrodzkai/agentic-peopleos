@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Executive-comp peer-group screening over the synthetic public-company universe.
+"""Executive-comp peer-group screening. The SUBJECT is synthetic Acme; the candidate PEERS are REAL public
+companies (a peer screen benchmarks against real comps) with as-disclosed public financials — a dated,
+illustrative snapshot sourced in governance/real-peer-data.md. (The ISS pay screen + rTSR valuation run on a
+separate, clearly-synthetic universe, so no real name ever carries a fabricated pay/TSR figure.)
 
 Pure, stdlib-only, deterministic. Two clearly-separated steps, the way a compensation committee
 actually works:
@@ -30,14 +33,16 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 DATA = HERE.parents[1] / "foundation" / "data" / "acme"
 
-# The exact schema the synthetic peer universe must have (loader fails closed on any drift).
+# The exact schema the peer universe must have (loader fails closed on any drift).
 REQUIRED_COLS = ("ticker", "company_name", "gics_sector", "gics_subindustry",
                  "revenue_usd", "market_cap_usd", "employees", "total_assets_usd", "is_subject")
 _TICKER_RE = re.compile(r"^[A-Z][A-Z0-9]{0,5}$")
 
-# Real, recognizable tickers we refuse to MINT (generator) or LOAD (here): a real ticker in a synthetic
-# universe would undermine the "obviously synthetic" guarantee on a public portfolio. Single source of
-# truth — foundation/data/generate.py imports this exact set so the generator and the loader can't drift.
+# Real, recognizable tickers used by the SYNTHETIC arms as a public-safety backstop. NOTE: the peer-builder
+# universe (this loader) now INTENTIONALLY carries real tickers — its peers are real public companies. This
+# set is consumed where the data must stay synthetic: the ISS pay screen + rTSR valuation loaders (which also
+# enforce a synthetic ticker SHAPE) and tools/ticker_scan.py (which scans every non-real-peer artifact). It is
+# a defense-in-depth deny-list, not the primary guard (the shape checks are).
 REAL_TICKERS = frozenset({
     "AAPL", "MSFT", "AMZN", "GOOG", "GOOGL", "META", "NVDA", "TSLA", "BRK", "JPM", "V", "MA", "UNH",
     "HD", "PG", "JNJ", "XOM", "CVX", "KO", "PEP", "WMT", "DIS", "NFLX", "CRM", "ORCL", "ADBE", "INTC",
@@ -49,27 +54,6 @@ REAL_TICKERS = frozenset({
     # rTSR sample collision regressions: real/listed/recognizable symbols that must never appear in
     # synthetic exec-comp examples.
     "NOVA", "MTRX", "PULS", "JUNO", "KITE", "FLUX", "LUMA", "HUBX", "RIVR", "NSTR",
-})
-
-# Real, recognizable COMPANY NAMES the synthetic generator refuses to MINT (and this loader refuses to
-# LOAD). The peer generator composes names as "{Prefix} {Suffix}" from generic business words, so some
-# combinations land on real companies ("Apex Systems", "Aurora Networks", ...). A real name in a synthetic
-# universe undermines the "obviously synthetic" guarantee on a public portfolio, so the generator skips any
-# composed name in this set and this loader rejects a universe that contains one. Single source of truth —
-# the generator imports this exact set. Case-insensitive match (compared on casefold). Best-effort, not a
-# claim of completeness: the composed names are algorithmically synthetic and screened against this list.
-REAL_COMPANY_NAMES = frozenset(n.casefold() for n in {
-    "Apex Systems", "Apex Technologies", "Aurora Networks", "Sable Systems", "Sable Networks",
-    "Onyx Software", "Onyx Systems", "Polaris Financial", "Polaris Capital", "Polaris Software",
-    "Quanta Technologies", "Quanta Capital", "Cypress Bio", "Cypress Systems", "Meridian Technologies",
-    "Meridian Financial", "Vantage Systems", "Vantage Software", "Lumen Networks", "Lumen Technologies",
-    "Vertex Technologies", "Vertex Partners", "Vertex Systems", "Forge Software", "Nimbus Software",
-    "Cobalt Systems", "Cobalt Networks", "Harbor Networks", "Beacon Software", "Beacon Technologies",
-    "Summit Software", "Summit Systems", "Granite Systems", "Falcon Software", "Helio Systems",
-    "Slate Software", "Slate Capital", "Kestrel Systems", "Aster Health", "Cedar Networks", "North Software",
-    "Halcyon Systems", "Halcyon Capital", "Crestline Capital", "Ridge Health", "Ridge Systems",
-    "Ironwood Systems", "Basalt Systems", "Brightwater Systems", "Summit Capital",
-    "Aster Diagnostics", "Aster Labs", "Aster Health", "Aurora Diagnostics", "Cypress Diagnostics",
 })
 
 # Default screen — the disclosed-market norm for exec-comp peer construction: the HARD gates are
@@ -130,7 +114,11 @@ class PeerUniverse:
                     r[k] = int(r[k])
         except (KeyError, ValueError, TypeError) as e:
             raise PeerDataError(f"peer universe has a missing or non-numeric field: {e}") from e
-        # ticker integrity: well-formed, unique, and never a real recognizable ticker (synthetic guarantee)
+        # ticker integrity: well-formed + unique. NOTE: the PEERS are intentionally REAL public companies —
+        # a peer-group screen benchmarks against real comps — so real tickers/names are EXPECTED here; the
+        # subject (Acme / ACMQ) is the only synthetic issuer. Provenance + as-of date for every peer figure
+        # is documented in governance/real-peer-data.md. (The ISS pay screen + rTSR valuation run on a
+        # separate, clearly-synthetic universe so no real name ever carries a fabricated pay/TSR number.)
         tickers = [r["ticker"] for r in rows]
         if len(tickers) != len(set(tickers)):
             dupes = sorted({t for t in tickers if tickers.count(t) > 1})
@@ -138,13 +126,6 @@ class PeerUniverse:
         malformed = [t for t in tickers if not _TICKER_RE.fullmatch(t)]
         if malformed:
             raise PeerDataError(f"peer universe has malformed tickers: {malformed[:5]}")
-        minted_real = sorted(set(tickers) & REAL_TICKERS)
-        if minted_real:
-            raise PeerDataError(f"peer universe mints real, recognizable tickers: {minted_real}")
-        # name integrity: a synthetic universe must never carry a real, recognizable company name
-        minted_names = sorted({r["company_name"] for r in rows if r["company_name"].strip().casefold() in REAL_COMPANY_NAMES})
-        if minted_names:
-            raise PeerDataError(f"peer universe mints real, recognizable company names: {minted_names}")
         subjects = [r for r in rows if r.get("is_subject") == "yes"]
         if len(subjects) != 1:
             raise PeerDataError(

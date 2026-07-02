@@ -1,222 +1,52 @@
 ticker,company_name,gics_sector,gics_subindustry,revenue_usd,market_cap_usd,employees,total_assets_usd,is_subject
 ACMQ,Acme Corp,Information Technology,Application Software,851567000,6387000000,2023,1363000000,yes
-GRAN,Granite 001,Consumer Discretionary,Specialty Retail,733000000,1175000000,2690,1154000000,no
-FORG,Forge 002,Health Care,Life Sciences Tools,510000000,2303000000,2560,950000000,no
-ONYX,Onyx 003,Information Technology,Application Software,331000000,4032000000,960,406000000,no
-VANT,Vantage 004,Financials,Capital Markets,1032000000,7893000000,1870,7083000000,no
-VANU,Vantage 005,Consumer Discretionary,Internet Retail,208000000,336000000,940,482000000,no
-HALC,Halcyon 006,Information Technology,Systems Software,2691000000,17830000000,9840,4165000000,no
-COBA,Cobalt 007,Information Technology,Application Software,815000000,6959000000,2900,1035000000,no
-VERD,Verdant 008,Information Technology,Application Software,688000000,8150000000,2850,814000000,no
-CRES,Crestline 009,Information Technology,IT Services,574000000,3711000000,2100,904000000,no
-BEAC,Beacon 010,Industrials,Research & Consulting,4531000000,10774000000,26350,10938000000,no
-APEX,Apex 011,Health Care,Life Sciences Tools,1231000000,4456000000,4140,2047000000,no
-SUMM,Summit 012,Information Technology,Application Software,666000000,7284000000,2100,968000000,no
-CEDA,Cedar 013,Industrials,Electronic Equipment,1145000000,2698000000,5390,2661000000,no
-HALD,Halcyon 014,Industrials,Research & Consulting,2218000000,5526000000,8690,4734000000,no
-HALE,Halcyon 015,Industrials,Electronic Equipment,445000000,1167000000,2230,1190000000,no
-POLA,Polaris 016,Information Technology,IT Services,1516000000,15549000000,4720,2060000000,no
-FALC,Falcon 017,Communication Services,Internet Services,2386000000,11899000000,5930,3380000000,no
-FALD,Falcon 018,Information Technology,Systems Software,412000000,3894000000,1630,472000000,no
-BRIG,Brightwater 019,Health Care,Health Care Technology,836000000,2669000000,2930,1889000000,no
-VERE,Verdant 020,Health Care,Health Care Technology,2028000000,12096000000,8800,3410000000,no
-VERT,Vertex 021,Information Technology,IT Services,755000000,8448000000,2830,1255000000,no
-NORT,North 022,Information Technology,Systems Software,272000000,1984000000,760,311000000,no
-AURO,Aurora 023,Information Technology,Application Software,2732000000,34480000000,10350,3615000000,no
-RIDG,Ridge 024,Information Technology,Application Software,529000000,6765000000,2130,879000000,no
-NORU,North 025,Information Technology,IT Services,634000000,5066000000,2120,865000000,no
-ASTE,Aster 026,Health Care,Health Care Technology,889000000,4625000000,3540,2175000000,no
-HARB,Harbor 027,Information Technology,IT Services,200000000,2222000000,660,348000000,no
-RIDH,Ridge 028,Information Technology,IT Services,1646000000,16610000000,7050,2544000000,no
-SUMN,Summit 029,Information Technology,IT Services,621000000,8072000000,2250,912000000,no
-CIND,Cinder 030,Information Technology,Application Software,2072000000,25052000000,7130,2588000000,no
-POLB,Polaris 031,Health Care,Health Care Technology,934000000,5414000000,4650,2094000000,no
-THOR,Thornwood 032,Communication Services,Internet Services,1226000000,9755000000,2970,2419000000,no
-TIDE,Tiderock 033,Consumer Discretionary,Specialty Retail,1568000000,3562000000,6040,2322000000,no
-CEDB,Cedar 034,Information Technology,Application Software,433000000,5012000000,1650,519000000,no
-POLC,Polaris 035,Information Technology,Application Software,415000000,5268000000,1470,696000000,no
-BASA,Basalt 036,Consumer Discretionary,Specialty Retail,372000000,623000000,1620,691000000,no
-VANV,Vantage 037,Information Technology,Systems Software,342000000,4348000000,1000,516000000,no
-SLAT,Slate 038,Health Care,Health Care Technology,494000000,1768000000,2490,1175000000,no
-NORV,North 039,Information Technology,Application Software,2653000000,32576000000,11010,3452000000,no
-AURP,Aurora 040,Information Technology,IT Services,338000000,3638000000,940,594000000,no
-CRET,Crestline 041,Financials,Capital Markets,3509000000,16143000000,5510,17420000000,no
-AURQ,Aurora 042,Health Care,Life Sciences Tools,841000000,4528000000,3920,1778000000,no
-BEAD,Beacon 043,Industrials,Research & Consulting,516000000,1748000000,2360,1441000000,no
-AURR,Aurora 044,Information Technology,Systems Software,762000000,8386000000,2690,1308000000,no
-VERF,Verdant 045,Information Technology,IT Services,1422000000,18315000000,4130,1941000000,no
-CEDC,Cedar 046,Information Technology,Application Software,204000000,2219000000,650,304000000,no
-CINE,Cinder 047,Industrials,Research & Consulting,638000000,1634000000,2460,1795000000,no
-POLD,Polaris 048,Industrials,Electronic Equipment,511000000,1092000000,1980,1013000000,no
-NORW,North 049,Information Technology,Application Software,819000000,7143000000,2630,1424000000,no
-VERU,Vertex 050,Information Technology,Systems Software,800000000,5904000000,2800,982000000,no
-VERG,Verdant 051,Information Technology,Systems Software,967000000,12608000000,2780,1206000000,no
-ONYY,Onyx 052,Communication Services,Internet Services,373000000,2106000000,1020,592000000,no
-TIDF,Tiderock 053,Information Technology,Application Software,839000000,9845000000,2710,1430000000,no
-POLE,Polaris 054,Consumer Discretionary,Internet Retail,865000000,2342000000,3940,1838000000,no
-CINF,Cinder 055,Communication Services,Internet Services,518000000,4285000000,1100,807000000,no
-BEAE,Beacon 056,Health Care,Health Care Technology,280000000,960000000,1140,497000000,no
-CEDD,Cedar 057,Industrials,Electronic Equipment,514000000,1661000000,2190,1185000000,no
-SABL,Sable 058,Information Technology,Systems Software,2326000000,16523000000,9160,3792000000,no
-APEY,Apex 059,Communication Services,Internet Services,1076000000,6973000000,2700,2202000000,no
-HARC,Harbor 060,Information Technology,Systems Software,585000000,3856000000,1870,1008000000,no
-SUMO,Summit 061,Industrials,Research & Consulting,502000000,1189000000,2550,1102000000,no
-ONYZ,Onyx 062,Information Technology,Systems Software,240000000,2728000000,920,324000000,no
-CING,Cinder 063,Industrials,Research & Consulting,472000000,1473000000,2430,1110000000,no
-ASTF,Aster 064,Financials,Financial Exchanges,561000000,3856000000,1040,3485000000,no
-CREU,Crestline 065,Information Technology,Application Software,514000000,3924000000,1480,921000000,no
-GRAO,Granite 066,Information Technology,IT Services,978000000,11347000000,3640,1318000000,no
-CINH,Cinder 067,Information Technology,Application Software,972000000,11201000000,2830,1204000000,no
-BEAF,Beacon 068,Information Technology,Systems Software,904000000,11410000000,2690,1311000000,no
-RIDI,Ridge 069,Industrials,Electronic Equipment,1056000000,2367000000,5550,2977000000,no
-CEDE,Cedar 070,Information Technology,Application Software,1083000000,10016000000,3570,1311000000,no
-IRON,Ironwood 071,Industrials,Research & Consulting,256000000,615000000,1110,491000000,no
-SUMP,Summit 072,Health Care,Health Care Technology,732000000,2415000000,3030,1136000000,no
-BASB,Basalt 073,Information Technology,Application Software,1691000000,14137000000,6120,2060000000,no
-CINI,Cinder 074,Information Technology,Application Software,446000000,5803000000,1330,637000000,no
-ONYA,Onyx 075,Information Technology,Application Software,1087000000,9505000000,4310,1772000000,no
-ONYB,Onyx 076,Information Technology,IT Services,1624000000,16982000000,4750,2727000000,no
-SABM,Sable 077,Health Care,Life Sciences Tools,3204000000,15007000000,12180,6294000000,no
-ONYC,Onyx 078,Financials,Financial Exchanges,598000000,3533000000,960,3503000000,no
-SABN,Sable 079,Information Technology,Application Software,207000000,2476000000,800,319000000,no
-MERI,Meridian 080,Industrials,Research & Consulting,756000000,2426000000,3270,1949000000,no
-HELI,Helio 081,Health Care,Health Care Technology,1220000000,7635000000,4660,2531000000,no
-HELJ,Helio 082,Communication Services,Interactive Media,823000000,5132000000,1840,1425000000,no
-ASTG,Aster 083,Financials,Financial Exchanges,405000000,3059000000,700,2316000000,no
-SLAU,Slate 084,Health Care,Health Care Technology,473000000,2020000000,1800,721000000,no
-RIDJ,Ridge 085,Communication Services,Interactive Media,580000000,4416000000,1300,1202000000,no
-DRIF,Driftwood 086,Financials,Financial Exchanges,2861000000,22676000000,4810,13858000000,no
-VANW,Vantage 087,Consumer Discretionary,Specialty Retail,642000000,1597000000,3040,1443000000,no
-BRIH,Brightwater 088,Industrials,Electronic Equipment,286000000,984000000,1400,693000000,no
-KEST,Kestrel 089,Industrials,Electronic Equipment,456000000,817000000,2060,899000000,no
-FORH,Forge 090,Health Care,Life Sciences Tools,2395000000,14240000000,11890,5905000000,no
-BRII,Brightwater 091,Information Technology,Application Software,762000000,6965000000,2660,1088000000,no
-SLAV,Slate 092,Information Technology,Systems Software,612000000,5481000000,2590,832000000,no
-HELK,Helio 093,Information Technology,Application Software,472000000,4193000000,1500,740000000,no
-MERJ,Meridian 094,Industrials,Research & Consulting,1118000000,2676000000,4910,2931000000,no
-CINJ,Cinder 095,Information Technology,Application Software,1847000000,18922000000,6790,2233000000,no
-BASC,Basalt 096,Industrials,Electronic Equipment,623000000,1252000000,3380,1359000000,no
-VANX,Vantage 097,Information Technology,Application Software,2409000000,18810000000,8410,3213000000,no
-KESU,Kestrel 098,Information Technology,Systems Software,1175000000,14769000000,4790,1789000000,no
-QUAN,Quanta 099,Consumer Discretionary,Specialty Retail,2375000000,6493000000,10410,3894000000,no
-RIDK,Ridge 100,Financials,Financial Exchanges,888000000,6736000000,1370,6770000000,no
-APEZ,Apex 101,Information Technology,Application Software,493000000,4686000000,1440,635000000,no
-RIDL,Ridge 102,Information Technology,Systems Software,1045000000,11759000000,3490,1844000000,no
-BEAG,Beacon 103,Financials,Financial Exchanges,571000000,3593000000,950,3043000000,no
-AURS,Aurora 104,Communication Services,Internet Services,411000000,2755000000,1220,575000000,no
-CEDF,Cedar 105,Information Technology,Application Software,1909000000,18982000000,8020,3468000000,no
-BRIJ,Brightwater 106,Industrials,Research & Consulting,1647000000,4454000000,6830,3635000000,no
-BASD,Basalt 107,Information Technology,Application Software,1217000000,11903000000,3940,1841000000,no
-VERV,Vertex 108,Consumer Discretionary,Internet Retail,754000000,1515000000,2620,1214000000,no
-ONYD,Onyx 109,Information Technology,Application Software,1406000000,18016000000,3960,2092000000,no
-AURT,Aurora 110,Communication Services,Internet Services,682000000,6547000000,1490,1288000000,no
-BRIK,Brightwater 111,Communication Services,Internet Services,597000000,5736000000,1370,1136000000,no
-THOS,Thornwood 112,Health Care,Health Care Technology,652000000,2651000000,2410,1597000000,no
-COBB,Cobalt 113,Information Technology,Systems Software,665000000,8004000000,2620,1172000000,no
-MERK,Meridian 114,Industrials,Electronic Equipment,2952000000,6940000000,15820,8381000000,no
-HELL,Helio 115,Information Technology,Application Software,1014000000,6614000000,3080,1718000000,no
-CEDG,Cedar 116,Financials,Capital Markets,3719000000,16745000000,7840,19170000000,no
-FALE,Falcon 117,Financials,Financial Exchanges,882000000,4365000000,1860,4850000000,no
-THOT,Thornwood 118,Financials,Capital Markets,1102000000,8755000000,2090,8472000000,no
-TIDG,Tiderock 119,Information Technology,Systems Software,531000000,6526000000,1970,759000000,no
-GRAP,Granite 120,Information Technology,Systems Software,899000000,8131000000,3630,1593000000,no
-VERH,Verdant 121,Industrials,Electronic Equipment,1296000000,3253000000,6300,3523000000,no
-BEAH,Beacon 122,Consumer Discretionary,Internet Retail,2368000000,5240000000,10180,5537000000,no
-CINK,Cinder 123,Communication Services,Interactive Media,1106000000,7889000000,2790,2124000000,no
-GRAQ,Granite 124,Information Technology,Application Software,995000000,10490000000,3370,1788000000,no
-AURU,Aurora 125,Information Technology,Systems Software,540000000,5521000000,1820,874000000,no
-CEDH,Cedar 126,Information Technology,IT Services,1649000000,19939000000,4960,2804000000,no
-CYPR,Cypress 127,Information Technology,IT Services,178000000,1199000000,550,205000000,no
-TIDH,Tiderock 128,Information Technology,Application Software,435000000,4937000000,1430,583000000,no
-VERI,Verdant 129,Industrials,Research & Consulting,885000000,1882000000,4740,1994000000,no
-ASTH,Aster 130,Industrials,Electronic Equipment,294000000,752000000,1350,685000000,no
-HARD,Harbor 131,Information Technology,Application Software,702000000,6829000000,1960,868000000,no
-BRIL,Brightwater 132,Health Care,Life Sciences Tools,1551000000,8403000000,7920,2374000000,no
-SABO,Sable 133,Information Technology,Systems Software,1108000000,11163000000,4650,1359000000,no
-BEAI,Beacon 134,Information Technology,Application Software,794000000,8908000000,2420,923000000,no
-FORI,Forge 135,Industrials,Research & Consulting,481000000,1545000000,2520,881000000,no
-COBC,Cobalt 136,Information Technology,Application Software,301000000,2976000000,960,535000000,no
-AURV,Aurora 137,Information Technology,IT Services,993000000,10507000000,2790,1290000000,no
-HALF,Halcyon 138,Industrials,Electronic Equipment,1702000000,3407000000,6730,4087000000,no
-NIMB,Nimbus 139,Financials,Capital Markets,488000000,3799000000,780,3197000000,no
-CEDI,Cedar 140,Information Technology,Systems Software,469000000,5255000000,1730,816000000,no
-ASTI,Aster 141,Financials,Capital Markets,1204000000,4724000000,2110,8907000000,no
-NIMC,Nimbus 142,Health Care,Life Sciences Tools,1617000000,5946000000,5390,3668000000,no
-VANY,Vantage 143,Information Technology,Systems Software,265000000,3102000000,1030,407000000,no
-RIDM,Ridge 144,Health Care,Health Care Technology,2244000000,12998000000,11180,4360000000,no
-VERJ,Verdant 145,Health Care,Health Care Technology,3653000000,23159000000,13640,5792000000,no
-KESV,Kestrel 146,Information Technology,Application Software,500000000,3340000000,1570,856000000,no
-SUMQ,Summit 147,Health Care,Life Sciences Tools,1552000000,8169000000,6420,2692000000,no
-IROO,Ironwood 148,Information Technology,Systems Software,330000000,3570000000,1110,590000000,no
-CINL,Cinder 149,Industrials,Electronic Equipment,1144000000,2348000000,6190,2240000000,no
-CREV,Crestline 150,Financials,Capital Markets,4265000000,21467000000,7730,25815000000,no
-SABP,Sable 151,Health Care,Life Sciences Tools,499000000,2374000000,2400,1212000000,no
-APEA,Apex 152,Communication Services,Interactive Media,455000000,2543000000,1140,621000000,no
-VANZ,Vantage 153,Information Technology,Application Software,321000000,3147000000,1350,414000000,no
-HARE,Harbor 154,Information Technology,Application Software,2088000000,17838000000,8440,3208000000,no
-VERK,Verdant 155,Industrials,Research & Consulting,282000000,894000000,1440,776000000,no
-CEDJ,Cedar 156,Financials,Capital Markets,1011000000,7556000000,1760,5396000000,no
-BEAJ,Beacon 157,Information Technology,Application Software,416000000,4897000000,1310,541000000,no
-BEAK,Beacon 158,Information Technology,Systems Software,256000000,3338000000,1090,365000000,no
-GRAR,Granite 159,Information Technology,Application Software,529000000,4733000000,1920,655000000,no
-CINM,Cinder 160,Information Technology,Application Software,1206000000,14053000000,4840,1706000000,no
-HARF,Harbor 161,Information Technology,Application Software,2302000000,18328000000,6820,3743000000,no
-THOU,Thornwood 162,Information Technology,IT Services,959000000,10344000000,2900,1189000000,no
-DRIG,Driftwood 163,Health Care,Health Care Technology,608000000,2505000000,2600,1171000000,no
-HALG,Halcyon 164,Information Technology,Systems Software,1160000000,14843000000,3340,1477000000,no
-HALH,Halcyon 165,Information Technology,Application Software,200000000,2528000000,700,359000000,no
-BRIM,Brightwater 166,Health Care,Life Sciences Tools,1852000000,9734000000,7790,4040000000,no
-RIDN,Ridge 167,Information Technology,Application Software,264000000,1956000000,840,427000000,no
-CREW,Crestline 168,Information Technology,Application Software,1940000000,23548000000,6800,3366000000,no
-VERW,Vertex 169,Information Technology,Application Software,825000000,8749000000,2370,1316000000,no
-AURW,Aurora 170,Information Technology,Application Software,2242000000,29104000000,9140,2565000000,no
-GRAS,Granite 171,Health Care,Life Sciences Tools,430000000,1972000000,2210,683000000,no
-SABQ,Sable 172,Information Technology,Application Software,528000000,6193000000,1810,769000000,no
-APEB,Apex 173,Health Care,Health Care Technology,952000000,4307000000,3760,2179000000,no
-APEC,Apex 174,Information Technology,Application Software,507000000,4702000000,1430,888000000,no
-VERX,Vertex 175,Information Technology,Application Software,1138000000,12730000000,4890,1569000000,no
-GRAT,Granite 176,Communication Services,Internet Services,1438000000,11744000000,4340,2022000000,no
-SUMR,Summit 177,Communication Services,Internet Services,928000000,7289000000,2330,1399000000,no
-FALF,Falcon 178,Information Technology,Application Software,2556000000,25709000000,8480,3619000000,no
-NORX,North 179,Industrials,Research & Consulting,2746000000,9384000000,12080,6727000000,no
-THOV,Thornwood 180,Industrials,Electronic Equipment,659000000,1138000000,3280,1208000000,no
-SUMS,Summit 181,Information Technology,Application Software,940000000,7777000000,3650,1137000000,no
-FALG,Falcon 182,Consumer Discretionary,Internet Retail,197000000,299000000,650,380000000,no
-HELM,Helio 183,Information Technology,Application Software,201000000,1624000000,570,229000000,no
-RIDO,Ridge 184,Information Technology,Systems Software,959000000,8166000000,3630,1433000000,no
-CEDK,Cedar 185,Industrials,Electronic Equipment,1470000000,3543000000,7240,2813000000,no
-QUAO,Quanta 186,Communication Services,Interactive Media,177000000,1563000000,390,229000000,no
-ASTJ,Aster 187,Industrials,Research & Consulting,680000000,1463000000,3730,1785000000,no
-POLF,Polaris 188,Information Technology,Systems Software,332000000,2491000000,1120,546000000,no
-HARG,Harbor 189,Information Technology,Systems Software,327000000,3980000000,950,508000000,no
-HALI,Halcyon 190,Communication Services,Internet Services,1238000000,9846000000,2880,1720000000,no
-IROP,Ironwood 191,Industrials,Research & Consulting,452000000,1448000000,1830,1244000000,no
-BRIN,Brightwater 192,Financials,Capital Markets,1188000000,7885000000,2550,8454000000,no
-FORJ,Forge 193,Communication Services,Internet Services,302000000,2665000000,780,443000000,no
-COBD,Cobalt 194,Consumer Discretionary,Internet Retail,1077000000,2748000000,4710,2076000000,no
-HALJ,Halcyon 195,Consumer Discretionary,Specialty Retail,983000000,1590000000,4230,1546000000,no
-HELN,Helio 196,Information Technology,Systems Software,891000000,11337000000,2830,1596000000,no
-BASE,Basalt 197,Information Technology,Application Software,1908000000,23147000000,6420,2858000000,no
-HALK,Halcyon 198,Information Technology,Systems Software,949000000,6521000000,2950,1231000000,no
-FALH,Falcon 199,Information Technology,Systems Software,405000000,3020000000,1300,598000000,no
-SLAW,Slate 200,Consumer Discretionary,Internet Retail,2385000000,3360000000,8090,5354000000,no
-MERL,Meridian 201,Information Technology,Systems Software,684000000,4489000000,2370,1064000000,no
-BEAL,Beacon 202,Communication Services,Interactive Media,716000000,6446000000,1620,975000000,no
-HELO,Helio 203,Health Care,Life Sciences Tools,871000000,5652000000,4370,1436000000,no
-COBE,Cobalt 204,Information Technology,Application Software,650000000,5221000000,2210,792000000,no
-QUAP,Quanta 205,Information Technology,Application Software,2453000000,19350000000,9390,3539000000,no
-NORY,North 206,Information Technology,IT Services,1308000000,13021000000,5490,2251000000,no
-KESW,Kestrel 207,Health Care,Life Sciences Tools,188000000,719000000,880,383000000,no
-TIDI,Tiderock 208,Health Care,Health Care Technology,769000000,3004000000,2830,1587000000,no
-CREX,Crestline 209,Consumer Discretionary,Specialty Retail,748000000,1936000000,3150,1748000000,no
-VERL,Verdant 210,Information Technology,Application Software,1107000000,8501000000,4250,1691000000,no
-CEDL,Cedar 211,Consumer Discretionary,Specialty Retail,1246000000,2200000000,5080,2647000000,no
-SABR,Sable 212,Communication Services,Interactive Media,895000000,8619000000,2820,1549000000,no
-MERM,Meridian 213,Information Technology,Systems Software,2455000000,17540000000,8120,2826000000,no
-NIMD,Nimbus 214,Information Technology,IT Services,1054000000,7244000000,3490,1278000000,no
-BEAM,Beacon 215,Information Technology,Application Software,916000000,6878000000,2830,1260000000,no
-IROQ,Ironwood 216,Information Technology,Systems Software,1186000000,9260000000,3740,1392000000,no
-CEDM,Cedar 217,Industrials,Research & Consulting,1540000000,2989000000,6290,2850000000,no
-KESX,Kestrel 218,Financials,Capital Markets,595000000,3885000000,1370,3527000000,no
-MERN,Meridian 219,Industrials,Electronic Equipment,268000000,877000000,1310,683000000,no
-BEAN,Beacon 220,Information Technology,Application Software,317000000,2845000000,1090,506000000,no
+TOST,"Toast, Inc.",Information Technology,Application Software,6153000000,16710000000,6500,3094000000,no
+DOCU,"DocuSign, Inc.",Information Technology,Application Software,3290000000,8740000000,7044,3984000000,no
+RNG,"RingCentral, Inc.",Information Technology,Application Software,2550000000,3360000000,7378,1422000000,no
+DBX,"Dropbox, Inc.",Information Technology,Application Software,2530000000,6660000000,2113,3031000000,no
+PAYC,"Paycom Software, Inc.",Information Technology,Application Software,2093000000,6490000000,5770,4822000000,no
+DT,"Dynatrace, Inc.",Information Technology,Application Software,2020000000,13050000000,5600,4416000000,no
+PEGA,Pegasystems Inc.,Information Technology,Application Software,1700000000,5190000000,5598,1551000000,no
+PCTY,Paylocity Holding Corporation,Information Technology,Application Software,1595200000,6160000000,6700,4389000000,no
+BSY,"Bentley Systems, Incorporated",Information Technology,Application Software,1502000000,10100000000,5800,3544000000,no
+BILL,"BILL Holdings, Inc.",Information Technology,Application Software,1450000000,4030000000,2364,10064000000,no
+GWRE,"Guidewire Software, Inc.",Information Technology,Application Software,1421000000,11200000000,3772,2535000000,no
+YELP,Yelp Inc.,Communication Services,Interactive Media & Services,1410000000,1460000000,5100,983600000,no
+PCOR,"Procore Technologies, Inc.",Information Technology,Application Software,1371000000,6630000000,4421,2108000000,no
+GTM,ZoomInfo Technologies Inc.,Information Technology,Application Software,1249500000,860000000,3800,6440000000,no
+KVYO,"Klaviyo, Inc.",Information Technology,Application Software,1234000000,5060000000,2368,1581000000,no
+MNDY,monday.com Ltd.,Information Technology,Application Software,1232000000,3500000000,3155,2107000000,no
+CVLT,"Commvault Systems, Inc.",Information Technology,Systems Software,1180000000,6190000000,3300,1886000000,no
+FIVN,"Five9, Inc.",Information Technology,Application Software,1170000000,1790000000,2910,1865000000,no
+BLKB,"Blackbaud, Inc.",Information Technology,Application Software,1140000000,1360000000,2800,2109000000,no
+MANH,"Manhattan Associates, Inc.",Information Technology,Application Software,1101000000,8940000000,4370,740540000,no
+ALRM,"Alarm.com Holdings, Inc.",Information Technology,Application Software,1011000000,2460000000,2058,1644000000,no
+ZETA,Zeta Global Holdings Corp.,Information Technology,Application Software,1006700000,5160000000,3300,1111000000,no
+PRGS,Progress Software Corporation,Information Technology,Systems Software,1000000000,1610000000,2801,2346000000,no
+APPF,"AppFolio, Inc.",Information Technology,Application Software,995330000,6040000000,1702,580560000,no
+GTLB,GitLab Inc.,Information Technology,Application Software,955000000,5420000000,2580,1723000000,no
+WK,Workiva Inc.,Information Technology,Application Software,926000000,2910000000,2880,1494000000,no
+DOCN,"DigitalOcean Holdings, Inc.",Information Technology,Internet Services & Infrastructure,901430000,13580000000,1462,1837710000,no
+CXM,"Sprinklr, Inc.",Information Technology,Application Software,857200000,1270000000,3258,1205000000,no
+FRSH,Freshworks Inc.,Information Technology,Application Software,839000000,2860000000,4500,1600000000,no
+QTWO,"Q2 Holdings, Inc.",Information Technology,Application Software,794800000,3280000000,2549,1426700000,no
+ASAN,"Asana, Inc.",Information Technology,Application Software,791000000,1690000000,1767,844000000,no
+SPSC,"SPS Commerce, Inc.",Information Technology,Application Software,762080000,2170000000,2948,1161000000,no
+DV,"DoubleVerify Holdings, Inc.",Information Technology,Application Software,748300000,1840000000,1231,1354000000,no
+BRZE,"Braze, Inc.",Information Technology,Application Software,738000000,2680000000,1988,1114000000,no
+DSGX,The Descartes Systems Group Inc.,Information Technology,Application Software,728990000,5940000000,2083,1921000000,no
+QLYS,"Qualys, Inc.",Information Technology,Application Software,684860000,5220000000,2683,1095000000,no
+MQ,"Marqeta, Inc.",Information Technology,Application Software,625000000,1760000000,938,1525000000,no
+FSLY,"Fastly, Inc.",Information Technology,Internet Services & Infrastructure,543680000,2840000000,1140,1451000000,no
+NCNO,"nCino, Inc.",Information Technology,Application Software,540700000,1950000000,1684,1610400000,no
+INTA,"Intapp, Inc.",Information Technology,Application Software,504120000,2110000000,1336,894160000,no
+PD,"PagerDuty, Inc.",Information Technology,Application Software,492500000,770000000,1155,990500000,no
+SPT,"Sprout Social, Inc.",Information Technology,Application Software,469760000,490000000,1362,523060000,no
+YEXT,"Yext, Inc.",Information Technology,Application Software,445000000,500000000,1120,622000000,no
+AVPT,"AvePoint, Inc.",Information Technology,Application Software,419500000,2430000000,3443,789000000,no
+BIGC,"BigCommerce Holdings, Inc.",Information Technology,Application Software,346820000,260000000,1079,308790000,no
+AMPL,"Amplitude, Inc.",Information Technology,Application Software,343000000,1170000000,780,421000000,no
+HCAT,"Health Catalyst, Inc.",Information Technology,Application Software,311100000,150000000,1200,503000000,no
+DCBO,Docebo Inc.,Information Technology,Application Software,243000000,450000000,966,254000000,no
+DH,Definitive Healthcare Corp.,Information Technology,Application Software,241500000,110000000,686,735500000,no
+EXFY,"Expensify, Inc.",Information Technology,Application Software,142000000,160000000,117,191000000,no

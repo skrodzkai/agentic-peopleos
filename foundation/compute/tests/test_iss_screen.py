@@ -61,7 +61,7 @@ PEERS = _spread_peers(16)
 
 
 def _write_universe(d, subject, peers=PEERS):
-    peer_tks = [f"PR{i:02d}" for i in range(len(peers))]
+    peer_tks = [f"S{i + 100:03d}" for i in range(len(peers))]   # synthetic ISS ticker shape (S###)
     co, ex = [], []
 
     def add(tk, c, is_subj, self_peers):
@@ -78,7 +78,7 @@ def _write_universe(d, subject, peers=PEERS):
     add("ACMQ", subject, True, peer_tks)
     for tk, c in zip(peer_tks, peers):
         add(tk, c, False, ["ACMQ"] + [t for t in peer_tks if t != tk][:11])
-    with open(Path(d) / "peer_universe.csv", "w", newline="", encoding="utf-8") as fh:
+    with open(Path(d) / "iss_universe.csv", "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=_PEER_COLS, lineterminator="\n"); w.writeheader(); w.writerows(co)
     with open(Path(d) / "exec_pay_tsr.csv", "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=_EXEC_COLS, lineterminator="\n"); w.writeheader(); w.writerows(ex)
@@ -167,7 +167,7 @@ ok(acme["subject"]["ticker"] == "ACMQ", "subject is Acme (ticker ACMQ)")
 def _corrupt(mutate_co=None, mutate_ex=None):
     d = tempfile.mkdtemp()
     _write_universe(d, _subj(4_000_000, 150.0, 5.0))
-    for fn, name, cols in ((mutate_co, "peer_universe.csv", _PEER_COLS), (mutate_ex, "exec_pay_tsr.csv", _EXEC_COLS)):
+    for fn, name, cols in ((mutate_co, "iss_universe.csv", _PEER_COLS), (mutate_ex, "exec_pay_tsr.csv", _EXEC_COLS)):
         if fn:
             rows = list(csv.DictReader(open(Path(d) / name)))
             fn(rows)
@@ -189,9 +189,14 @@ except ISSDataError:
     ok(True, "missing ISS inputs fail closed")
 _expect_closed("two subjects", mutate_co=lambda co: co[1].__setitem__("is_subject", "yes"))
 _expect_closed("mismatched coverage", mutate_ex=lambda ex: ex.pop())
-_expect_closed("real ticker minted",
-               mutate_co=lambda co: [r.__setitem__("ticker", "AAPL") for r in co if r["ticker"] == "PR00"],
-               mutate_ex=lambda ex: [r.__setitem__("ticker", "AAPL") for r in ex if r["ticker"] == "PR00"])
+_expect_closed("real/foreign ticker in the synthetic ISS universe",
+               mutate_co=lambda co: [r.__setitem__("ticker", "AAPL") for r in co if r["ticker"] == "S100"],
+               mutate_ex=lambda ex: [r.__setitem__("ticker", "AAPL") for r in ex if r["ticker"] == "S100"])
+# a REAL PEER ticker (GTLB lives only in peer_universe.csv) must never be accepted in the synthetic ISS
+# universe — the shape guard (ACMQ|S###) rejects it structurally, so no real name can carry fabricated pay
+_expect_closed("real peer ticker injected into the ISS universe",
+               mutate_co=lambda co: [r.__setitem__("ticker", "GTLB") for r in co if r["ticker"] == "S100"],
+               mutate_ex=lambda ex: [r.__setitem__("ticker", "GTLB") for r in ex if r["ticker"] == "S100"])
 _expect_closed("non-positive CEO pay", mutate_ex=lambda ex: ex[1].__setitem__("pay_y1", "0"))
 _expect_closed("non-positive TSR baseline", mutate_ex=lambda ex: ex[1].__setitem__("tsrval_y1", "0"))
 _expect_closed("unknown self-peer ref", mutate_ex=lambda ex: ex[1].__setitem__("self_peers", "ZZZZ"))

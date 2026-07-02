@@ -131,9 +131,16 @@ def _ticker(company):
 
 
 def _reject_real_tickers(tickers, label):
-    hits = sorted({str(t).strip().upper() for t in tickers} & REAL_TICKERS)
+    # This universe is synthetic by construction (subject ACMQ + Q-marked issuers like AXQA/BEXQ). Enforce the
+    # synthetic SHAPE — 'ACMQ' or contains 'Q' — which structurally rejects any real ticker (a real peer like
+    # GTLB/KVYO has no Q), a strictly stronger guard than the static deny-list.
+    ups = {str(t).strip().upper() for t in tickers}
+    hits = sorted(ups & REAL_TICKERS)
     if hits:
         raise RTSRError(f"{label} contains real ticker collision(s): {', '.join(hits)}")
+    non_synth = sorted(t for t in ups if t != "ACMQ" and "Q" not in t)
+    if non_synth:
+        raise RTSRError(f"{label} must be synthetic tickers (ACMQ or Q-marked); got: {', '.join(non_synth[:5])}")
 
 
 def evaluate_performance(companies, prices, payout_curve, issuer_role="issuer", averaging_days=30):

@@ -6,7 +6,7 @@ proposed as a **controlled experiment** with a named approver and a rollback. Th
 "performance review" primitive in the [architecture](../docs/architecture.md) and the **Govern**
 function of the [NIST AI RMF](regulatory-readiness.md).
 
-The same discipline the [trading floor](../README.md) runs on: baseline, hypothesis, evaluation
+The same discipline the [production fleet](../README.md) runs on: baseline, hypothesis, evaluation
 window, verdict — not an ad-hoc tweak.
 
 ## Template

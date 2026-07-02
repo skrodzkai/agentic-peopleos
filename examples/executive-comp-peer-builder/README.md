@@ -4,13 +4,17 @@ The first **Executive Compensation arm** agent: a dark, board-ready dashboard th
 executive-comp **peer group** the way a Compensation Committee actually does it — a hard screen for
 membership, then a transparent fit-rank for ordering — and stops at a human approval gate.
 
-It reads the shared screener over a synthetic public-company universe (subject = the same **Acme Corp**
-the rest of the portfolio uses), proposes a recommended **core peer group** plus a substitution
-**watchlist**, documents every exclusion, and carries the committee's target-percentile policy forward
-to the benchmarking arm. It never recommends pay.
+It reads the shared screener over a universe of **real public companies** (as-disclosed public financials —
+a dated, illustrative snapshot; the subject is the same synthetic **Acme Corp** the rest of the portfolio
+uses), proposes a recommended **core peer group** plus a substitution **watchlist**, documents every
+exclusion, and carries the committee's target-percentile policy forward to the benchmarking arm. It never
+recommends pay.
 
-> All companies and data are synthetic. No real issuer, ticker, peer group, board material, or proxy
-> filing is represented.
+> **Synthetic subject, real peers.** Acme (the subject) is synthetic; the candidate peers are **real public
+> companies** with as-disclosed public financials — an **illustrative, dated snapshot** (provenance +
+> per-figure sources: [`governance/real-peer-data.md`](../../governance/real-peer-data.md)), **not**
+> investment/comp advice; verify against each company's filings for current actuals. **No real name carries a
+> fabricated pay/TSR figure** — the ISS pay screen and rTSR valuation run on a *separate synthetic* universe.
 
 ## The two-step model (the way a committee works)
 

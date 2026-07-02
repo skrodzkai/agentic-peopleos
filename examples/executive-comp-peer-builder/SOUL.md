@@ -8,7 +8,7 @@
 - **Domain:** Executive Compensation
 - **Owner / manager:** Compensation Committee (human), supported by the Head of Total Rewards
 - **Purpose (one sentence):** Build a defensible executive-comp **peer group** — screen a broad
-  synthetic public-company universe down to an in-band group, fit-rank it into a recommended core +
+  universe of REAL public companies down to an in-band group, fit-rank it into a recommended core +
   a substitution watchlist, and hand it to the Compensation Committee for the approval decision.
 - **Owns:** the peer-group *proposal* and its evidence — *not* the decision to adopt it, and never a
   pay recommendation.
@@ -16,7 +16,7 @@
 ## 2) Operating principles
 
 - Read the screen from the **shared screener**
-  ([`foundation/compute/peers.py`](../../foundation/compute/peers.py)) over the synthetic public-company
+  ([`foundation/compute/peers.py`](../../foundation/compute/peers.py)) over the (real-public-company) peer
   universe ([`foundation/data/acme/peer_universe.csv`](../../foundation/data/acme/peer_universe.csv));
   the agent does **no screening or ranking math of its own**. The subject is the *same* Acme Corp the
   rest of the portfolio uses — one consistent company.
@@ -36,7 +36,7 @@
 
 - This agent **fails closed**: if the universe is missing, has no single subject, carries a degenerate
   field, or the screen returns no peers — it writes no report, prints one clean line, and exits non-zero.
-- This agent is **read-only**: it reads the screener (itself read-only over a synthetic CSV) and writes
+- This agent is **read-only**: it reads the screener (read-only over the real-public-company peer universe) and writes
   only its own draft dashboard — never to a system of record.
 - This agent **proposes; it never decides, and it never recommends pay.** It builds and ranks a peer
   group; the Compensation Committee approves the final list, and benchmarking begins only afterward.
@@ -44,4 +44,4 @@
   committee approver records the approval.
 - The fit score **orders** the group; it **never gates** membership — membership is decided by the
   transparent screen alone.
-- Everything is **synthetic**: no real issuer, ticker, or proxy is represented.
+- The candidate **peers are real public companies** (as-disclosed public financials, a dated illustrative snapshot — see `governance/real-peer-data.md`); only the **subject (Acme) is synthetic**. Real pay/TSR is never fabricated for a real name — the ISS screen runs on a separate synthetic universe.

@@ -37,12 +37,15 @@ engine SCREENS and EXPLAINS; a human decides.
 from __future__ import annotations
 
 import csv
+import re
 from pathlib import Path
-
-from foundation.compute.peers import REAL_TICKERS   # shared public-safety deny-list (single source)
 
 HERE = Path(__file__).resolve().parent
 DATA = HERE.parents[1] / "foundation" / "data" / "acme"
+
+# The ISS universe is synthetic by construction: the subject Acme (ACMQ) + numbered issuers S001..S060. This
+# shape rejects ANY real ticker structurally (stronger than a deny-list that can't track a growing real roster).
+_ISS_TICKER_RE = re.compile(r"^(ACMQ|S\d{3})$")
 
 _PEER_COLS = ("ticker", "company_name", "gics_sector", "gics_subindustry", "revenue_usd",
               "market_cap_usd", "employees", "total_assets_usd", "is_subject")
@@ -160,7 +163,7 @@ def _wls_norm_slope(values, xs, weights):
 
 class ISSUniverse:
     def __init__(self, data_dir=DATA):
-        co_rows = _rows(Path(data_dir) / "peer_universe.csv", _PEER_COLS)
+        co_rows = _rows(Path(data_dir) / "iss_universe.csv", _PEER_COLS)   # SYNTHETIC universe (not the real peers)
         ex_rows = _rows(Path(data_dir) / "exec_pay_tsr.csv", _EXEC_COLS)
         for r in co_rows:
             for k in ("revenue_usd", "market_cap_usd", "employees", "total_assets_usd"):
@@ -182,11 +185,13 @@ class ISSUniverse:
             raise ISSDataError("exec_pay_tsr.csv has duplicate tickers")
         if set(self.exec) != set(self.co):
             raise ISSDataError("peer_universe.csv and exec_pay_tsr.csv cover different tickers")
-        # public-safety defense-in-depth: the universe is deny-listed at generation, but never load a
-        # real, recognizable ticker here either (single shared source of truth)
-        real = sorted(set(self.co) & REAL_TICKERS)
-        if real:
-            raise ISSDataError(f"ISS inputs contain real, recognizable tickers: {real}")
+        # public-safety: the ISS universe is SYNTHETIC by construction (the real peers live only in
+        # peer_universe.csv). Enforce the synthetic ticker SHAPE — 'ACMQ' or 'S###' — which structurally
+        # rejects ANY real ticker (a real peer like GTLB/KVYO can never match), a strictly stronger guard than
+        # a static deny-list that can't keep up with a growing real-peer roster.
+        bad_shape = sorted(t for t in self.co if not _ISS_TICKER_RE.fullmatch(t))
+        if bad_shape:
+            raise ISSDataError(f"ISS universe must be synthetic tickers (ACMQ or S###); got: {bad_shape[:5]}")
         # fail closed on degenerate exec data: unknown self-peer refs (silently dropped otherwise) and
         # non-positive CEO pay / TSR index (would break medians, growth ratios, and the PTA normalization)
         for tk, e in self.exec.items():
