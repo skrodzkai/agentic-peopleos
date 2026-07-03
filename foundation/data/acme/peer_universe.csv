@@ -13,7 +13,7 @@ BILL,"BILL Holdings, Inc.",Information Technology,Application Software,145000000
 GWRE,"Guidewire Software, Inc.",Information Technology,Application Software,1421000000,11200000000,3772,2535000000,no,TTM 2026-04-30,2026-07-02,high,stockanalysis
 YELP,Yelp Inc.,Communication Services,Interactive Media & Services,1410000000,1460000000,5100,983600000,no,FY2024,2026-06,high,sec
 PCOR,"Procore Technologies, Inc.",Information Technology,Application Software,1371000000,6630000000,4421,2108000000,no,TTM 2026-03-31,2026-07-02,high,stockanalysis
-GTM,ZoomInfo Technologies Inc.,Communication Services,Interactive Media & Services,1249500000,860000000,3800,6440000000,no,FY2025,2026-06-30,high,ir
+GTM,ZoomInfo Technologies Inc.,Communication Services,Interactive Media & Services,1249500000,860000000,3180,6440000000,no,FY2025,2026-06-30,high,ir
 KVYO,"Klaviyo, Inc.",Information Technology,Application Software,1234000000,5060000000,2368,1581000000,no,FY2025,2026-07-02,low_gics,stocktitan_net
 MNDY,monday.com Ltd.,Information Technology,Application Software,1232000000,3500000000,3155,2107000000,no,FY2025,2026-07-02,high,stocktitan_net
 CVLT,"Commvault Systems, Inc.",Information Technology,Systems Software,1180000000,6190000000,3300,1886000000,no,FY2026,2026-07-02,high,stockanalysis
@@ -37,7 +37,7 @@ BRZE,"Braze, Inc.",Information Technology,Application Software,738000000,2680000
 DSGX,The Descartes Systems Group Inc.,Information Technology,Application Software,728990000,5940000000,2083,1921000000,no,FY2026,2026-07-02,low_gics,stockanalysis
 QLYS,"Qualys, Inc.",Information Technology,Application Software,684860000,5220000000,2683,1095000000,no,TTM 2026-03-31,2026-07-02,high,stockanalysis
 MQ,"Marqeta, Inc.",Financials,Transaction & Payment Processing Services,625000000,1760000000,938,1525000000,no,FY2025,2026-07-02,medium,stockanalysis
-FSLY,"Fastly, Inc.",Information Technology,Internet Services & Infrastructure,543680000,2840000000,1140,1451000000,no,FY2024,2026-06,high,sec
+FSLY,"Fastly, Inc.",Information Technology,Internet Services & Infrastructure,624020000,2840000000,1140,1451000000,no,FY2025,2026-06,high,stockanalysis
 NCNO,"nCino, Inc.",Information Technology,Application Software,594800000,1950000000,1684,1610400000,no,FY2026,2026-07-02,high,sec
 INTA,"Intapp, Inc.",Information Technology,Application Software,504120000,2110000000,1336,894160000,no,FY2025,2026-07-02,medium,stockanalysis
 PD,"PagerDuty, Inc.",Information Technology,Application Software,492500000,770000000,1155,990500000,no,FY2026,2026-07-02,high,pagerduty
@@ -46,7 +46,7 @@ YEXT,"Yext, Inc.",Information Technology,Application Software,445000000,50000000
 AVPT,"AvePoint, Inc.",Information Technology,Application Software,419500000,2430000000,3443,789000000,no,FY2025,2026-07-02,high,globenewswire
 CMRC,"Commerce.com, Inc.",Information Technology,Application Software,346820000,260000000,1079,308790000,no,TTM 2026-07-02,2026-07-02,medium,sec
 AMPL,"Amplitude, Inc.",Information Technology,Application Software,343000000,1170000000,780,421000000,no,FY2025,2026-07-02,high,stocktitan_net
-HCAT,"Health Catalyst, Inc.",Information Technology,Application Software,311100000,150000000,1200,503000000,no,FY2025,2026-07-02,high,stockanalysis
+HCAT,"Health Catalyst, Inc.",Health Care,Health Care Technology,311100000,150000000,1200,503000000,no,FY2025,2026-07-02,high,stockanalysis
 DCBO,Docebo Inc.,Information Technology,Application Software,243000000,450000000,966,254000000,no,FY2025,2026-07-02,high,stockanalysis
-DH,Definitive Healthcare Corp.,Information Technology,Application Software,241500000,110000000,686,735500000,no,FY2025,2026-07-02,high,stockanalysis
+DH,Definitive Healthcare Corp.,Health Care,Health Care Technology,241500000,110000000,686,735500000,no,FY2025,2026-07-02,high,stockanalysis
 EXFY,"Expensify, Inc.",Information Technology,Application Software,142000000,160000000,117,191000000,no,FY2025,2026-07-02,high,stockanalysis

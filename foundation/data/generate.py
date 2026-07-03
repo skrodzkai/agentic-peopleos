@@ -305,7 +305,7 @@ def generate():
         ("GWRE", "Guidewire Software, Inc.", "Application Software", 1421000000, 11200000000, 3772, 2535000000),
         ("YELP", "Yelp Inc.", "Interactive Media & Services", 1410000000, 1460000000, 5100, 983600000),
         ("PCOR", "Procore Technologies, Inc.", "Application Software", 1371000000, 6630000000, 4421, 2108000000),
-        ("GTM", "ZoomInfo Technologies Inc.", "Interactive Media & Services", 1249500000, 860000000, 3800, 6440000000),
+        ("GTM", "ZoomInfo Technologies Inc.", "Interactive Media & Services", 1249500000, 860000000, 3180, 6440000000),
         ("KVYO", "Klaviyo, Inc.", "Application Software", 1234000000, 5060000000, 2368, 1581000000),
         ("MNDY", "monday.com Ltd.", "Application Software", 1232000000, 3500000000, 3155, 2107000000),
         ("CVLT", "Commvault Systems, Inc.", "Systems Software", 1180000000, 6190000000, 3300, 1886000000),
@@ -329,7 +329,7 @@ def generate():
         ("DSGX", "The Descartes Systems Group Inc.", "Application Software", 728990000, 5940000000, 2083, 1921000000),
         ("QLYS", "Qualys, Inc.", "Application Software", 684860000, 5220000000, 2683, 1095000000),
         ("MQ", "Marqeta, Inc.", "Transaction & Payment Processing Services", 625000000, 1760000000, 938, 1525000000),
-        ("FSLY", "Fastly, Inc.", "Internet Services & Infrastructure", 543680000, 2840000000, 1140, 1451000000),
+        ("FSLY", "Fastly, Inc.", "Internet Services & Infrastructure", 624020000, 2840000000, 1140, 1451000000),
         ("NCNO", "nCino, Inc.", "Application Software", 594800000, 1950000000, 1684, 1610400000),
         ("INTA", "Intapp, Inc.", "Application Software", 504120000, 2110000000, 1336, 894160000),
         ("PD", "PagerDuty, Inc.", "Application Software", 492500000, 770000000, 1155, 990500000),
@@ -338,9 +338,9 @@ def generate():
         ("AVPT", "AvePoint, Inc.", "Application Software", 419500000, 2430000000, 3443, 789000000),
         ("CMRC", "Commerce.com, Inc.", "Application Software", 346820000, 260000000, 1079, 308790000),
         ("AMPL", "Amplitude, Inc.", "Application Software", 343000000, 1170000000, 780, 421000000),
-        ("HCAT", "Health Catalyst, Inc.", "Application Software", 311100000, 150000000, 1200, 503000000),
+        ("HCAT", "Health Catalyst, Inc.", "Health Care Technology", 311100000, 150000000, 1200, 503000000),
         ("DCBO", "Docebo Inc.", "Application Software", 243000000, 450000000, 966, 254000000),
-        ("DH", "Definitive Healthcare Corp.", "Application Software", 241500000, 110000000, 686, 735500000),
+        ("DH", "Definitive Healthcare Corp.", "Health Care Technology", 241500000, 110000000, 686, 735500000),
         ("EXFY", "Expensify, Inc.", "Application Software", 142000000, 160000000, 117, 191000000),
     ]
     companies = [{"ticker": "ACMQ", "company_name": "Acme Corp", "gics_sector": "Information Technology",
@@ -363,6 +363,8 @@ def generate():
         "Interactive Media & Services": "Communication Services",
         "Human Resource & Employment Services": "Industrials",
         "Transaction & Payment Processing Services": "Financials",
+        "Health Care Technology": "Health Care",   # healthcare-data SaaS (Health Catalyst / Definitive) —
+        #                                          # a real GICS sub-industry OUTSIDE the software group
     }
     # Machine-readable PROVENANCE per peer: (revenue_period, market_cap_as_of, confidence, source_id). Kept IN
     # the structured data (not only governance/real-peer-data.md) so a close-call band membership (e.g. QTWO
@@ -407,7 +409,7 @@ def generate():
         "DSGX": ("FY2026", "2026-07-02", "low_gics", "stockanalysis"),
         "QLYS": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
         "MQ": ("FY2025", "2026-07-02", "medium", "stockanalysis"),
-        "FSLY": ("FY2024", "2026-06", "high", "sec"),
+        "FSLY": ("FY2025", "2026-06", "high", "stockanalysis"),
         "NCNO": ("FY2026", "2026-07-02", "high", "sec"),
         "INTA": ("FY2025", "2026-07-02", "medium", "stockanalysis"),
         "PD": ("FY2026", "2026-07-02", "high", "pagerduty"),
