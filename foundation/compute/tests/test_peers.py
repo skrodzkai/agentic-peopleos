@@ -250,6 +250,12 @@ ok(name_matches_real("ZoomInfo", rn), "a real short form ('ZoomInfo') matches 'Z
 ok(name_matches_real("BigCommerce", rn), "a former short form ('BigCommerce') is matched (renamed-company safety)")
 ok(not name_matches_real("Issuer 001", rn) and not name_matches_real("Synthetic Peer Co", rn),
    "a genuinely synthetic name does NOT false-match the real roster (subset match is not over-broad)")
+# round-10: a SPACING variant that breaks tokenization ('Git Lab', 'Q 2 Holdings') is caught by the
+# alnum-collapsed match — the token-subset check alone would miss these
+ok(name_matches_real("Git Lab Inc.", rn) and name_matches_real("Q 2 Holdings", rn),
+   "a split-token spacing variant is caught via alnum-collapse (Git Lab -> gitlab, Q 2 -> q2)")
+ok(not name_matches_real("Issuer 0 0 1", rn),
+   "a spaced-out synthetic id does not false-match after collapse")
 with tempfile.TemporaryDirectory() as _d:
     try:
         real_peer_identifiers(_d, require=True)     # empty dir -> no peer_universe.csv

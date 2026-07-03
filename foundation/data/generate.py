@@ -416,7 +416,7 @@ def generate():
         "SPT": ("TTM 2026-07-02", "2026-07-02", "medium", "stockanalysis"),
         "YEXT": ("FY2026", "2026-07-02", "high", "stockanalysis"),
         "AVPT": ("FY2025", "2026-07-02", "high", "globenewswire"),
-        "CMRC": ("TTM 2026-07-02", "2026-07-02", "medium", "sec"),
+        "CMRC": ("TTM 2026-07-02", "2026-07-02", "medium", "stockanalysis"),   # financials; rename per SEC 8-K
         "AMPL": ("FY2025", "2026-07-02", "high", "stocktitan_net"),
         "HCAT": ("FY2025", "2026-07-02", "high", "stockanalysis"),
         "DCBO": ("FY2025", "2026-07-02", "high", "stockanalysis"),

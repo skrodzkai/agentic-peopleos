@@ -254,6 +254,8 @@ def main(argv=None) -> int:
         return _fail_closed(f"compute engine unavailable: {exc}")
 
     pub_path = OUT / "PUBLISHED.json"
+    pub_path.unlink(missing_ok=True)   # remove any stale approval BEFORE writing — a draft or a
+    #                                  # failed run must never inherit a prior run's "published" flag
     try:
         OUT.mkdir(exist_ok=True)
         for p in (REPORT, DIGEST):

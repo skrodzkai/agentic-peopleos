@@ -127,12 +127,13 @@ def main(argv):
     if argv == ["--self-test"]:
         return _self_test()
 
-    # the scanner defaults to require=False (the static deny-list is a backstop), so a missing/drifted roster
-    # would SILENTLY drop dynamic real-peer ticker coverage — warn loudly instead of failing quietly
+    # a real scan must have the dynamic peer roster — otherwise coverage silently degrades to the static
+    # deny-list. FAIL CLOSED (nonzero) rather than warn, so CI/a pre-push scan can't pass with a blind spot.
     if not real_peer_identifiers()[0]:
-        print("ticker-scan WARNING: the live peer roster is empty — dynamic real-peer ticker coverage is "
-              "DISABLED (only the static deny-list is active). Regenerate foundation/data/acme/peer_universe.csv.",
-              file=sys.stderr)
+        print("ticker-scan FAILED: the live peer roster is empty — dynamic real-peer ticker coverage would be "
+              "DISABLED (only the static deny-list active). Regenerate foundation/data/acme/peer_universe.csv "
+              "before scanning.", file=sys.stderr)
+        return 1
     roots = argv or ["."]
     hits = []
     scanned = 0

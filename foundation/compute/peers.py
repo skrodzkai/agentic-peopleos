@@ -80,13 +80,16 @@ def name_matches_real(candidate, real_keys):
     recognizable SHORT FORM ('Descartes Systems Group', 'ZoomInfo') must be caught even though its canonical
     key differs from the stored full name ('The Descartes Systems Group Inc.', 'ZoomInfo Technologies Inc.').
     A real name is matched when the candidate's token set is a subset of, or a superset of, a stored name's
-    token set — so a fabricated pay/TSR figure can never attach to a real company via a trimmed name."""
-    ctoks = frozenset(_canon_name(candidate).split())
+    token set, OR its fully alnum-COLLAPSED form equals a stored name's collapsed form — so neither a trimmed
+    name ('ZoomInfo') NOR a spacing variant ('Git Lab Inc.', 'Q 2 Holdings') can slip a real company through."""
+    canon = _canon_name(candidate)
+    ctoks = frozenset(canon.split())
     if not ctoks:
         return False
+    ccollapsed = canon.replace(" ", "")                  # 'git lab' -> 'gitlab', 'q 2' -> 'q2'
     for r in real_keys:
         rtoks = frozenset(r.split())
-        if rtoks and (ctoks <= rtoks or rtoks <= ctoks):
+        if rtoks and (ctoks <= rtoks or rtoks <= ctoks or ccollapsed == r.replace(" ", "")):
             return True
     return False
 
@@ -123,16 +126,19 @@ def real_peer_identifiers(data_dir=DATA, require=False):
             if require:
                 raise PeerDataError("peer_universe.csv missing required columns (ticker/company_name/is_subject)")
             return set(), set(_FORMER_REAL_NAMES)
-        n_peer = 0
+        n_peer, n_names = 0, 0
         for r in reader:
             if r.get("is_subject") == "no":
                 n_peer += 1
-                if r.get("ticker"):
+                if r.get("ticker") and r["ticker"].strip():
                     tickers.add(r["ticker"].strip().upper())
-                if r.get("company_name"):
+                if r.get("company_name") and r["company_name"].strip():
                     names.add(_canon_name(r["company_name"]))
-    if require and (not tickers or n_peer == 0):
-        raise PeerDataError("peer_universe.csv has zero real peers — the real-name/ticker guard would be a no-op")
+                    n_names += 1
+    # require nonzero peers AND nonzero tickers AND nonzero peer-derived NAMES — if names went blank under
+    # schema drift, the NAME guard would silently weaken even though tickers loaded
+    if require and (not tickers or n_peer == 0 or n_names == 0):
+        raise PeerDataError("peer_universe.csv has zero real peers (or blank tickers/names) — the guard would be a no-op")
     return tickers, names
 
 

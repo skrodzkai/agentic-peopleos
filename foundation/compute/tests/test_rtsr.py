@@ -108,7 +108,8 @@ for real_q in ("QTWO", "QLYS", "MQ", "GTLB"):
 # ---- round-5 boundary: a synthetic ticker carrying a REAL company NAME is rejected (no fabricated TSR
 # figure may attach to a real company) ----
 for variant in ("GitLab Inc.", "GitLab Inc", "GITLAB, INCORPORATED", "  GitLab  Inc  ",
-                "Descartes Systems Group", "Descartes Systems", "ZoomInfo"):   # recognizable SHORT FORMS
+                "Descartes Systems Group", "Descartes Systems", "ZoomInfo",
+                "Git Lab Inc.", "Q 2 Holdings"):   # short forms + SPACING variants (alnum-collapse)
     name_companies = [dict(c) for c in companies]
     name_companies[1]["name"] = variant            # a real company name (punctuation/suffix variant) under a synthetic ticker
     try:

@@ -209,6 +209,9 @@ _expect_closed("real company SHORT FORM ('Descartes Systems Group') under a synt
                mutate_co=lambda co: [r.__setitem__("company_name", "Descartes Systems Group") for r in co if r["ticker"] == "S100"])
 _expect_closed("real company SHORT FORM ('ZoomInfo') under a synthetic ISS ticker",
                mutate_co=lambda co: [r.__setitem__("company_name", "ZoomInfo") for r in co if r["ticker"] == "S100"])
+# round-10: a SPACING variant ('Git Lab Inc.') that breaks tokenization is caught via alnum-collapse
+_expect_closed("real company SPACING variant ('Git Lab Inc.') under a synthetic ISS ticker",
+               mutate_co=lambda co: [r.__setitem__("company_name", "Git Lab Inc.") for r in co if r["ticker"] == "S100"])
 _expect_closed("non-positive CEO pay", mutate_ex=lambda ex: ex[1].__setitem__("pay_y1", "0"))
 _expect_closed("non-positive TSR baseline", mutate_ex=lambda ex: ex[1].__setitem__("tsrval_y1", "0"))
 _expect_closed("unknown self-peer ref", mutate_ex=lambda ex: ex[1].__setitem__("self_peers", "ZZZZ"))

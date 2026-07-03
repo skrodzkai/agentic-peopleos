@@ -903,14 +903,13 @@ def realism_guard(model, metrics):
     for k in ("roc_auc", "pr_auc", "precision_at_k"):
         if k not in metrics:
             raise ModelError(f"realism_guard: metrics missing {k!r}")
-    for k in ("roc_auc", "pr_auc"):                       # a NaN/inf metric must not slip a comparison
-        if not (math.isfinite(metrics[k]) and 0.0 <= metrics[k] <= 1.0):
+    for k in ("roc_auc", "pr_auc"):                       # a bool/NaN/inf metric must not slip a comparison
+        if not (_finite_num(metrics[k]) and 0.0 <= metrics[k] <= 1.0):   # _finite_num rejects True/False too
             raise ModelError(f"realism_guard: metric {k!r} is not a finite value in [0,1] ({metrics[k]!r})")
     pk = metrics["precision_at_k"]
     if not (isinstance(pk, dict) and pk.get("status") in ("ok", "insufficient_denominator")):
         raise ModelError("realism_guard: malformed precision_at_k")
-    if pk["status"] == "ok" and not (isinstance(pk.get("precision"), (int, float))
-                                     and math.isfinite(pk["precision"]) and 0.0 <= pk["precision"] <= 1.0):
+    if pk["status"] == "ok" and not (_finite_num(pk.get("precision")) and 0.0 <= pk["precision"] <= 1.0):
         raise ModelError("realism_guard: precision_at_k precision is not a finite value in [0,1]")
     v = []
     if metrics["roc_auc"] > REALISM_AUC_MAX:
@@ -1146,6 +1145,9 @@ def check_reproducible(manifest: dict = None, panel_path: Path = PANEL_PATH, tol
     `tol`. Fitted floats carry cross-platform ULP noise, so this tolerance check — NOT a byte-diff — is the
     manifest sync gate for the trained fields; it still catches real drift (a changed panel or model config)."""
     m = manifest or load_manifest()
+    validate_manifest(m)                                   # fail closed on a malformed manifest — this is a
+    #                                                      # sync-gate API, so it must defend its own shape
+    #                                                      # (raw KeyError/TypeError -> controlled ManifestError)
     if m.get("status") != "trained":
         return True                                        # nothing fitted to reproduce
     model, calibration, _design, slices = train_model(panel_path)

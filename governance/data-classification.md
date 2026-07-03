@@ -20,7 +20,10 @@ guarantee).
 2. **Vault is process-centric, not employee-centric.** Cases reference a requisition or a
    cycle, not a person (see `vault/cases/req-1008.md`). The person record stays in the ATS.
 3. **Ledger payloads are minimized.** Events carry ids, scopes, and decisions — not employee
-   records. An approval records *who approved* by a pseudonymous workforce id; that id is
+   records. Each event also carries an actor `display` label; in the sample ledgers that is a
+   synthetic **agent/role** label ("Coordinator", "TA Reporting", "hr.business-partner"), not a real
+   person — so the ledger is not claimed to be *name-free*, it is claimed to carry no *real,
+   identifiable* PII. An approval records *who approved* by a pseudonymous workforce id; that id is
    minimized but, being linkable, is still personal data (see [data-retention](data-retention-and-erasure.md)).
 4. **Right to human review (GDPR Art. 22)** is structural: consequential decisions are
    human-owned by the [HITL matrix](hitl-matrix.md).

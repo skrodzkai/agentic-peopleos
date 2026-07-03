@@ -54,6 +54,12 @@ REQUIRED_OUTPUTS = [
     "examples/visible-handoff/output/ledger.sample.png",
     "examples/visible-handoff/output/events.jsonl",
     "examples/visible-handoff/output/transcript.md",
+    # the visible-handoff README also links the approved/denied sample ledgers + transcripts — enumerate them
+    # so a generator change that drops one can't pass preflight while the README points at a missing file
+    "examples/visible-handoff/output/approved.events.sample.jsonl",
+    "examples/visible-handoff/output/approved.transcript.sample.md",
+    "examples/visible-handoff/output/denied.events.sample.jsonl",
+    "examples/visible-handoff/output/denied.transcript.sample.md",
 ]
 
 

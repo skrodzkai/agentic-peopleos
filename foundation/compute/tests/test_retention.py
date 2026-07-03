@@ -460,6 +460,12 @@ _mh = copy.deepcopy(m); _mh["panel_data_hash"] = "0" * 64
 raises(R.ManifestError, lambda: R.check_reproducible(_mh), "a forged panel_data_hash fails the reproducibility gate")
 ok(len("0" * 64) == 64 and R.validate_manifest(_mh) is None,
    "the forged hash still passes the SHAPE-only validate_manifest — so check_reproducible is the real gate")
+# round-10: check_reproducible is a sync-gate API — a MALFORMED manifest must fail closed (ManifestError),
+# not a raw KeyError/TypeError, even when called directly (not via the CLI which validates first)
+raises(R.ManifestError, lambda: R.check_reproducible({"status": "trained"}),
+       "check_reproducible fails closed on a malformed (missing-keys) manifest — no raw KeyError")
+raises(R.ManifestError, lambda: R.check_reproducible({"status": "trained", "primary_coefficients": None}),
+       "check_reproducible fails closed on a malformed nested field")
 
 # --------------------------------------------------------------- 9) evaluation + realism guard (Increment 3)
 
@@ -499,6 +505,12 @@ raises(R.ModelError, lambda: R.realism_guard(model, {**E, "precision_at_k": {"st
 _fake = {**model, "coef": {**model["coef"], R.DECOY_FEATURES[0]: 999.0}}
 raises(R.ModelError, lambda: R.realism_guard(_fake, E), "realism guard trips when a decoy is forced into the top-3")
 raises(R.ModelError, lambda: R.realism_guard(model, {**E, "pr_auc": 0.8}), "realism guard trips on an implausible PR-AUC")
+# round-10: realism_guard must reject a bool masquerading as a metric (True behaving as 1.0), same fail-closed
+# numeric contract as the scoring primitives — for both the top-level metrics and precision_at_k.precision
+raises(R.ModelError, lambda: R.realism_guard(model, {**E, "roc_auc": True}), "realism guard rejects a bool roc_auc metric")
+raises(R.ModelError, lambda: R.realism_guard(model, {**E, "pr_auc": False}), "realism guard rejects a bool pr_auc metric")
+raises(R.ModelError, lambda: R.realism_guard(model, {**E, "precision_at_k": {"status": "ok", "precision": True, "n_flagged": 100}}),
+       "realism guard rejects a bool precision_at_k.precision")
 raises(R.ModelError, lambda: R.realism_guard(model, {"roc_auc": 0.8}), "realism guard rejects a metrics dict missing keys")
 # risk_tier fails closed on non-finite / out-of-range / malformed bands (module fail-closed-numerics contract)
 _gb = m["risk_band_thresholds"]
