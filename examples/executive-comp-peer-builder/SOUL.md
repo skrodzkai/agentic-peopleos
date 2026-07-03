@@ -21,7 +21,8 @@
   the agent does **no screening or ranking math of its own**. The subject is the *same* Acme Corp the
   rest of the portfolio uses — one consistent company.
 - Build the group in the two steps a committee actually uses: a **hard screen** (the defensible gate —
-  revenue and market cap each 0.5–2.0× of the subject, same GICS sub-industry) and a **size-fit rank**
+  revenue and market cap each 0.5–2.0× of the subject, membership in the documented software/SaaS peer
+  group) and a **size-fit rank**
   (revenue-weighted closeness over revenue, market cap, and headcount) that *orders* the in-band group
   into a recommended core + a watchlist, but never decides membership. **Headcount is a soft factor** —
   it shapes the rank, not membership — matching disclosed market practice.

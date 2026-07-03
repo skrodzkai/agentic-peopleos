@@ -285,22 +285,27 @@ def generate():
     ttm = sum(f["revenue_usd"] for f in fin[-4:])               # Acme trailing-12-month revenue
     active_emp = sum(1 for w in employees if w["status"] in ("active", "on_leave"))
     # (ticker, company_name, gics_subindustry, revenue_usd, market_cap_usd, employees, total_assets_usd)
-    # Real public companies (Application Software / Systems Software / Internet Services), sourced ~2026-07-02.
+    # Real public software/SaaS companies, sourced ~2026-07-02 (provenance: governance/real-peer-data.md).
+    # gics_subindustry is each firm's TRUE GICS Level-4 label at best-available confidence — which spans
+    # several GICS sectors (HCM SaaS -> Industrials, payments SaaS -> Financials, data/martech -> Comm Svcs),
+    # NOT a single "Application Software" code. The screen gates on the documented software/SaaS INDUSTRY
+    # GROUP (peers.SOFTWARE_PEER_GROUP), so a firm's exact Level-4 need not be verifiable for it to qualify;
+    # what matters is that it is a software/SaaS business in one of the group's sub-industries.
     REAL_PEERS = [
-        ("TOST", "Toast, Inc.", "Application Software", 6153000000, 16710000000, 6500, 3094000000),
+        ("TOST", "Toast, Inc.", "Transaction & Payment Processing Services", 6153000000, 16710000000, 6500, 3094000000),
         ("DOCU", "DocuSign, Inc.", "Application Software", 3290000000, 8740000000, 7044, 3984000000),
         ("RNG", "RingCentral, Inc.", "Application Software", 2550000000, 3360000000, 7378, 1422000000),
         ("DBX", "Dropbox, Inc.", "Application Software", 2530000000, 6660000000, 2113, 3031000000),
-        ("PAYC", "Paycom Software, Inc.", "Application Software", 2093000000, 6490000000, 5770, 4822000000),
+        ("PAYC", "Paycom Software, Inc.", "Human Resource & Employment Services", 2093000000, 6490000000, 5770, 4822000000),
         ("DT", "Dynatrace, Inc.", "Application Software", 2020000000, 13050000000, 5600, 4416000000),
         ("PEGA", "Pegasystems Inc.", "Application Software", 1700000000, 5190000000, 5598, 1551000000),
-        ("PCTY", "Paylocity Holding Corporation", "Application Software", 1595200000, 6160000000, 6700, 4389000000),
+        ("PCTY", "Paylocity Holding Corporation", "Human Resource & Employment Services", 1595200000, 6160000000, 6700, 4389000000),
         ("BSY", "Bentley Systems, Incorporated", "Application Software", 1502000000, 10100000000, 5800, 3544000000),
         ("BILL", "BILL Holdings, Inc.", "Application Software", 1450000000, 4030000000, 2364, 10064000000),
         ("GWRE", "Guidewire Software, Inc.", "Application Software", 1421000000, 11200000000, 3772, 2535000000),
         ("YELP", "Yelp Inc.", "Interactive Media & Services", 1410000000, 1460000000, 5100, 983600000),
         ("PCOR", "Procore Technologies, Inc.", "Application Software", 1371000000, 6630000000, 4421, 2108000000),
-        ("GTM", "ZoomInfo Technologies Inc.", "Application Software", 1249500000, 860000000, 3800, 6440000000),
+        ("GTM", "ZoomInfo Technologies Inc.", "Interactive Media & Services", 1249500000, 860000000, 3800, 6440000000),
         ("KVYO", "Klaviyo, Inc.", "Application Software", 1234000000, 5060000000, 2368, 1581000000),
         ("MNDY", "monday.com Ltd.", "Application Software", 1232000000, 3500000000, 3155, 2107000000),
         ("CVLT", "Commvault Systems, Inc.", "Systems Software", 1180000000, 6190000000, 3300, 1886000000),
@@ -308,11 +313,11 @@ def generate():
         ("BLKB", "Blackbaud, Inc.", "Application Software", 1140000000, 1360000000, 2800, 2109000000),
         ("MANH", "Manhattan Associates, Inc.", "Application Software", 1101000000, 8940000000, 4370, 740540000),
         ("ALRM", "Alarm.com Holdings, Inc.", "Application Software", 1011000000, 2460000000, 2058, 1644000000),
-        ("ZETA", "Zeta Global Holdings Corp.", "Application Software", 1006700000, 5160000000, 3300, 1111000000),
+        ("ZETA", "Zeta Global Holdings Corp.", "Application Software", 1304700000, 5160000000, 3300, 1111000000),
         ("PRGS", "Progress Software Corporation", "Systems Software", 1000000000, 1610000000, 2801, 2346000000),
         ("APPF", "AppFolio, Inc.", "Application Software", 995330000, 6040000000, 1702, 580560000),
         ("GTLB", "GitLab Inc.", "Application Software", 955000000, 5420000000, 2580, 1723000000),
-        ("WK", "Workiva Inc.", "Application Software", 926000000, 2910000000, 2880, 1494000000),
+        ("WK", "Workiva Inc.", "Application Software", 884570000, 2910000000, 2880, 1494000000),
         ("DOCN", "DigitalOcean Holdings, Inc.", "Internet Services & Infrastructure", 901430000, 13580000000, 1462, 1837710000),
         ("CXM", "Sprinklr, Inc.", "Application Software", 857200000, 1270000000, 3258, 1205000000),
         ("FRSH", "Freshworks Inc.", "Application Software", 839000000, 2860000000, 4500, 1600000000),
@@ -323,15 +328,15 @@ def generate():
         ("BRZE", "Braze, Inc.", "Application Software", 738000000, 2680000000, 1988, 1114000000),
         ("DSGX", "The Descartes Systems Group Inc.", "Application Software", 728990000, 5940000000, 2083, 1921000000),
         ("QLYS", "Qualys, Inc.", "Application Software", 684860000, 5220000000, 2683, 1095000000),
-        ("MQ", "Marqeta, Inc.", "Application Software", 625000000, 1760000000, 938, 1525000000),
+        ("MQ", "Marqeta, Inc.", "Transaction & Payment Processing Services", 625000000, 1760000000, 938, 1525000000),
         ("FSLY", "Fastly, Inc.", "Internet Services & Infrastructure", 543680000, 2840000000, 1140, 1451000000),
-        ("NCNO", "nCino, Inc.", "Application Software", 540700000, 1950000000, 1684, 1610400000),
+        ("NCNO", "nCino, Inc.", "Application Software", 594800000, 1950000000, 1684, 1610400000),
         ("INTA", "Intapp, Inc.", "Application Software", 504120000, 2110000000, 1336, 894160000),
         ("PD", "PagerDuty, Inc.", "Application Software", 492500000, 770000000, 1155, 990500000),
         ("SPT", "Sprout Social, Inc.", "Application Software", 469760000, 490000000, 1362, 523060000),
         ("YEXT", "Yext, Inc.", "Application Software", 445000000, 500000000, 1120, 622000000),
         ("AVPT", "AvePoint, Inc.", "Application Software", 419500000, 2430000000, 3443, 789000000),
-        ("BIGC", "BigCommerce Holdings, Inc.", "Application Software", 346820000, 260000000, 1079, 308790000),
+        ("CMRC", "Commerce.com, Inc.", "Application Software", 346820000, 260000000, 1079, 308790000),
         ("AMPL", "Amplitude, Inc.", "Application Software", 343000000, 1170000000, 780, 421000000),
         ("HCAT", "Health Catalyst, Inc.", "Application Software", 311100000, 150000000, 1200, 503000000),
         ("DCBO", "Docebo Inc.", "Application Software", 243000000, 450000000, 966, 254000000),
@@ -343,10 +348,23 @@ def generate():
                   "market_cap_usd": int(round(ttm * 7.5 / 1_000_000) * 1_000_000),
                   "employees": active_emp, "total_assets_usd": int(round(ttm * 1.6 / 1_000_000) * 1_000_000),
                   "is_subject": "yes"}]
+    # Authoritative GICS sub-industry -> sector map (post-2023 GICS). Each Level-4 sub-industry belongs to
+    # exactly one sector; deriving the sector from this single table keeps sector/sub-industry consistent and
+    # FAILS CLOSED (KeyError) if a peer ever carries an un-mapped sub-industry. Note that a realistic software
+    # peer set spans MULTIPLE GICS sectors — HCM SaaS (Paycom/Paylocity) sits in Industrials "Human Resource &
+    # Employment Services", payments SaaS (Toast/Marqeta) in Financials "Transaction & Payment Processing
+    # Services", data/martech in Communication Services — which is exactly why the screen gates on a documented
+    # software/SaaS INDUSTRY GROUP (see peers.SOFTWARE_PEER_GROUP), not a single GICS code.
+    GICS_SECTOR = {
+        "Application Software": "Information Technology",
+        "Systems Software": "Information Technology",
+        "Internet Services & Infrastructure": "Information Technology",
+        "Interactive Media & Services": "Communication Services",
+        "Human Resource & Employment Services": "Industrials",
+        "Transaction & Payment Processing Services": "Financials",
+    }
     for tk, nm, sub, rev, mc, emp, ta in REAL_PEERS:
-        # GICS sector derived from the sub-industry: Interactive Media & Services lives under Communication
-        # Services (2018 GICS restructure); everything else here is under Information Technology.
-        sector = "Communication Services" if sub == "Interactive Media & Services" else "Information Technology"
+        sector = GICS_SECTOR[sub]                          # fail closed on an un-mapped sub-industry
         companies.append({"ticker": tk, "company_name": nm, "gics_sector": sector,
                           "gics_subindustry": sub, "revenue_usd": rev, "market_cap_usd": mc,
                           "employees": emp, "total_assets_usd": ta, "is_subject": "no"})

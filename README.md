@@ -145,11 +145,13 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   peer group the way a compensation committee does, screening a synthetic subject (Acme) against a universe
   of **real public companies** (as-disclosed public financials — a dated, illustrative snapshot; provenance
   in [real-peer-data](governance/real-peer-data.md)). A **hard, transparent screen** decides membership
-  (same GICS sub-industry, plus revenue and market cap each within **0.5–2.0×** of the subject; headcount
+  (membership in a documented **software/SaaS peer group** — a set of GICS sub-industries, since GICS
+  fragments SaaS across sectors — plus revenue and market cap each within **0.5–2.0×** of the subject; headcount
   is a disclosed soft fit factor), then a **revenue-weighted size-fit rank** orders the in-band group into a recommended core
-  + a substitution watchlist. It documents every same-industry size exclusion, carries the committee's
-  target-percentile policy forward to benchmarking, and never recommends pay until a human approves the
-  peer set. The fit score *orders* the group; the screen — not the score — *decides* who is in it.
+  + a substitution watchlist. It documents every same-industry size exclusion and carries the committee's
+  target-percentile policy forward to benchmarking. It produces **only a peer set for a human to review and
+  approve** — it never sets, recommends, or benchmarks pay itself. The fit score *orders* the group; the
+  screen — not the score — *decides* who is in it.
 - **[Relative TSR PSU Valuation](examples/rtsr-psu-valuation/)** — tracks a synthetic software-company
   rTSR PSU against an index-style peer set, applies a public-style payout curve (25th=50%,
   55th=100%, 75th+=200%), and estimates an illustrative Monte Carlo fair value from supplied

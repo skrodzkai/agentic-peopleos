@@ -10,8 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 import random
+import re
 
-from foundation.compute.peers import REAL_TICKERS
+from foundation.compute.peers import REAL_TICKERS, real_peer_identifiers, name_matches_real
 
 
 class RTSRError(ValueError):
@@ -130,17 +131,32 @@ def _ticker(company):
     return t
 
 
+_RTSR_TICKER_RE = re.compile(r"^(ACMQ|[A-Z]{3}Q)$")   # ACMQ or a 4-char ticker ENDING in Q (real tickers like
+#                                                     # QTWO/QLYS/MQ/GTLB never match — Q-first/2-char/no-Q)
+
+
 def _reject_real_tickers(tickers, label):
-    # This universe is synthetic by construction (subject ACMQ + Q-marked issuers like AXQA/BEXQ). Enforce the
-    # synthetic SHAPE — 'ACMQ' or contains 'Q' — which structurally rejects any real ticker (a real peer like
-    # GTLB/KVYO has no Q), a strictly stronger guard than the static deny-list.
+    # This universe is synthetic by construction (subject ACMQ + issuers like BEXQ/CYRQ). Enforce the synthetic
+    # SHAPE — 'ACMQ' or exactly 3 letters + a 'Q' suffix — which structurally rejects any real ticker (a real
+    # peer QTWO/QLYS/MQ/GTLB can never match), strictly stronger than the static deny-list backstop.
     ups = {str(t).strip().upper() for t in tickers}
     hits = sorted(ups & REAL_TICKERS)
     if hits:
         raise RTSRError(f"{label} contains real ticker collision(s): {', '.join(hits)}")
-    non_synth = sorted(t for t in ups if t != "ACMQ" and "Q" not in t)
+    non_synth = sorted(t for t in ups if not _RTSR_TICKER_RE.fullmatch(t))
     if non_synth:
-        raise RTSRError(f"{label} must be synthetic tickers (ACMQ or Q-marked); got: {', '.join(non_synth[:5])}")
+        raise RTSRError(f"{label} must be synthetic tickers (ACMQ or ###Q); got: {', '.join(non_synth[:5])}")
+
+
+def _reject_real_names(names, label):
+    # A real COMPANY NAME must never appear in this synthetic universe: a synthetic ticker carrying a real
+    # name would still attach a fabricated pay/TSR figure to a real company. Block the real peer names —
+    # canonicalized (punctuation/suffix-insensitive), and FAIL CLOSED if the roster can't load (require=True)
+    # so an unavailable roster can never silently disable this guard.
+    _, real = real_peer_identifiers(require=True)
+    hits = sorted({str(n).strip() for n in names if name_matches_real(n, real)})
+    if hits:
+        raise RTSRError(f"{label} contains real company name(s): {', '.join(hits[:5])}")
 
 
 def evaluate_performance(companies, prices, payout_curve, issuer_role="issuer", averaging_days=30):
@@ -148,6 +164,7 @@ def evaluate_performance(companies, prices, payout_curve, issuer_role="issuer", 
     if not companies:
         raise RTSRError("companies must not be empty")
     _reject_real_tickers((_ticker(c) for c in companies), "companies")
+    _reject_real_names((c.get("name", "") for c in companies), "companies")
     issuers = [c for c in companies if c.get("role") == issuer_role]
     if len(issuers) != 1:
         raise RTSRError("exactly one issuer is required")

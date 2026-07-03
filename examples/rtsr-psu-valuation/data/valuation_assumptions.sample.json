@@ -1,18 +1,18 @@
 {
   "issuer": "ACMQ",
-  "tickers": ["ACMQ", "AXQA", "BEXQ", "CYRQ", "DOVQ", "ELNQ", "FENQ", "GRAQ", "HAXQ", "IVYQ", "JOVQ", "KORQ", "LYRQ", "MAVQ", "NEXQ", "ORVQ", "PAXQ"],
+  "tickers": ["ACMQ", "AXAQ", "BEXQ", "CYRQ", "DOVQ", "ELNQ", "FENQ", "GRAQ", "HAXQ", "IVYQ", "JOVQ", "KORQ", "LYRQ", "MAVQ", "NEXQ", "ORVQ", "PAXQ"],
   "spot_prices": {
-    "ACMQ": 72.50, "AXQA": 42.00, "BEXQ": 47.80, "CYRQ": 52.70, "DOVQ": 56.20, "ELNQ": 61.40,
+    "ACMQ": 72.50, "AXAQ": 42.00, "BEXQ": 47.80, "CYRQ": 52.70, "DOVQ": 56.20, "ELNQ": 61.40,
     "FENQ": 66.20, "GRAQ": 70.10, "HAXQ": 76.50, "IVYQ": 80.80, "JOVQ": 87.90, "KORQ": 94.20,
     "LYRQ": 101.30, "MAVQ": 111.20, "NEXQ": 120.70, "ORVQ": 130.20, "PAXQ": 142.10
   },
   "volatilities": {
-    "ACMQ": 0.48, "AXQA": 0.42, "BEXQ": 0.44, "CYRQ": 0.39, "DOVQ": 0.45, "ELNQ": 0.47,
+    "ACMQ": 0.48, "AXAQ": 0.42, "BEXQ": 0.44, "CYRQ": 0.39, "DOVQ": 0.45, "ELNQ": 0.47,
     "FENQ": 0.43, "GRAQ": 0.41, "HAXQ": 0.46, "IVYQ": 0.40, "JOVQ": 0.49, "KORQ": 0.45,
     "LYRQ": 0.44, "MAVQ": 0.50, "NEXQ": 0.47, "ORVQ": 0.43, "PAXQ": 0.51
   },
   "dividend_yields": {
-    "ACMQ": 0.0, "AXQA": 0.0, "BEXQ": 0.0, "CYRQ": 0.0, "DOVQ": 0.0, "ELNQ": 0.0,
+    "ACMQ": 0.0, "AXAQ": 0.0, "BEXQ": 0.0, "CYRQ": 0.0, "DOVQ": 0.0, "ELNQ": 0.0,
     "FENQ": 0.0, "GRAQ": 0.0, "HAXQ": 0.0, "IVYQ": 0.0, "JOVQ": 0.0, "KORQ": 0.0,
     "LYRQ": 0.0, "MAVQ": 0.0, "NEXQ": 0.0, "ORVQ": 0.0, "PAXQ": 0.0
   },

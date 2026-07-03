@@ -197,6 +197,18 @@ _expect_closed("real/foreign ticker in the synthetic ISS universe",
 _expect_closed("real peer ticker injected into the ISS universe",
                mutate_co=lambda co: [r.__setitem__("ticker", "GTLB") for r in co if r["ticker"] == "S100"],
                mutate_ex=lambda ex: [r.__setitem__("ticker", "GTLB") for r in ex if r["ticker"] == "S100"])
+# round-5/6: even under a VALID synthetic ticker (S100), a real company NAME must be rejected — otherwise a
+# fabricated pay/TSR figure would attach to a real company (GTLB's name lives only in peer_universe.csv).
+# The match is canonicalized, so a punctuation/suffix variant ("GitLab Inc", no period) also fails closed.
+_expect_closed("real company name under a synthetic ISS ticker",
+               mutate_co=lambda co: [r.__setitem__("company_name", "GitLab Inc.") for r in co if r["ticker"] == "S100"])
+_expect_closed("real company name VARIANT (no period) under a synthetic ISS ticker",
+               mutate_co=lambda co: [r.__setitem__("company_name", "GitLab Inc") for r in co if r["ticker"] == "S100"])
+# round-7: a recognizable SHORT FORM of a real peer must also fail closed (token-subset match, not exact key)
+_expect_closed("real company SHORT FORM ('Descartes Systems Group') under a synthetic ISS ticker",
+               mutate_co=lambda co: [r.__setitem__("company_name", "Descartes Systems Group") for r in co if r["ticker"] == "S100"])
+_expect_closed("real company SHORT FORM ('ZoomInfo') under a synthetic ISS ticker",
+               mutate_co=lambda co: [r.__setitem__("company_name", "ZoomInfo") for r in co if r["ticker"] == "S100"])
 _expect_closed("non-positive CEO pay", mutate_ex=lambda ex: ex[1].__setitem__("pay_y1", "0"))
 _expect_closed("non-positive TSR baseline", mutate_ex=lambda ex: ex[1].__setitem__("tsrval_y1", "0"))
 _expect_closed("unknown self-peer ref", mutate_ex=lambda ex: ex[1].__setitem__("self_peers", "ZZZZ"))

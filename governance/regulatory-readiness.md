@@ -42,8 +42,10 @@ obligation that no code skeleton can satisfy on its own.
 Verified against primary sources on **2026-06-20** — full citations + quotes in
 [`vault/00-foundation/regulatory-landscape.md`](../vault/00-foundation/regulatory-landscape.md):
 
-- EU AI Act — [Annex III](https://artificialintelligenceact.eu/annex/3/) (Point 4, employment) +
-  [implementation timeline](https://artificialintelligenceact.eu/implementation-timeline/) (high-risk applies 2 Aug 2026, Art. 113)
+- EU AI Act — official text **[Regulation (EU) 2024/1689, EUR-Lex OJ](https://eur-lex.europa.eu/eli/reg/2024/1689/oj)**
+  (Annex III Point 4 = employment high-risk; Art. 113 = high-risk obligations apply 2 Aug 2026). Plain-language
+  cross-reference: [artificialintelligenceact.eu Annex III](https://artificialintelligenceact.eu/annex/3/).
 - NYC Local Law 144 — DCWP [AEDT FAQ / guidance](https://www.nyc.gov/assets/dca/downloads/pdf/about/DCWP-AEDT-FAQ.pdf) (final rule adopted Apr 2023; DCWP enforcement from **5 Jul 2023**; annual independent bias audit + candidate notice)
-- [GDPR Article 22](https://gdpr-info.eu/art-22-gdpr/) (solely-automated decisions; right to human intervention)
+- GDPR — official text **[Regulation (EU) 2016/679, EUR-Lex OJ](https://eur-lex.europa.eu/eli/reg/2016/679/oj)**,
+  Art. 22 (solely-automated decisions; right to human intervention). Readable mirror: [gdpr-info.eu Art. 22](https://gdpr-info.eu/art-22-gdpr/).
 - [NIST AI Risk Management Framework (AI RMF 1.0)](https://www.nist.gov/itl/ai-risk-management-framework) (Govern / Map / Measure / Manage)

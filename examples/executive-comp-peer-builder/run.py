@@ -5,8 +5,8 @@ The first agent of the Executive Compensation arm. It composes a dark, board-rea
 builds a defensible executive-comp peer group in the two steps a committee actually uses:
 
   1. SCREEN (the gate) — a hard, transparent size + industry screen (0.5–2.0× of the subject on
-     revenue and market cap each 0.5–2.0×, same GICS sub-industry; headcount is a soft fit factor, not a
-     gate). Membership is decided here and is
+     revenue and market cap each 0.5–2.0×, membership in the documented software/SaaS peer group;
+     headcount is a soft fit factor, not a gate). Membership is decided here and is
      defensible on one line.
   2. FIT-RANK (the order) — within that group, peers are ranked by a pure revenue-weighted
      size-closeness score. The score ORDERS the group into a recommended core + a substitution
@@ -117,12 +117,14 @@ def build_report(universe):
         raise ReportError("the screen returned no peers — a peer group view must not ship empty")
 
     sub_ind = subj["gics_subindustry"]
-    same_industry = [r for r in res["results"] if r["company"]["gics_subindustry"] == sub_ind]
+    # the industry gate is GROUP membership (software/SaaS), which spans several GICS sub-industries — count
+    # by the actual gics check the screener recorded, not an exact sub-industry match
+    same_industry = [r for r in res["results"] if r["checks"].get("gics", False)]
     n_universe = res["n_candidates"]
     n_same = len(same_industry)
     n_peers = res["n_peers"]
-    excl_industry = n_universe - n_same                  # filtered out by the industry screen
-    excl_size = n_same - n_peers                          # right industry, outside the size band
+    excl_industry = n_universe - n_same                  # filtered out by the industry-group screen
+    excl_size = n_same - n_peers                          # in the software/SaaS group, outside the size band
 
     core = peers[:CORE_N]
     watchlist = peers[CORE_N:]                            # in-band alternates for committee substitution
@@ -133,7 +135,7 @@ def build_report(universe):
     below = sum(1 for v in peer_revs if v < subj["revenue_usd"])
     subj_pctile = round(100 * below / n_peers)
 
-    # Defensible exclusions: SAME industry, outside the size band — "right business, wrong size".
+    # Defensible exclusions: IN the software/SaaS group, outside the size band — "right business, wrong size".
     near = [r for r in same_industry if not r["is_peer"] and r["checks"].get("gics", False)]
     near.sort(key=lambda r: (-r["pass_count"], abs(r["company"]["revenue_usd"] - subj["revenue_usd"])))
 
@@ -152,7 +154,8 @@ def _narrative(subj, sub_ind, n_universe, n_peers, top, median_rev, pctile, excl
     n_core = min(CORE_N, n_peers)
     n_watch = n_peers - n_core
     return (f"Screened <b>{n_universe} public companies</b> to <b>{n_peers} in-band candidates</b> — "
-            f"same sub-industry (<b>{_e(sub_ind)}</b>) and within <b>0.5–2.0×</b> of {_e(COMPANY)} on "
+            f"in the <b>software/SaaS peer group</b> (a documented set of GICS sub-industries; {_e(COMPANY)} "
+            f"is <b>{_e(sub_ind)}</b>) and within <b>0.5–2.0×</b> of {_e(COMPANY)} on "
             f"<b>revenue and market cap</b> — then ranked by a revenue-weighted size fit into a "
             f"<b>{n_core}-company recommended core peer group</b> + a <b>{n_watch}-company watchlist</b> "
             f"(headcount, a soft factor, shapes the rank, not membership). "
@@ -176,7 +179,8 @@ def _legend(items):
 
 def _crit_chips(criteria):
     """Hard-gate chips (the criteria that decide membership) + a muted chip for the soft fit factor."""
-    gics = "GICS sub-industry" if criteria["gics"] == "subindustry" else "GICS sector"
+    gics = {"group": "Software/SaaS peer group", "subindustry": "GICS sub-industry",
+            "sector": "GICS sector"}.get(criteria["gics"], "Industry group")
     chips = []
     if criteria.get("revenue_mult"):
         lo, hi = criteria["revenue_mult"]
@@ -249,7 +253,7 @@ def _excl_table(report):
             f"<td class='si'>{_e(c['gics_subindustry'])} <span class='chk p'>✓</span></td>"
             f"<td class='soft mono'>{_mult(c['employees'], subj['employees'])}</td></tr>")
     if not rows:
-        return "<div class='t-sub'>No same-industry near-misses — every Application Software peer cleared the size gate.</div>"
+        return "<div class='t-sub'>No in-group near-misses — every software/SaaS peer cleared the size gate.</div>"
     return (
         "<table class='ptable excl'><thead><tr>"
         "<th>Ticker</th><th>Company</th><th class='r'>Revenue</th>"
@@ -332,7 +336,7 @@ def render_html(report):
     # core peer group (the recommendation) — fit-ranked
     body.append("<section class='tile wide'><div class='t-head'><div>"
                 f"<h3>Recommended core peer group · {len(report['core'])} companies</h3>"
-                "<div class='t-sub'>All clear the hard screen (revenue · market cap · sub-industry); "
+                "<div class='t-sub'>All clear the hard screen (revenue · market cap · software/SaaS group); "
                 "ordered by revenue-weighted size fit (headcount soft)</div>"
                 "</div><span class='t-scope'>Recommend-only</span></div>"
                 + _peer_table(report["core"], start_rank=1) + "</section>")
@@ -349,7 +353,7 @@ def render_html(report):
     # defensible exclusions — right business, wrong size
     body.append("<section class='tile wide'><div class='t-head'><div>"
                 "<h3>Defensible exclusions · right business, wrong size</h3>"
-                "<div class='t-sub'>Same sub-industry, outside the hard size gate (revenue or market cap) — "
+                "<div class='t-sub'>In the software/SaaS group, outside the hard size gate (revenue or market cap) — "
                 "each multiple is vs the subject; <span class='chk p'>blue</span> passed, "
                 "<span class='chk f'>red</span> failed. Headcount shown for context (it ranks, it doesn't gate).</div>"
                 "</div><span class='t-scope'>Transparency</span></div>"
@@ -384,7 +388,8 @@ def render_digest(report):
         f"# {COMPANY} — Executive Comp Peer Group (Compensation Committee) digest",
         f"_{PERIOD} · draft for committee review_", "",
         f"- Screened **{report['n_universe']} public companies** → **{report['n_peers']} in-band candidates**: "
-        f"same sub-industry (**{report['sub_industry']}**), within **0.5–2.0×** on **revenue and market cap** "
+        f"in the **software/SaaS peer group** (documented GICS sub-industries; {COMPANY} is "
+        f"**{report['sub_industry']}**), within **0.5–2.0×** on **revenue and market cap** "
         f"(headcount is a soft fit factor, not a gate); then fit-ranked into a "
         f"**{len(report['core'])}-company recommended core peer group** + a **{len(report['watchlist'])}-company "
         f"watchlist**.",
@@ -394,8 +399,8 @@ def render_digest(report):
         f"- Recommended core: **{len(report['core'])}** companies (closest match **{top['company_name']}**, "
         f"fit **{report['peers'][0]['fit']:.0f}**); watchlist of **{len(report['watchlist'])}** in-band alternates.",
         f"- Group revenue spans **{_money(lo)}–{_money(hi)}**; market cap **{_money(mlo)}–{_money(mhi)}**.",
-        f"- Excluded: **{report['excl_size']}** same-industry on size alone, **{report['excl_industry']}** as a "
-        f"different sub-industry — every exclusion on the record with its failing criterion.",
+        f"- Excluded: **{report['excl_size']}** in-group on size alone, **{report['excl_industry']}** as "
+        f"outside the software/SaaS group — every exclusion on the record with its failing criterion.",
         f"- Target percentiles carried forward: {', '.join(f'{el} {p}' for el, p in TARGET_PERCENTILES)} "
         "(committee policy; applied only after the peer group is approved).",
         "",

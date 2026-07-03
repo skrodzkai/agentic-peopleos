@@ -40,6 +40,8 @@ import csv
 import re
 from pathlib import Path
 
+from foundation.compute.peers import real_peer_identifiers, name_matches_real
+
 HERE = Path(__file__).resolve().parent
 DATA = HERE.parents[1] / "foundation" / "data" / "acme"
 
@@ -192,6 +194,15 @@ class ISSUniverse:
         bad_shape = sorted(t for t in self.co if not _ISS_TICKER_RE.fullmatch(t))
         if bad_shape:
             raise ISSDataError(f"ISS universe must be synthetic tickers (ACMQ or S###); got: {bad_shape[:5]}")
+        # ...and a synthetic ticker must NOT carry a real company NAME — otherwise a fabricated pay/TSR figure
+        # would attach to a real company (e.g. 'GitLab Inc.' under ticker S001). Reject the real peer names,
+        # canonicalized (punctuation/suffix-insensitive), and FAIL CLOSED if the roster can't load (require=True)
+        # so an unavailable roster can never silently disable this guard.
+        _, _real_names = real_peer_identifiers(require=True)
+        name_hits = sorted({r.get("company_name", "").strip() for r in self.co.values()
+                            if name_matches_real(r.get("company_name", ""), _real_names)})
+        if name_hits:
+            raise ISSDataError(f"ISS universe must not carry real company names; got: {name_hits[:5]}")
         # fail closed on degenerate exec data: unknown self-peer refs (silently dropped otherwise) and
         # non-positive CEO pay / TSR index (would break medians, growth ratios, and the PTA normalization)
         for tk, e in self.exec.items():

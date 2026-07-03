@@ -15,6 +15,13 @@ ISS-derived comparison group, and the qualitative factors a Medium/High concern 
 > ISS does **not** publish is the exact FPA threshold and the qualitative-evaluation outcome, which still
 > require ISS/consultant review. This is **NOT ISS's actual output** — a real committee engages ISS or a
 > consultant for its true standing. No real issuer, ticker, or proxy is represented.
+>
+> **Sources.** ISS's quantitative pay-for-performance methodology (the Relative Degree of Alignment, Multiple
+> of Median, and Pay-TSR Alignment measures, their concern thresholds, and the WLS mechanics) is published in
+> ISS's *U.S. Compensation Policies* documents and the *Pay-for-Performance Mechanics* white paper via the
+> [ISS policy gateway](https://www.issgovernance.com/policy-gateway/voting-policies/). Corroborating
+> practitioner summary: [Compensation Advisory Partners (CAP)](https://www.capartners.com/insights/). Always
+> confirm the current-year figures against ISS's own published documents before any real use.
 
 ## The screen (two steps)
 

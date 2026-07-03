@@ -1,19 +1,19 @@
 ticker,company_name,gics_sector,gics_subindustry,revenue_usd,market_cap_usd,employees,total_assets_usd,is_subject
 ACMQ,Acme Corp,Information Technology,Application Software,851567000,6387000000,2023,1363000000,yes
-TOST,"Toast, Inc.",Information Technology,Application Software,6153000000,16710000000,6500,3094000000,no
+TOST,"Toast, Inc.",Financials,Transaction & Payment Processing Services,6153000000,16710000000,6500,3094000000,no
 DOCU,"DocuSign, Inc.",Information Technology,Application Software,3290000000,8740000000,7044,3984000000,no
 RNG,"RingCentral, Inc.",Information Technology,Application Software,2550000000,3360000000,7378,1422000000,no
 DBX,"Dropbox, Inc.",Information Technology,Application Software,2530000000,6660000000,2113,3031000000,no
-PAYC,"Paycom Software, Inc.",Information Technology,Application Software,2093000000,6490000000,5770,4822000000,no
+PAYC,"Paycom Software, Inc.",Industrials,Human Resource & Employment Services,2093000000,6490000000,5770,4822000000,no
 DT,"Dynatrace, Inc.",Information Technology,Application Software,2020000000,13050000000,5600,4416000000,no
 PEGA,Pegasystems Inc.,Information Technology,Application Software,1700000000,5190000000,5598,1551000000,no
-PCTY,Paylocity Holding Corporation,Information Technology,Application Software,1595200000,6160000000,6700,4389000000,no
+PCTY,Paylocity Holding Corporation,Industrials,Human Resource & Employment Services,1595200000,6160000000,6700,4389000000,no
 BSY,"Bentley Systems, Incorporated",Information Technology,Application Software,1502000000,10100000000,5800,3544000000,no
 BILL,"BILL Holdings, Inc.",Information Technology,Application Software,1450000000,4030000000,2364,10064000000,no
 GWRE,"Guidewire Software, Inc.",Information Technology,Application Software,1421000000,11200000000,3772,2535000000,no
 YELP,Yelp Inc.,Communication Services,Interactive Media & Services,1410000000,1460000000,5100,983600000,no
 PCOR,"Procore Technologies, Inc.",Information Technology,Application Software,1371000000,6630000000,4421,2108000000,no
-GTM,ZoomInfo Technologies Inc.,Information Technology,Application Software,1249500000,860000000,3800,6440000000,no
+GTM,ZoomInfo Technologies Inc.,Communication Services,Interactive Media & Services,1249500000,860000000,3800,6440000000,no
 KVYO,"Klaviyo, Inc.",Information Technology,Application Software,1234000000,5060000000,2368,1581000000,no
 MNDY,monday.com Ltd.,Information Technology,Application Software,1232000000,3500000000,3155,2107000000,no
 CVLT,"Commvault Systems, Inc.",Information Technology,Systems Software,1180000000,6190000000,3300,1886000000,no
@@ -21,11 +21,11 @@ FIVN,"Five9, Inc.",Information Technology,Application Software,1170000000,179000
 BLKB,"Blackbaud, Inc.",Information Technology,Application Software,1140000000,1360000000,2800,2109000000,no
 MANH,"Manhattan Associates, Inc.",Information Technology,Application Software,1101000000,8940000000,4370,740540000,no
 ALRM,"Alarm.com Holdings, Inc.",Information Technology,Application Software,1011000000,2460000000,2058,1644000000,no
-ZETA,Zeta Global Holdings Corp.,Information Technology,Application Software,1006700000,5160000000,3300,1111000000,no
+ZETA,Zeta Global Holdings Corp.,Information Technology,Application Software,1304700000,5160000000,3300,1111000000,no
 PRGS,Progress Software Corporation,Information Technology,Systems Software,1000000000,1610000000,2801,2346000000,no
 APPF,"AppFolio, Inc.",Information Technology,Application Software,995330000,6040000000,1702,580560000,no
 GTLB,GitLab Inc.,Information Technology,Application Software,955000000,5420000000,2580,1723000000,no
-WK,Workiva Inc.,Information Technology,Application Software,926000000,2910000000,2880,1494000000,no
+WK,Workiva Inc.,Information Technology,Application Software,884570000,2910000000,2880,1494000000,no
 DOCN,"DigitalOcean Holdings, Inc.",Information Technology,Internet Services & Infrastructure,901430000,13580000000,1462,1837710000,no
 CXM,"Sprinklr, Inc.",Information Technology,Application Software,857200000,1270000000,3258,1205000000,no
 FRSH,Freshworks Inc.,Information Technology,Application Software,839000000,2860000000,4500,1600000000,no
@@ -36,15 +36,15 @@ DV,"DoubleVerify Holdings, Inc.",Information Technology,Application Software,748
 BRZE,"Braze, Inc.",Information Technology,Application Software,738000000,2680000000,1988,1114000000,no
 DSGX,The Descartes Systems Group Inc.,Information Technology,Application Software,728990000,5940000000,2083,1921000000,no
 QLYS,"Qualys, Inc.",Information Technology,Application Software,684860000,5220000000,2683,1095000000,no
-MQ,"Marqeta, Inc.",Information Technology,Application Software,625000000,1760000000,938,1525000000,no
+MQ,"Marqeta, Inc.",Financials,Transaction & Payment Processing Services,625000000,1760000000,938,1525000000,no
 FSLY,"Fastly, Inc.",Information Technology,Internet Services & Infrastructure,543680000,2840000000,1140,1451000000,no
-NCNO,"nCino, Inc.",Information Technology,Application Software,540700000,1950000000,1684,1610400000,no
+NCNO,"nCino, Inc.",Information Technology,Application Software,594800000,1950000000,1684,1610400000,no
 INTA,"Intapp, Inc.",Information Technology,Application Software,504120000,2110000000,1336,894160000,no
 PD,"PagerDuty, Inc.",Information Technology,Application Software,492500000,770000000,1155,990500000,no
 SPT,"Sprout Social, Inc.",Information Technology,Application Software,469760000,490000000,1362,523060000,no
 YEXT,"Yext, Inc.",Information Technology,Application Software,445000000,500000000,1120,622000000,no
 AVPT,"AvePoint, Inc.",Information Technology,Application Software,419500000,2430000000,3443,789000000,no
-BIGC,"BigCommerce Holdings, Inc.",Information Technology,Application Software,346820000,260000000,1079,308790000,no
+CMRC,"Commerce.com, Inc.",Information Technology,Application Software,346820000,260000000,1079,308790000,no
 AMPL,"Amplitude, Inc.",Information Technology,Application Software,343000000,1170000000,780,421000000,no
 HCAT,"Health Catalyst, Inc.",Information Technology,Application Software,311100000,150000000,1200,503000000,no
 DCBO,Docebo Inc.,Information Technology,Application Software,243000000,450000000,966,254000000,no

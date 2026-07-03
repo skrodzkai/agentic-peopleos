@@ -482,7 +482,7 @@ def predict_hazard(model, X, idx=None):
 
 def _check_hazards(hazards):
     for h in hazards:
-        if not math.isfinite(h) or not (0.0 <= h <= 1.0):
+        if not _finite_num(h) or not (0.0 <= h <= 1.0):   # _finite_num rejects bool/str/None (no True==1, no raw TypeError)
             raise ModelError(f"hazard {h!r} outside [0,1]")
 
 
@@ -589,7 +589,8 @@ def calibrated_probability(model, calibration, x):
 
 
 def _binary_labels(y):
-    if any(v not in (0, 1) for v in y):
+    # exact int 0/1 — a bool (True == 1) or a float 1.0 is a caller error, not a silent positive
+    if any(isinstance(v, bool) or type(v) is not int or v not in (0, 1) for v in y):
         raise ModelError("labels must be binary (0/1)")
 
 
@@ -600,7 +601,7 @@ def brier_score(probs, y):
         raise ModelError("brier_score: empty or length mismatch")
     _binary_labels(y)
     for p in probs:
-        if not math.isfinite(p) or not (0.0 <= p <= 1.0):
+        if not _finite_num(p) or not (0.0 <= p <= 1.0):   # _finite_num rejects bool/str/None (no raw TypeError)
             raise ModelError(f"brier_score: probability {p!r} outside [0,1]")
     return sum((p - yi) ** 2 for p, yi in zip(probs, y)) / len(y)
 
@@ -611,8 +612,8 @@ def rank_auc(scores, y):
     Fails closed on a length mismatch, non-binary labels, or a single-class input."""
     if len(scores) != len(y):
         raise ModelError("rank_auc: length mismatch")
-    if any(not math.isfinite(s) for s in scores):
-        raise ModelError("rank_auc: non-finite score")
+    if any(not _finite_num(s) for s in scores):           # rejects bool/str/None before any sort/compare
+        raise ModelError("rank_auc: score must be a finite number")
     _binary_labels(y)
     npos = sum(1 for v in y if v == 1)
     nneg = len(y) - npos
@@ -662,8 +663,8 @@ def pr_auc(scores, y):
     scores, never on input row order (all-tied scores => the base rate, not a fluke 1.0)."""
     if len(scores) != len(y):
         raise ModelError("pr_auc: length mismatch")
-    if any(not math.isfinite(s) for s in scores):
-        raise ModelError("pr_auc: non-finite score")
+    if any(not _finite_num(s) for s in scores):           # rejects bool/str/None before any sort/compare
+        raise ModelError("pr_auc: score must be a finite number")
     _binary_labels(y)
     P = sum(y)
     if P == 0 or P == len(y):
@@ -693,8 +694,8 @@ def precision_at_k(scores, y, groups, k_frac=PRECISION_K_FRAC, min_denom=PRECISI
     flags never reach min_denom (Acme's active pop can be small)."""
     if not (len(scores) == len(y) == len(groups)):
         raise ModelError("precision_at_k: length mismatch")
-    if any(not math.isfinite(s) for s in scores):
-        raise ModelError("precision_at_k: non-finite score")
+    if any(not _finite_num(s) for s in scores):           # rejects bool/str/None before any sort/compare
+        raise ModelError("precision_at_k: score must be a finite number")
     if not (0.0 < k_frac <= 1.0):
         raise ModelError(f"precision_at_k: k_frac {k_frac!r} must be in (0,1]")
     if not (isinstance(min_denom, int) and not isinstance(min_denom, bool) and min_denom >= 1):
@@ -742,8 +743,8 @@ def horizon_concordance(risk, term_month, is_event):
     Equal termination months are not orderable and are skipped."""
     if not (len(risk) == len(term_month) == len(is_event)):
         raise ModelError("horizon_concordance: length mismatch")
-    if any(not math.isfinite(r) for r in risk):
-        raise ModelError("horizon_concordance: non-finite risk score")
+    if any(not _finite_num(r) for r in risk):             # rejects bool/str/None before any compare
+        raise ModelError("horizon_concordance: risk score must be a finite number")
     if not all(isinstance(t, int) and not isinstance(t, bool) for t in term_month):
         raise ModelError("horizon_concordance: term_month values must be integers")
     if not all(isinstance(e, bool) for e in is_event):
@@ -787,8 +788,16 @@ def evaluate(model=None, calibration=None, design=None, slices=None, panel_path=
     """Out-of-time TEST-slice evaluation. Every number here is SYNTHETIC-VALIDATION only (mechanics, not
     external accuracy). Discrimination metrics use the raw logit (rank-equivalent); Brier uses calibrated
     probabilities. Fails closed unless the slices are the canonical out-of-time partition."""
-    if model is None:
+    # all-or-nothing bundle: either evaluate the canonical trained model (everything defaulted) or supply a
+    # COMPLETE, mutually-consistent (model, calibration, design, slices). A PARTIAL bundle — e.g. a model with
+    # someone else's slices, or a model with calibration=None — would silently mix artifacts or fail deep in
+    # _validate_slices with a confusing error; reject it up front.
+    bundle = (model, calibration, design, slices)
+    if all(v is None for v in bundle):
         model, calibration, design, slices = train_model(panel_path)
+    elif any(v is None for v in bundle):
+        raise ModelError("evaluate: pass NO bundle (train from panel_path) or a COMPLETE bundle "
+                         "(model, calibration, design, slices) — a partial bundle is rejected")
     _validate_slices(design, slices)
     test = slices["test"]
     scores = [_logit(model, design["X"][i]) for i in test]
@@ -856,7 +865,7 @@ def risk_bands(probs):
     if not probs:
         raise ModelError("risk_bands: empty probability set")
     for p in probs:
-        if not math.isfinite(p) or not (0.0 <= p <= 1.0):
+        if not _finite_num(p) or not (0.0 <= p <= 1.0):   # _finite_num rejects bool/str/None (no raw TypeError)
             raise ModelError(f"risk_bands: probability {p!r} outside [0,1]")
     s = sorted(probs)
     return {"elevated": round(_percentile(s, BAND_ELEVATED_PCTILE), COEF_DP),
@@ -1072,6 +1081,15 @@ def check_reproducible(manifest: dict = None, panel_path: Path = PANEL_PATH, tol
         raise ManifestError(f"manifest increment {m.get('increment')!r} != trained increment {TRAINED_INCREMENT}")
     if m.get("panel_rows") != len(_design["X"]):
         raise ManifestError(f"manifest panel_rows {m.get('panel_rows')!r} != actual design rows {len(_design['X'])}")
+    # the panel fingerprint must be REAL, not decorative: a model can re-fit and reproduce coefficients while
+    # the manifest declares a zeroed/forged panel_data_hash. Compare the declared hash to the actual panel hash
+    # so a fabricated provenance line fails the sync gate. (validate_manifest checks only the 64-hex SHAPE;
+    # this is where it is bound to the bytes on disk.)
+    actual_hash = panel_data_hash(panel_path)
+    if m.get("panel_data_hash") != actual_hash:
+        raise ManifestError(
+            f"manifest panel_data_hash {str(m.get('panel_data_hash'))[:12]}… != actual {actual_hash[:12]}… "
+            "(stale or forged panel provenance)")
     pc = m["primary_coefficients"]
     dn = list(DESIGN_FEATURES)
 

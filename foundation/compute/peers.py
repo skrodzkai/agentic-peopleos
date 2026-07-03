@@ -56,16 +56,111 @@ REAL_TICKERS = frozenset({
     "NOVA", "MTRX", "PULS", "JUNO", "KITE", "FLUX", "LUMA", "HUBX", "RIVR", "NSTR",
 })
 
-# Default screen — the disclosed-market norm for exec-comp peer construction: the HARD gates are
-# revenue and market cap (each 0.5x-2.0x of the subject) plus a same-sub-industry match. HEADCOUNT is
-# deliberately NOT a hard gate — in practice it is a *secondary/soft* factor (e.g. Datadog files it
-# under "secondary factors"), so it only feeds the size-fit RANK below, never membership. Every band is
+
+_NAME_SUFFIX_RE = re.compile(
+    r"\b(the|inc|incorporated|corp|corporation|company|co|ltd|limited|holdings|holding|group|"
+    r"plc|lp|llp|llc|sa|nv|ag|se)\b")
+
+
+def _canon_name(s):
+    """Canonical key for real-company-NAME matching: casefold, drop the leading article + punctuation + common
+    corporate suffixes, collapse whitespace. So 'GitLab, Inc.' / 'GitLab Inc' / 'GITLAB  INC.' / 'GitLab
+    Holdings' / 'The GitLab Group' all reduce to 'gitlab' — a punctuation/article/suffix variant can't slip a
+    real name past the guards."""
+    s = _NAME_SUFFIX_RE.sub(" ", str(s).casefold())
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    return " ".join(s.split())
+
+
+def name_matches_real(candidate, real_keys):
+    """True if `candidate` is (a variant of) a real company name in `real_keys` (a set of canonical keys from
+    real_peer_identifiers). Matching is TOKEN-SET SUBSET in BOTH directions, not exact-key equality: a
+    recognizable SHORT FORM ('Descartes Systems Group', 'ZoomInfo') must be caught even though its canonical
+    key differs from the stored full name ('The Descartes Systems Group Inc.', 'ZoomInfo Technologies Inc.').
+    A real name is matched when the candidate's token set is a subset of, or a superset of, a stored name's
+    token set — so a fabricated pay/TSR figure can never attach to a real company via a trimmed name."""
+    ctoks = frozenset(_canon_name(candidate).split())
+    if not ctoks:
+        return False
+    for r in real_keys:
+        rtoks = frozenset(r.split())
+        if rtoks and (ctoks <= rtoks or rtoks <= ctoks):
+            return True
+    return False
+
+
+# Real companies that RENAMED — their FORMER names must still be rejected in synthetic artifacts even though
+# only the current name is in peer_universe.csv (canonicalized form).
+_FORMER_REAL_NAMES = frozenset(_canon_name(n) for n in (
+    "BigCommerce Holdings, Inc.",      # -> Commerce.com, Inc. (Aug 2025)
+    "ZoomInfo Technologies Inc.",      # ticker ZI -> GTM (2025); name retained but keep for safety
+))
+
+
+def real_peer_identifiers(data_dir=DATA, require=False):
+    """(tickers, canonical-names) of the REAL public peers in peer_universe.csv (the non-subject rows). This is
+    the ONLY place real tickers/names may legitimately appear; every SYNTHETIC artifact (ISS/rTSR universes,
+    the ticker scanner) loads this set and REJECTS these identifiers so a real name can never carry a
+    fabricated figure. Tickers are upper-cased; names are canonicalized via `_canon_name` (former names of
+    renamed companies are folded in) so a punctuation/suffix variant can't evade the guard.
+
+    `require=True` FAILS CLOSED (raises PeerDataError) if the roster is missing, schema-drifted, or has zero
+    real peers — used by the rtsr/ISS name+ticker guards, so an unloadable roster can NEVER silently turn a
+    public-safety guard into a no-op. `require=False` (default) is best-effort: it returns empty sets when the
+    file is absent (used by tools/ticker_scan.py, which keeps the static deny-list as a backstop)."""
+    path = Path(data_dir) / "peer_universe.csv"
+    if not path.exists():
+        if require:
+            raise PeerDataError(f"peer_universe.csv not found at {path} — cannot verify real-peer identifiers")
+        return set(), set(_FORMER_REAL_NAMES)
+    tickers, names = set(), set(_FORMER_REAL_NAMES)
+    with open(path, newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        cols = set(reader.fieldnames or ())
+        if not {"ticker", "company_name", "is_subject"} <= cols:
+            if require:
+                raise PeerDataError("peer_universe.csv missing required columns (ticker/company_name/is_subject)")
+            return set(), set(_FORMER_REAL_NAMES)
+        n_peer = 0
+        for r in reader:
+            if r.get("is_subject") == "no":
+                n_peer += 1
+                if r.get("ticker"):
+                    tickers.add(r["ticker"].strip().upper())
+                if r.get("company_name"):
+                    names.add(_canon_name(r["company_name"]))
+    if require and (not tickers or n_peer == 0):
+        raise PeerDataError("peer_universe.csv has zero real peers — the real-name/ticker guard would be a no-op")
+    return tickers, names
+
+
+# The documented software/SaaS INDUSTRY GROUP: the set of GICS Level-4 sub-industries a compensation
+# committee treats as software/SaaS peers. GICS deliberately FRAGMENTS software businesses across sectors —
+# HCM SaaS (Paycom/Paylocity) lands in Industrials "Human Resource & Employment Services", payments SaaS
+# (Toast/Marqeta) in Financials "Transaction & Payment Processing Services", data/martech in Communication
+# Services — so gating on a single Level-4 code ("Application Software") would wrongly drop real software
+# peers. Gating on this GROUP mirrors how committees actually build a software peer set and, crucially, does
+# NOT depend on a candidate's exact Level-4 being verifiable from a public index table — only that it is a
+# software/SaaS business in one of these sub-industries. Tunable + disclosed.
+SOFTWARE_PEER_GROUP = frozenset({
+    "Application Software",
+    "Systems Software",
+    "Internet Services & Infrastructure",
+    "Interactive Media & Services",
+    "Human Resource & Employment Services",
+    "Transaction & Payment Processing Services",
+})
+
+# Default screen — the disclosed-market norm for exec-comp peer construction: the HARD gates are revenue and
+# market cap (each 0.5x-2.0x of the subject) plus membership in the software/SaaS industry GROUP above.
+# HEADCOUNT is deliberately NOT a hard gate — in practice it is a *secondary/soft* factor (e.g. Datadog files
+# it under "secondary factors"), so it only feeds the size-fit RANK below, never membership. Every band is
 # tunable; set employees_mult to a (lo, hi) pair to bring headcount back in as a hard gate if desired.
 DEFAULT_CRITERIA = {
     "revenue_mult": (0.5, 2.0),
     "market_cap_mult": (0.5, 2.0),
     "employees_mult": None,    # headcount is a SOFT fit factor by default, not a hard gate
-    "gics": "subindustry",     # "sector" | "subindustry" | None
+    "gics": "group",           # "group" (software/SaaS peer group) | "sector" | "subindustry" | None
     "min_criteria": None,      # None => must pass ALL active criteria; or an int N => pass >= N
 }
 
@@ -150,8 +245,15 @@ class PeerUniverse:
             active.append("market_cap")
         if c.get("employees_mult"):
             active.append("employees")
-        if c.get("gics") in ("sector", "subindustry"):
+        if c.get("gics") in ("group", "sector", "subindustry"):
             active.append("gics")
+            # in GROUP mode the subject itself must be a software/SaaS business, else gating peers on a group
+            # the subject isn't in is incoherent — fail closed rather than return a nonsense group
+            if c["gics"] == "group" and subj["gics_subindustry"] not in SOFTWARE_PEER_GROUP:
+                raise PeerDataError(
+                    f"subject sub-industry {subj['gics_subindustry']!r} is not in the software/SaaS peer group")
+        elif c.get("gics") is not None:
+            raise PeerDataError(f"gics mode must be 'group' | 'sector' | 'subindustry' | None (got {c['gics']!r})")
         # refuse to return a meaningless "everyone is a peer" result from an unconfigured screen
         if not active:
             raise PeerDataError("screen has no active criteria — refusing to return every company as a peer")
@@ -170,9 +272,11 @@ class PeerUniverse:
             if not (isinstance(m, (tuple, list)) and len(m) == 2):
                 raise PeerDataError(f"{key} must be a (lo, hi) pair (got {m!r})")
             lo, hi = m
-            if not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (lo, hi)) \
-                    or lo <= 0 or hi < lo:
-                raise PeerDataError(f"{key} must satisfy 0 < lo <= hi (got {m!r})")
+            if not all(isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+                       for x in (lo, hi)) or lo <= 0 or hi < lo:
+                # finiteness matters: (0.5, inf) would silently remove the upper size bound, and (nan, 2.0)
+                # would make every comparison False — both defeat the fail-closed intent, so reject them
+                raise PeerDataError(f"{key} must be finite and satisfy 0 < lo <= hi (got {m!r})")
 
         def band(field, mult):
             lo, hi = mult
@@ -191,12 +295,22 @@ class PeerUniverse:
                 lo, hi = band("employees", c["employees_mult"])
                 checks["employees"] = lo <= co["employees"] <= hi
             if "gics" in active:
-                key = "gics_sector" if c["gics"] == "sector" else "gics_subindustry"
-                checks["gics"] = co[key] == subj[key]
+                if c["gics"] == "group":
+                    checks["gics"] = co["gics_subindustry"] in SOFTWARE_PEER_GROUP
+                else:
+                    key = "gics_sector" if c["gics"] == "sector" else "gics_subindustry"
+                    checks["gics"] = co[key] == subj[key]
             n_pass = sum(1 for v in checks.values() if v)
             need = min_n if min_n is not None else len(active)
+            is_peer = n_pass >= need
+            # in GROUP mode, software/SaaS membership is a HARD prerequisite regardless of min_criteria — a
+            # relaxed size gate must never admit an out-of-group company as a "software peer" (which would also
+            # drive run.py's "outside size" funnel bar negative). Sector/sub-industry modes keep the uniform
+            # min_criteria semantics.
+            if c.get("gics") == "group" and "gics" in checks and not checks["gics"]:
+                is_peer = False
             results.append({"company": co, "checks": checks, "pass_count": n_pass,
-                            "is_peer": n_pass >= need, "fit": _fit(co, subj, FIT_WEIGHTS)})
+                            "is_peer": is_peer, "fit": _fit(co, subj, FIT_WEIGHTS)})
 
         # Two clearly-separated orderings: PEERS rank by fit (size-closeness, the recommended order);
         # non-peers fall back to revenue-closeness for the exclusions view. Ticker is the final

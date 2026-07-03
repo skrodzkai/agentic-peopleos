@@ -1,6 +1,6 @@
 [
   { "ticker": "ACMQ", "name": "Acme Corp", "role": "issuer", "index_start": true, "index_end": true },
-  { "ticker": "AXQA", "name": "Atlas Applications", "role": "peer", "index_start": true, "index_end": true },
+  { "ticker": "AXAQ", "name": "Atlas Applications", "role": "peer", "index_start": true, "index_end": true },
   { "ticker": "BEXQ", "name": "Billerix Cloud", "role": "peer", "index_start": true, "index_end": true },
   { "ticker": "CYRQ", "name": "Cloudwright Systems", "role": "peer", "index_start": true, "index_end": true },
   { "ticker": "DOVQ", "name": "Databank Nexus", "role": "peer", "index_start": true, "index_end": true },

@@ -28,7 +28,7 @@ recommends pay.
    who is in it.
 
 This separation is the point: a board can challenge a *score* ("who set those weights?"), but not a
-*transparent screen* ("same sub-industry, within 0.5–2.0× our size").
+*transparent screen* ("in the software/SaaS peer group, within 0.5–2.0× our size").
 
 ## Run it
 ```bash

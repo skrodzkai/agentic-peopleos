@@ -391,6 +391,10 @@ raises(R.ModelError, lambda: R.rank_auc([0.1], [0, 1, 1]), "rank_auc length mism
 raises(R.ModelError, lambda: R.rank_auc([0.1, 0.2], [0, 2]), "rank_auc non-binary label rejected")
 raises(R.ModelError, lambda: R.brier_score([1.2, 0.1], [1, 0]), "brier probability out of [0,1] rejected")
 raises(R.ModelError, lambda: R.survival_curve([0.1, 1.5]), "survival hazard out of [0,1] rejected")
+# round-6: hazards fail closed on a bool (True==1 trap) or a str (raw TypeError -> ModelError), same
+# fail-closed-numerics contract as the scoring primitives
+raises(R.ModelError, lambda: R.survival_curve([0.1, True]), "survival_curve rejects a bool hazard (True != 1.0)")
+raises(R.ModelError, lambda: R.survival_curve(["0.1", 0.2]), "survival_curve turns a str hazard into ModelError (no raw TypeError)")
 raises(R.ModelError, lambda: R.horizon_probability([0.1], -1), "negative horizon rejected")
 raises(R.ModelError, lambda: R._logit(model, [0.0] * (len(model["feature_names"]) - 1)),
        "a short scoring row fails closed (not a raw IndexError)")
@@ -416,6 +420,12 @@ ok(R.check_reproducible(m) is True, "committed model reproduces within tolerance
 import copy  # noqa: E402
 _mt = copy.deepcopy(m); _mt["primary_coefficients"]["intercept"] += 1.0
 raises(R.ManifestError, lambda: R.check_reproducible(_mt), "a tampered coefficient fails reproduction")
+# round-5: a forged/zeroed panel_data_hash must fail the sync gate even though the coefficients re-fit
+# exactly (validate_manifest only checks the 64-hex SHAPE; check_reproducible binds it to the panel bytes)
+_mh = copy.deepcopy(m); _mh["panel_data_hash"] = "0" * 64
+raises(R.ManifestError, lambda: R.check_reproducible(_mh), "a forged panel_data_hash fails the reproducibility gate")
+ok(len("0" * 64) == 64 and R.validate_manifest(_mh) is None,
+   "the forged hash still passes the SHAPE-only validate_manifest — so check_reproducible is the real gate")
 
 # --------------------------------------------------------------- 9) evaluation + realism guard (Increment 3)
 
@@ -427,6 +437,25 @@ ok(0.6 < E["horizon_concordance"] < 0.95, f"survival concordance is real but not
 ok(E["precision_at_k"]["status"] == "ok" and E["precision_at_k"]["n_flagged"] >= 50, "precision@k has a sufficient denominator")
 ok(E["precision_at_k"]["precision"] > E["base_rate"], "top-decile precision beats the base rate")
 ok(E["validation"].startswith("synthetic-only"), "the evaluation is labeled synthetic-validation-only")
+
+# round-5: evaluate() takes NO bundle (train from panel) or a COMPLETE one — a partial bundle is rejected
+# up front, never silently mixing artifacts or failing deep in _validate_slices
+raises(R.ModelError, lambda: R.evaluate(model=model, calibration=None, design=design, slices=slices),
+       "evaluate() rejects a partial bundle (model without calibration)")
+raises(R.ModelError, lambda: R.evaluate(model=model, calibration=calib, design=design, slices=None),
+       "evaluate() rejects a partial bundle (missing slices)")
+ok(isinstance(R.evaluate(), dict), "evaluate() with NO bundle trains from the panel and returns metrics")
+
+# round-5: fail-closed numerics reject a bool masquerading as a number (True == 1) and a str/None (raw
+# TypeError -> ModelError) across every scoring primitive — not just risk_tier
+raises(R.ModelError, lambda: R.rank_auc([True, False, 1.0], [1, 0, 1]), "rank_auc rejects a bool score")
+raises(R.ModelError, lambda: R.pr_auc([True, False, 1.0], [1, 0, 1]), "pr_auc rejects a bool score")
+raises(R.ModelError, lambda: R.brier_score([True, 0.2, 0.3], [1, 0, 1]), "brier_score rejects a bool probability")
+raises(R.ModelError, lambda: R.risk_bands([True, 0.1, 0.9]), "risk_bands rejects a bool probability")
+raises(R.ModelError, lambda: R.horizon_concordance([True, 0.2, 0.3], [1, 2, 3], [True, False, True]),
+       "horizon_concordance rejects a bool risk score")
+raises(R.ModelError, lambda: R.rank_auc(["x", 0.1, 0.2], [1, 0, 1]), "rank_auc turns a str score into ModelError (no raw TypeError)")
+raises(R.ModelError, lambda: R.brier_score([0.1, 0.2, 0.3], [True, 0, 1]), "brier_score rejects a bool label (True != 1)")
 
 # realism guard: passes on the honest model, trips on each tripwire
 ok(R.realism_guard(model, E) is True, "realism guard passes on the honest model")

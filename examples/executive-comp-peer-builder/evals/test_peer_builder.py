@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import run  # noqa: E402
-from foundation.compute.peers import PeerUniverse  # noqa: E402
+from foundation.compute.peers import PeerUniverse, SOFTWARE_PEER_GROUP  # noqa: E402
 
 passed = 0
 
@@ -55,16 +55,15 @@ ok(all(all(w["checks"].values()) for w in report["watchlist"]),
    "watchlist alternates also clear every active screen criterion (a defensible bench, not a relaxation)")
 ok("employees" not in report["peers"][0]["checks"], "headcount is a soft fit factor, not a hard gate")
 
-# ---- the funnel reconciles (universe = same-industry + other-industry; same-industry = peers + size-outs) ----
-ok(report["excl_industry"] + report["n_same"] == report["n_universe"], "industry funnel reconciles")
-ok(report["n_peers"] + report["excl_size"] == report["n_same"], "size funnel reconciles within the industry")
+# ---- the funnel reconciles (universe = in-group + out-of-group; in-group = peers + size-outs) ----
+ok(report["excl_industry"] + report["n_same"] == report["n_universe"], "industry-group funnel reconciles")
+ok(report["n_peers"] + report["excl_size"] == report["n_same"], "size funnel reconciles within the group")
 
-# ---- defensible exclusions: same sub-industry, kept out on SIZE (the gate, not the score) ----
-sub_ind = report["subject"]["gics_subindustry"]
+# ---- defensible exclusions: IN the software/SaaS group, kept out on SIZE (the gate, not the score) ----
 for r in report["near_misses"]:
     c = r["company"]
-    ok(c["gics_subindustry"] == sub_ind and not r["is_peer"] and r["checks"]["gics"],
-       f"near-miss {c['ticker']} is same-industry, excluded, and failed a SIZE criterion")
+    ok(c["gics_subindustry"] in SOFTWARE_PEER_GROUP and not r["is_peer"] and r["checks"]["gics"],
+       f"near-miss {c['ticker']} is in the software/SaaS group, excluded, and failed a SIZE criterion")
     ok(not all((r["checks"]["revenue"], r["checks"]["market_cap"])),
        f"near-miss {c['ticker']} actually fails at least one active hard size band")
 
