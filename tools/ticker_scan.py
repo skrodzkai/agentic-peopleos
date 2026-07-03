@@ -37,9 +37,12 @@ SKIP_PARTS = {"tests", "evals", "__pycache__", ".git", "node_modules"}
 # look-alike like examples/iss-pay-screen/output/real-peer-data.md is NOT allow-listed.
 # The sec-comp-research SKILL is a portable REAL-SEC-data tool (its whole point is pulling real proxy data
 # for whatever tickers a user supplies), so its docs/scripts legitimately carry real tickers too.
+# NOTE: the benchmarking-arm OUTPUT (examples/executive-comp-benchmarking/output/) is deliberately NOT
+# allow-listed — that dashboard renders roles/money/percentiles only, never a ticker or company name, so it
+# must stay under the scanner: a real ticker leaking into that output IS a bug and must be caught.
 REAL_PEER_ALLOW = ("foundation/data/acme/peer_universe.csv", "governance/real-peer-data.md",
                    "foundation/data/acme/proxy_comp.csv", "governance/proxy-comp-data.md",
-                   "examples/executive-comp-peer-builder/output/", "examples/executive-comp-benchmarking/output/",
+                   "examples/executive-comp-peer-builder/output/",
                    "skills/sec-comp-research/")
 
 
@@ -113,6 +116,10 @@ def _self_test():
         failures.append("the sec-comp-research skill scripts must be allow-listed")
     if _allowed_real("skills/some-other-skill/SKILL.md"):
         failures.append("an unrelated skill must NOT be allow-listed")
+    # the benchmarking OUTPUT renders no tickers, so it must stay SCANNED (not allow-listed) — a real
+    # ticker leaking into that dashboard is a bug the scanner must catch
+    if _allowed_real("examples/executive-comp-benchmarking/output/report.sample.html"):
+        failures.append("benchmarking output must NOT be allow-listed (it renders no tickers; a leak must be caught)")
     # a LOOK-ALIKE path must not slip past the (now root-anchored) allowlist
     if _allowed_real("examples/iss-pay-screen/output/real-peer-data.md"):
         failures.append("a look-alike real-peer-data.md outside governance/ must NOT be allow-listed")

@@ -1,0 +1,17 @@
+{
+  "agent": "executive-comp-benchmarking",
+  "domain": "executive-compensation",
+  "budget": {
+    "period": "monthly",
+    "limit_usd": 1.00,
+    "default_model_tier": "tier-0",
+    "escalation_allowed": false,
+    "notes": "Deterministic sample: no model calls, no external data provider. Peer figures are committed real proxy data (governance/proxy-comp-data.md); the agent runs no live scraping."
+  },
+  "usage": {
+    "period_start": "2026-01-01",
+    "spend_usd": 0.0,
+    "calls": 0,
+    "by_tier": { "tier-0": { "calls": 0, "spend_usd": 0.0 } }
+  }
+}

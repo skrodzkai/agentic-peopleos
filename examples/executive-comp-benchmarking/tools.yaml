@@ -1,0 +1,30 @@
+# Tools the executive-comp-benchmarking agent is allowed to use.
+# Note what's ABSENT: no live proxy/EDGAR scraper, no pay-recommendation or pay-setting tool, no
+# "send"/"publish" tool, and no write access to any system of record.
+
+tools:
+  - name: benchmarking_read
+    access: read-only
+    description: >
+      Reads the pay-positioning result (per-role incumbent distribution, mid-rank percentile, quartiles,
+      target-band status, suppression) from the shared benchmarking engine
+      (foundation/compute/benchmarking.py), itself read-only over the committed real peer proxy data
+      (foundation/data/acme/proxy_comp.csv). The agent performs no positioning math of its own.
+
+  - name: chart_toolkit
+    access: pure-render
+    description: >
+      Draws the dashboard with the deterministic, stdlib SVG toolkit (foundation/render/charts.py).
+      Pure functions string -> SVG; no data access, no IO, no network.
+
+  - name: report_writer
+    access: write-local
+    description: >
+      Renders the committee dashboard (HTML) and the digest (Markdown) to the local output/
+      directory. Produces drafts only.
+
+# Intentionally NOT granted:
+#   - live proxy/EDGAR scraper — the peer figures are a committed, dated snapshot, not a live pull
+#   - any pay-recommendation or pay-setting tool — the agent POSITIONS pay, it never sets it
+#   - email / Slack / "publish" — the Compensation Committee owns distribution (publish gate)
+#   - any write access to a system of record

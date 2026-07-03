@@ -45,11 +45,13 @@ python3 tools/render_glossary.py             # then `git diff --exit-code` on va
 (cd examples/people-intelligence && python3 evals/test_people_intelligence.py && python3 run.py)
 # Executive Compensation arm (eval + run, then `git diff --exit-code` on each output/report.sample.html + day1-digest.sample.md)
 (cd examples/executive-comp-peer-builder && python3 evals/test_peer_builder.py && python3 run.py)
+(cd examples/executive-comp-benchmarking && python3 evals/test_benchmarking_agent.py && python3 run.py)
 (cd examples/rtsr-psu-valuation && python3 evals/test_rtsr_psu.py && python3 run.py)
 (cd examples/iss-pay-screen && python3 evals/test_iss_pay_screen.py && python3 run.py)
 # shared exec-comp compute engines
 python3 foundation/compute/tests/test_rtsr.py
 python3 foundation/compute/tests/test_iss_screen.py
+python3 foundation/compute/tests/test_benchmarking.py
 # retention-risk model (glass-box hazard + eval + segment layer)
 python3 foundation/compute/tests/test_retention.py
 python3 foundation/compute/retention.py validate   # re-fits + reproduces coefficients/calibration/bands + provenance

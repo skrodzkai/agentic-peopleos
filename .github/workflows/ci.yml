@@ -23,9 +23,9 @@ jobs:
           python3 -m py_compile
           core/*.py core/tests/*.py tools/*.py
           foundation/data/generate.py
-          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py foundation/compute/retention.py
+          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py foundation/compute/retention.py foundation/compute/benchmarking.py
           foundation/compute/tests/test_engine.py foundation/compute/tests/test_regression.py
-          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py foundation/compute/tests/test_retention.py
+          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py foundation/compute/tests/test_retention.py foundation/compute/tests/test_benchmarking.py
           foundation/render/dashboard.py foundation/render/charts.py
           foundation/render/tests/test_dashboard.py foundation/render/tests/test_charts.py
           examples/headcount-reporting/run.py examples/headcount-reporting/evals/test_headcount.py
@@ -34,6 +34,7 @@ jobs:
           examples/operating-review/run.py examples/operating-review/evals/test_operating_review.py
           examples/people-intelligence/run.py examples/people-intelligence/evals/test_people_intelligence.py
           examples/executive-comp-peer-builder/run.py examples/executive-comp-peer-builder/evals/test_peer_builder.py
+          examples/executive-comp-benchmarking/run.py examples/executive-comp-benchmarking/evals/test_benchmarking_agent.py
           examples/rtsr-psu-valuation/run.py examples/rtsr-psu-valuation/evals/test_rtsr_psu.py
           examples/iss-pay-screen/run.py examples/iss-pay-screen/evals/test_iss_pay_screen.py
           examples/ta-reporting/run.py examples/ta-reporting/evals/test_report.py
@@ -66,14 +67,15 @@ jobs:
           python3 foundation/compute/tests/test_rtsr.py
           python3 foundation/compute/tests/test_iss_screen.py
           python3 foundation/compute/tests/test_retention.py
+          python3 foundation/compute/tests/test_benchmarking.py
 
       - name: Retention model manifest reproduces (tolerance sync gate — fitted floats aren't byte-diffed)
         run: python3 foundation/compute/retention.py validate   # re-fits + checks coefficients/calibration reproduce within tol (+ panel_data_hash, schema)
 
-      - name: Public-safety ticker scan (synthetic artifacts)
+      - name: Public-safety ticker scan (whole repo — nothing leaks anywhere)
         run: |
           python3 tools/ticker_scan.py --self-test
-          python3 tools/ticker_scan.py examples foundation/data vault README.md
+          python3 tools/ticker_scan.py .   # whole tree; real tickers allowed ONLY in the allow-listed real-peer arm + skill
 
       - name: Shared dashboard renderer + chart toolkit evals
         run: |
@@ -123,6 +125,14 @@ jobs:
           python3 run.py
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
             || (echo "::error::executive-comp peer-builder output is stale — run examples/executive-comp-peer-builder/run.py and commit" && exit 1)
+
+      - name: Executive comp arm — benchmarking eval
+        working-directory: examples/executive-comp-benchmarking
+        run: |
+          python3 evals/test_benchmarking_agent.py
+          python3 run.py
+          git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            || (echo "::error::executive-comp benchmarking output is stale — run examples/executive-comp-benchmarking/run.py and commit" && exit 1)
 
       - name: Executive comp arm — rTSR PSU valuation eval
         working-directory: examples/rtsr-psu-valuation
@@ -193,6 +203,7 @@ jobs:
             examples/comp-reporting/output examples/comp-reporting/data \
             examples/rtsr-psu-valuation/output examples/rtsr-psu-valuation/data \
             examples/iss-pay-screen/output \
+            examples/executive-comp-benchmarking/output \
             examples/visible-handoff/output foundation/data vault
 
       - name: No stale or UNTRACKED generated artifacts (whole-tree backstop)

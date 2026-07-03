@@ -152,6 +152,16 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   target-percentile policy forward to benchmarking. It produces **only a peer set for a human to review and
   approve** — it never sets, recommends, or benchmarks pay itself. The fit score *orders* the group; the
   screen — not the score — *decides* who is in it.
+- **[Executive Comp Benchmarking](examples/executive-comp-benchmarking/)** — once the peer group is
+  approved, positions the synthetic subject's NEOs against the peer group's **real, SEC-disclosed** proxy
+  pay (each figure from a company's latest DEF 14A Summary Compensation Table; provenance in
+  [proxy-comp-data](governance/proxy-comp-data.md)). For each role (CEO/CFO/COO/CLO) and pay element
+  (base, annual cash, total cash, LTI/equity, total direct comp) it shows the subject's **percentile** of
+  the peer distribution versus the committee's target band, with peer **P25/median/P75** and a
+  below/on-target/above call. It leads with the honest headline — **cash competitive, long-term equity
+  below target** — and **suppresses** a thin role (CHRO, two peers) rather than invent a percentile. Peer
+  figures are **actual as-disclosed pay, not target opportunity**; the agent runs no positioning math
+  (all of it in the shared engine), never recommends pay, and stops at a human approval gate.
 - **[Relative TSR PSU Valuation](examples/rtsr-psu-valuation/)** — tracks a synthetic software-company
   rTSR PSU against an index-style peer set, applies a public-style payout curve (25th=50%,
   55th=100%, 75th+=200%), and estimates an illustrative Monte Carlo fair value from supplied
