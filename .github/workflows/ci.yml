@@ -145,13 +145,21 @@ jobs:
           python3 -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
             --registry examples/visible-handoff/approval_registry.json
 
-      - name: TA reporting eval
+      - name: TA reporting eval + dashboard in sync
         working-directory: examples/ta-reporting
-        run: python3 evals/test_report.py
+        run: |
+          python3 evals/test_report.py
+          python3 run.py
+          git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            || (echo "::error::ta-reporting output is stale — run examples/ta-reporting/run.py and commit" && exit 1)
 
-      - name: Comp reporting eval
+      - name: Comp reporting eval + dashboard in sync
         working-directory: examples/comp-reporting
-        run: python3 evals/test_comp.py
+        run: |
+          python3 evals/test_comp.py
+          python3 run.py
+          git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            || (echo "::error::comp-reporting output is stale — run examples/comp-reporting/run.py and commit" && exit 1)
 
       - name: Visible-handoff eval
         working-directory: examples/visible-handoff

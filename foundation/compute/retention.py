@@ -237,9 +237,13 @@ def _validate_header(header):
 
 def _canon_value(v):
     """Canonicalize a feature value: None -> null; numerics -> a fixed-precision decimal STRING so the
-    serialization is identical across Python versions / float repr (no binary-float drift in the hash)."""
+    serialization is identical across Python versions / float repr (no binary-float drift in the hash).
+    Strict even in direct API use — a bool (True != 1.0), a numeric STRING, or a NaN is a caller error,
+    never silently coerced into the hash."""
     if v is None:
         return None
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        raise ValueError(f"feature value must be a real number or None, got {v!r}")
     f = float(v)
     if not math.isfinite(f):
         raise ValueError(f"non-finite feature value: {v!r}")
@@ -289,6 +293,17 @@ MISSING_SUFFIX = "__missing"
 DESIGN_FEATURES = list(MODEL_FEATURES) + [f"{c}{MISSING_SUFFIX}" for c in sorted(MISSABLE)]
 
 
+def _feature_value(v, col):
+    """A design-matrix slot value: None -> 0.0 (paired with its missing-indicator column); otherwise a strict
+    finite real number. Strict even in direct API use — a bool (True != 1.0), a numeric STRING, or a NaN is a
+    caller error, never silently coerced into the model input."""
+    if v is None:
+        return 0.0
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+        raise PanelError(f"feature {col!r} must be a finite real number or None, got {v!r}")
+    return float(v)
+
+
 def build_design(rows):
     """Increment 1: assemble the point-in-time design matrix for the discrete-time VOLUNTARY-exit hazard.
 
@@ -317,7 +332,7 @@ def build_design(rows):
         absent = [c for c in MODEL_FEATURES if c not in f]
         if absent:                                        # a domain error, not a raw KeyError, on a malformed row
             raise PanelError(f"build_design row is missing model features: {absent}")
-        vec = [0.0 if f[c] is None else float(f[c]) for c in MODEL_FEATURES]
+        vec = [_feature_value(f[c], c) for c in MODEL_FEATURES]
         vec += [1.0 if f[c] is None else 0.0 for c in miss]
         X.append(vec)
         y.append(1 if ev == TARGET_EVENT else 0)
@@ -575,7 +590,9 @@ def median_months_to_exit(hazards, max_h=18):
 
 def explain(model, x, top=5):
     """Exact additive per-feature contributions to the log-odds (coef * standardized value), largest first.
-    Exact for a linear/additive model — NOT an approximation, and NOT SHAP."""
+    Exact for a linear/additive model — NOT an approximation, and NOT SHAP. Validates the model artifact
+    first so a corrupted/reversed model can't produce a plausible-looking explanation."""
+    _validate_model(model)
     xs = _apply_std(x, model["mean"], model["std"])
     coef, names = model["coef"], model["feature_names"]
     contribs = [(names[j], coef[names[j]] * xs[j]) for j in range(len(names))]

@@ -43,9 +43,11 @@ def _allowed_real(path):
     # repo-relative, ROOT-anchored: a file frag must match the WHOLE repo-relative path (not just its tail),
     # and a dir frag must be a leading prefix — so a look-alike under a different root (evil/governance/
     # real-peer-data.md, x/examples/.../output/nested.html) is NOT allow-listed and still gets scanned.
-    s = posixpath.normpath(str(path).replace("\\", "/"))      # resolve ../ and ./ FIRST so a traversal
-    s = s.lstrip("./")                                         # (evil/output/../../peer_universe.csv) can't
-    for frag in REAL_PEER_ALLOW:                               # fake an allow-listed prefix
+    s = posixpath.normpath(str(path).replace("\\", "/"))      # resolve ../ and ./ FIRST (normpath drops a
+    #                                                         # leading ./ and collapses interior ..)
+    if s == ".." or s.startswith("../") or s.startswith("/"):  # escapes the repo root (or absolute) -> it is
+        return False                                          # NOT a repo-relative allow-listed artifact
+    for frag in REAL_PEER_ALLOW:                               # (../governance/real-peer-data.md must NOT pass)
         if frag.endswith("/"):
             if s == frag.rstrip("/") or s.startswith(frag):   # directory prefix, anchored at the repo root
                 return True
@@ -108,6 +110,8 @@ def _self_test():
     for evil in ("evil/governance/real-peer-data.md", "attacker/foundation/data/acme/peer_universe.csv",
                  "x/examples/executive-comp-peer-builder/output/deep/nested.html",
                  "examples/executive-comp-peer-builder/output/../../../secret.md",   # .. traversal
+                 "../governance/real-peer-data.md",                                   # repo-escape traversal
+                 "/etc/governance/real-peer-data.md",                                 # absolute path
                  "governance/../foundation/data/acme/../../../etc/passwd"):
         if _allowed_real(evil):
             failures.append(f"a look-alike / path-traversal must NOT be allow-listed: {evil}")

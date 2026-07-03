@@ -8,10 +8,11 @@ Pure, stdlib-only, deterministic. Two clearly-separated steps, the way a compens
 actually works:
 
   1. SCREEN (the gate) — a transparent per-criterion pass/fail: size bands as multiples of the subject
-     (0.5x-2.0x on revenue and market cap) plus a same-GICS-sub-industry match. Headcount is a SOFT fit
-     factor, not a hard gate (disclosed market practice). Membership in the peer group is decided HERE and
-     only here — defensible to a board on one line ("same sub-industry, within 0.5-2.0x our size"). The
-     fit score below NEVER gates membership.
+     (0.5x-2.0x on revenue and market cap) plus membership in the documented software/SaaS peer GROUP (a set
+     of GICS sub-industries; see SOFTWARE_PEER_GROUP). Headcount is a SOFT fit factor, not a hard gate
+     (disclosed market practice). Membership in the peer group is decided HERE and only here — defensible to
+     a board on one line ("in our software/SaaS peer group, within 0.5-2.0x our size"). The fit score below
+     NEVER gates membership.
   2. FIT-RANK (the order) — within that already-defensible group, rank peers by a pure SIZE-CLOSENESS
      score (revenue-weighted): 100 == identical size to the subject, 0 == at a band edge. No opaque
      qualitative weights — the ranking survives the same "who set these weights?" scrutiny as the gate.

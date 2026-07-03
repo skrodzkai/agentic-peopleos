@@ -423,6 +423,17 @@ _forged = {"train": slices["test"], "calibration": slices["calibration"], "test"
 raises(R.ModelError, lambda: R.fit_hazard(design, _forged), "fit_hazard rejects forged (non-canonical) slices — no train-on-test leakage")
 raises(R.ModelError, lambda: R.platt_calibrate(model, design, slices["calibration"], iters=0), "platt_calibrate rejects iters=0")
 raises(R.ModelError, lambda: R.platt_calibrate(model, design, slices["test"]), "platt_calibrate rejects a non-canonical calibration slice")
+# round-9: explain() validates the model too (a reversed model must not produce a plausible explanation);
+# and the in-memory feature helpers are strict (bool/str/NaN rejected in direct API use, not coerced)
+raises(R.ModelError, lambda: R.explain(_rev, design["X"][slices["test"][0]]),
+       "explain() rejects a reversed-feature model (validates the artifact, like predict/evaluate)")
+raises(ValueError, lambda: R._canon_value(True), "_canon_value rejects a bool (True is not 1.0)")
+raises(ValueError, lambda: R._canon_value("1.5"), "_canon_value rejects a numeric string")
+raises(R.PanelError, lambda: R._feature_value(True, "x"), "_feature_value rejects a bool feature")
+raises(R.PanelError, lambda: R._feature_value("1.5", "x"), "_feature_value rejects a numeric-string feature")
+raises(R.PanelError, lambda: R._feature_value(float("nan"), "x"), "_feature_value rejects a NaN feature")
+ok(R._feature_value(None, "x") == 0.0 and R._feature_value(3, "x") == 3.0,
+   "_feature_value still accepts None (->0.0) and a real number")
 
 # the FULL trained artifact is protected: a corrupted standardizer / window fails the gate
 _ms = copy.deepcopy(m); _ms["primary_coefficients"]["standardizer_mean"][R.DESIGN_FEATURES[0]] = 999999.0
