@@ -1,7 +1,8 @@
 # Data classification
 
-Where each kind of data lives, and why the vault and the ledger carry **no direct
-identifiers** — minimized and pseudonymous by convention, with a heuristic PII backstop in
+Where each kind of data lives, and why the vault and the ledger carry **no real
+system-of-record PII** — minimized and pseudonymous by convention (synthetic illustrative names
+like "Acme Corp" or a sample approver may appear in examples), with a heuristic PII backstop in
 both `tools/vault_lint.py` and the ledger's `append()` (a backstop, not a cryptographic
 guarantee).
 

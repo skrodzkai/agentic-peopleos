@@ -192,7 +192,7 @@ The controls above are documented, each tied to the working code:
 - [retention-risk-model-card](governance/retention-risk-model-card.md) — the governed retention-risk model: purpose, **prohibited uses**, fairness, explanation limits, employee-facing boundaries
 - [change-request-template](governance/change-request-template.md) — every behavior change is a controlled experiment
 - [prompt-injection-threat-model](governance/prompt-injection-threat-model.md)
-- [data-classification](governance/data-classification.md) — no direct identifiers in the vault or ledger (pseudonymous, heuristic backstop)
+- [data-classification](governance/data-classification.md) — no real system-of-record PII in the vault or ledger (pseudonymous; synthetic names may appear in examples; heuristic backstop)
 - [data-retention-and-erasure](governance/data-retention-and-erasure.md) — keep the proof, not the person (GDPR Art. 17)
 - [bias-audit-cadence](governance/bias-audit-cadence.md) — staying audit-ready for NYC LL144 / EEOC
 - [regulatory-readiness](governance/regulatory-readiness.md) — EU AI Act, NYC LL144, GDPR, NIST AI RMF (implemented vs. production-adds)

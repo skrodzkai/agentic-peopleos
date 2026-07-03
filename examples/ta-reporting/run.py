@@ -519,6 +519,7 @@ def _one_line(text, limit=300) -> str:
 
 def _fail_closed(message: str) -> int:
     note = " (prior output marked .stale)" if _mark_stale() else ""
+    (OUT / "PUBLISHED.json").unlink(missing_ok=True)   # a FAILED run must not leave a prior "published" flag
     print(f"FAIL CLOSED: {_one_line(message)}{note}", file=sys.stderr)
     return 1
 

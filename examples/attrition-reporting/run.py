@@ -173,6 +173,7 @@ def _fail_closed(message) -> int:
                 p.rename(p.with_name(p.name + ".stale"))
         except OSError:
             pass
+    (OUT / "PUBLISHED.json").unlink(missing_ok=True)   # a FAILED run must not leave a prior "published" flag
     print(f"FAIL CLOSED: {_one_line(message)}", file=sys.stderr)
     return 1
 
