@@ -35,8 +35,12 @@ SKIP_PARTS = {"tests", "evals", "__pycache__", ".git", "node_modules"}
 # are ALLOWED to carry real tickers. Everything else must stay synthetic. Entries are FULL repo-relative
 # paths (files) or directory prefixes ending in "/", matched at a path BOUNDARY (not a loose substring) so a
 # look-alike like examples/iss-pay-screen/output/real-peer-data.md is NOT allow-listed.
+# The sec-comp-research SKILL is a portable REAL-SEC-data tool (its whole point is pulling real proxy data
+# for whatever tickers a user supplies), so its docs/scripts legitimately carry real tickers too.
 REAL_PEER_ALLOW = ("foundation/data/acme/peer_universe.csv", "governance/real-peer-data.md",
-                   "examples/executive-comp-peer-builder/output/")
+                   "foundation/data/acme/proxy_comp.csv", "governance/proxy-comp-data.md",
+                   "examples/executive-comp-peer-builder/output/", "examples/executive-comp-benchmarking/output/",
+                   "skills/sec-comp-research/")
 
 
 def _allowed_real(path):
@@ -101,6 +105,14 @@ def _self_test():
         failures.append("real-peer-builder output must be allow-listed")
     if _allowed_real("examples/iss-pay-screen/output/committee.html"):
         failures.append("non-peer-builder arms must NOT be allow-listed")
+    # the sec-comp-research skill is a REAL-SEC-data tool (real tickers are its whole point) -> allow-listed,
+    # but only that skill; an unrelated skill folder must still be scanned
+    if not _allowed_real("skills/sec-comp-research/SKILL.md"):
+        failures.append("the sec-comp-research skill must be allow-listed (it is a real-SEC-data tool)")
+    if not _allowed_real("skills/sec-comp-research/scripts/edgar.py"):
+        failures.append("the sec-comp-research skill scripts must be allow-listed")
+    if _allowed_real("skills/some-other-skill/SKILL.md"):
+        failures.append("an unrelated skill must NOT be allow-listed")
     # a LOOK-ALIKE path must not slip past the (now root-anchored) allowlist
     if _allowed_real("examples/iss-pay-screen/output/real-peer-data.md"):
         failures.append("a look-alike real-peer-data.md outside governance/ must NOT be allow-listed")
