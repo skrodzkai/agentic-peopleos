@@ -7,6 +7,7 @@ real ticker fixtures deliberately; sample data, generated dashboards, and public
     python3 tools/ticker_scan.py examples foundation/data
     python3 tools/ticker_scan.py --self-test
 """
+import posixpath
 import re
 import sys
 from pathlib import Path
@@ -42,8 +43,9 @@ def _allowed_real(path):
     # repo-relative, ROOT-anchored: a file frag must match the WHOLE repo-relative path (not just its tail),
     # and a dir frag must be a leading prefix — so a look-alike under a different root (evil/governance/
     # real-peer-data.md, x/examples/.../output/nested.html) is NOT allow-listed and still gets scanned.
-    s = str(path).replace("\\", "/").lstrip("./")
-    for frag in REAL_PEER_ALLOW:
+    s = posixpath.normpath(str(path).replace("\\", "/"))      # resolve ../ and ./ FIRST so a traversal
+    s = s.lstrip("./")                                         # (evil/output/../../peer_universe.csv) can't
+    for frag in REAL_PEER_ALLOW:                               # fake an allow-listed prefix
         if frag.endswith("/"):
             if s == frag.rstrip("/") or s.startswith(frag):   # directory prefix, anchored at the repo root
                 return True
@@ -104,9 +106,11 @@ def _self_test():
         failures.append("a look-alike peer_universe.csv outside foundation/data/acme/ must NOT be allow-listed")
     # ...and a same-tail path under a DIFFERENT top-level root must NOT be allow-listed either
     for evil in ("evil/governance/real-peer-data.md", "attacker/foundation/data/acme/peer_universe.csv",
-                 "x/examples/executive-comp-peer-builder/output/deep/nested.html"):
+                 "x/examples/executive-comp-peer-builder/output/deep/nested.html",
+                 "examples/executive-comp-peer-builder/output/../../../secret.md",   # .. traversal
+                 "governance/../foundation/data/acme/../../../etc/passwd"):
         if _allowed_real(evil):
-            failures.append(f"a same-tail look-alike under a different root must NOT be allow-listed: {evil}")
+            failures.append(f"a look-alike / path-traversal must NOT be allow-listed: {evil}")
     for failure in failures:
         print(f"ticker-scan self-test FAILED: {failure}", file=sys.stderr)
     if failures:
@@ -119,6 +123,12 @@ def main(argv):
     if argv == ["--self-test"]:
         return _self_test()
 
+    # the scanner defaults to require=False (the static deny-list is a backstop), so a missing/drifted roster
+    # would SILENTLY drop dynamic real-peer ticker coverage — warn loudly instead of failing quietly
+    if not real_peer_identifiers()[0]:
+        print("ticker-scan WARNING: the live peer roster is empty — dynamic real-peer ticker coverage is "
+              "DISABLED (only the static deny-list is active). Regenerate foundation/data/acme/peer_universe.csv.",
+              file=sys.stderr)
     roots = argv or ["."]
     hits = []
     scanned = 0

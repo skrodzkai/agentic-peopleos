@@ -35,7 +35,8 @@ DATA = HERE.parents[1] / "foundation" / "data" / "acme"
 
 # The exact schema the peer universe must have (loader fails closed on any drift).
 REQUIRED_COLS = ("ticker", "company_name", "gics_sector", "gics_subindustry",
-                 "revenue_usd", "market_cap_usd", "employees", "total_assets_usd", "is_subject")
+                 "revenue_usd", "market_cap_usd", "employees", "total_assets_usd", "is_subject",
+                 "revenue_period", "market_cap_as_of", "confidence", "source_id")
 _TICKER_RE = re.compile(r"^[A-Z][A-Z0-9]{0,5}$")
 
 # Real, recognizable tickers used by the SYNTHETIC arms as a public-safety backstop. NOTE: the peer-builder
@@ -136,19 +137,22 @@ def real_peer_identifiers(data_dir=DATA, require=False):
 
 # The documented software/SaaS INDUSTRY GROUP: the set of GICS Level-4 sub-industries a compensation
 # committee treats as software/SaaS peers. GICS deliberately FRAGMENTS software businesses across sectors —
-# HCM SaaS (Paycom/Paylocity) lands in Industrials "Human Resource & Employment Services", payments SaaS
-# (Toast/Marqeta) in Financials "Transaction & Payment Processing Services", data/martech in Communication
-# Services — so gating on a single Level-4 code ("Application Software") would wrongly drop real software
-# peers. Gating on this GROUP mirrors how committees actually build a software peer set and, crucially, does
-# NOT depend on a candidate's exact Level-4 being verifiable from a public index table — only that it is a
-# software/SaaS business in one of these sub-industries. Tunable + disclosed.
+# HCM SaaS (Paycom/Paylocity) lands in Industrials "Human Resource & Employment Services" and payments SaaS
+# (Toast/Marqeta) in Financials "Transaction & Payment Processing Services" — so gating on a single Level-4
+# code ("Application Software") would wrongly drop real software peers. Gating on this GROUP mirrors how
+# committees actually build a software peer set and, crucially, does NOT depend on a candidate's exact
+# Level-4 being verifiable from a public index table — only that it is a software/SaaS business in one of
+# these sub-industries. Tunable + disclosed.
 SOFTWARE_PEER_GROUP = frozenset({
     "Application Software",
     "Systems Software",
     "Internet Services & Infrastructure",
-    "Interactive Media & Services",
-    "Human Resource & Employment Services",
-    "Transaction & Payment Processing Services",
+    "Human Resource & Employment Services",       # HCM SaaS (Paycom/Paylocity)
+    "Transaction & Payment Processing Services",  # payments SaaS (Toast/Marqeta)
+    # NB: "Interactive Media & Services" is deliberately EXCLUDED — it is too broad for a software peer
+    # group (it also contains local-advertising/reviews names like Yelp that are not SaaS comps). The one
+    # data/martech name it would admit (ZoomInfo) is size-excluded anyway; a firm outside these
+    # sub-industries is not treated as a software peer.
 })
 
 # Default screen — the disclosed-market norm for exec-comp peer construction: the HARD gates are revenue and

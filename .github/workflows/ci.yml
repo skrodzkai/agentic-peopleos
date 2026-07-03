@@ -186,3 +186,16 @@ jobs:
             examples/rtsr-psu-valuation/output examples/rtsr-psu-valuation/data \
             examples/iss-pay-screen/output \
             examples/visible-handoff/output foundation/data vault
+
+      - name: No stale or UNTRACKED generated artifacts (whole-tree backstop)
+        run: |
+          # every generator/renderer above has now run; the tree must be byte-clean. A per-path `git diff`
+          # only catches modifications to TRACKED files — this backstop also catches a NEW output file a
+          # run.py started emitting that was never committed (which the per-path diffs miss).
+          DIRTY="$(git status --porcelain)"
+          if [ -n "$DIRTY" ]; then
+            echo "::error::working tree is dirty after regeneration — a committed artifact is stale OR a new"
+            echo "::error::generated file is untracked. Regenerate + commit (or .gitignore it):"
+            echo "$DIRTY"
+            exit 1
+          fi

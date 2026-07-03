@@ -38,6 +38,25 @@ REQUIRED_GLOBS = [
 ]
 
 
+# EXPLICIT committed artifacts that must ship — enumerated, NOT glob-derived, so a DELETED output can't
+# silently shrink the required set and pass. Every example agent commits its rendered dashboard + digest +
+# screenshot; the governance/ledger examples commit their ledgers.
+_STD_OUTPUTS = ("output/report.sample.html", "output/report.sample.png", "output/day1-digest.sample.md")
+REQUIRED_OUTPUTS = [
+    f"examples/{ex}/{a}"
+    for ex in ("headcount-reporting", "attrition-reporting", "people-ops-reporting", "operating-review",
+               "people-intelligence", "executive-comp-peer-builder", "rtsr-psu-valuation", "iss-pay-screen",
+               "ta-reporting", "comp-reporting")
+    for a in _STD_OUTPUTS
+] + [
+    "examples/operating-review/output/decision.sample.events.jsonl",
+    "examples/visible-handoff/output/ledger.sample.html",
+    "examples/visible-handoff/output/ledger.sample.png",
+    "examples/visible-handoff/output/events.jsonl",
+    "examples/visible-handoff/output/transcript.md",
+]
+
+
 def _required_files():
     out = set()
     for g in REQUIRED_GLOBS:
@@ -45,6 +64,7 @@ def _required_files():
             rel = str(f.relative_to(REPO))
             if "__pycache__" not in rel and f.is_file():
                 out.add(rel)
+    out.update(REQUIRED_OUTPUTS)   # enumerated artifacts are required even if a glob wouldn't find them
     return out
 
 
@@ -80,6 +100,12 @@ def main():
                  "vault/90-people-analytics/metrics/metrics.registry.json"):
         if must not in required:
             errors.append(f"required file missing on disk: {must}")
+
+    # 1b. every ENUMERATED committed artifact exists (a deleted dashboard/screenshot can't slip through a
+    # glob-derived set) — catches the "pushed repo renders a README pointing at a missing sample output"
+    for rel in REQUIRED_OUTPUTS:
+        if not (REPO / rel).is_file():
+            errors.append(f"required committed artifact missing on disk: {rel}")
 
     # 2. README links resolve
     bad_links = [h for h in _readme_links() if not (REPO / h).exists()]

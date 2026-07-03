@@ -19,7 +19,8 @@ recommends pay.
 ## The two-step model (the way a committee works)
 
 1. **Screen — the gate.** Membership is decided by a hard, transparent per-criterion pass/fail:
-   revenue and market cap each within **0.5–2.0×** of the subject, and the same **GICS sub-industry**.
+   revenue and market cap each within **0.5–2.0×** of the subject, and membership in the documented
+   **software/SaaS peer group** (a set of GICS sub-industries — GICS fragments SaaS across sectors).
    Every inclusion and exclusion defends itself on one line. **Headcount is a *soft* factor** (not a
    gate) — matching disclosed market practice, where revenue and market cap are the primary size anchors.
 2. **Fit-rank — the order.** Within that in-band group, peers are ranked by a pure **revenue-weighted

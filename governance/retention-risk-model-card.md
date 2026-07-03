@@ -95,10 +95,12 @@ the governance docs:
   and what data classes feed it; it is never a covert score.
 - **Human review & appeal** — a person owns every consequential decision; an affected employee can request a
   human review of any planning action taken in reference to a score. No automated adverse action.
-- **Data-subject rights** — access / correction / erasure requests are honored on the features and any retained
-  score (GDPR Art. 15-17); see [data-retention-and-erasure](data-retention-and-erasure.md). The ledger keeps
-  hashes/IDs/score/band/disposition, **never raw sensitive features**, so the proof survives erasure of the
-  person.
+- **Data-subject rights** — in a real deployment, access / correction / erasure requests (GDPR Art. 15-17)
+  are served against the **features and any retained score** in the systems of record; see
+  [data-retention-and-erasure](data-retention-and-erasure.md). Erasure does **not** rewrite the append-only
+  decision ledger (that would break its integrity) — by design the ledger holds only
+  hashes/IDs/score/band/disposition, **never raw sensitive features**, so a person's raw data is erasable
+  while the audit proof survives. (This build is a synthetic demo; no real person's data is processed.)
 - **Score retention** — scores are retained only as long as the planning cycle needs them, then expired on the
   documented retention schedule; a stale score is never carried forward as a standing label.
 

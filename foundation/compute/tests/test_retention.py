@@ -401,6 +401,29 @@ raises(R.ModelError, lambda: R._logit(model, [0.0] * (len(model["feature_names"]
 raises(R.ModelError, lambda: R.platt_calibrate(model, {**design, "y": [0] * len(design["y"])}, slices["calibration"]),
        "a single-class calibration slice is rejected")
 
+# round-8 (P1-1): runtime scoring validates the WHOLE model/calibration artifact, not just vector width —
+# a reversed feature order, zero std, or a bool calibration param fails closed before any number is returned
+import copy as _copy8  # noqa: E402
+_rev = {**model, "feature_names": list(reversed(model["feature_names"]))}
+raises(R.ModelError, lambda: R.predict_hazard(_rev, design["X"], slices["test"][:5]),
+       "a model with reversed feature_names is rejected (not silently scored)")
+_zstd = _copy8.deepcopy(model); _zstd["std"][0] = 0.0
+raises(R.ModelError, lambda: R.predict_hazard(_zstd, design["X"], slices["test"][:5]),
+       "a model with a zero standardizer std is rejected (no ZeroDivisionError)")
+_bcoef = _copy8.deepcopy(model); _bcoef["coef"][model["feature_names"][0]] = True
+raises(R.ModelError, lambda: R.predict_hazard(_bcoef, design["X"], slices["test"][:5]),
+       "a model with a bool coefficient is rejected (True is not 1.0)")
+raises(R.ModelError, lambda: R.calibrated_probability(model, {"a": True, "b": 0.0}, design["X"][slices["test"][0]]),
+       "a bool calibration param is rejected")
+raises(R.ModelError, lambda: R.calibrated_probability(model, {"a": 1.0}, design["X"][slices["test"][0]]),
+       "a calibration missing param b is rejected")
+# round-8 (P1-2): the artifact-CREATION APIs reject iters<1 and caller-forged (non-canonical) slices
+raises(R.ModelError, lambda: R.fit_hazard(design, slices, iters=0), "fit_hazard rejects iters=0")
+_forged = {"train": slices["test"], "calibration": slices["calibration"], "test": slices["train"]}
+raises(R.ModelError, lambda: R.fit_hazard(design, _forged), "fit_hazard rejects forged (non-canonical) slices — no train-on-test leakage")
+raises(R.ModelError, lambda: R.platt_calibrate(model, design, slices["calibration"], iters=0), "platt_calibrate rejects iters=0")
+raises(R.ModelError, lambda: R.platt_calibrate(model, design, slices["test"]), "platt_calibrate rejects a non-canonical calibration slice")
+
 # the FULL trained artifact is protected: a corrupted standardizer / window fails the gate
 _ms = copy.deepcopy(m); _ms["primary_coefficients"]["standardizer_mean"][R.DESIGN_FEATURES[0]] = 999999.0
 raises(R.ManifestError, lambda: R.check_reproducible(_ms), "a corrupted standardizer fails the reproducibility gate")

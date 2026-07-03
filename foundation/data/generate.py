@@ -287,8 +287,8 @@ def generate():
     # (ticker, company_name, gics_subindustry, revenue_usd, market_cap_usd, employees, total_assets_usd)
     # Real public software/SaaS companies, sourced ~2026-07-02 (provenance: governance/real-peer-data.md).
     # gics_subindustry is each firm's TRUE GICS Level-4 label at best-available confidence — which spans
-    # several GICS sectors (HCM SaaS -> Industrials, payments SaaS -> Financials, data/martech -> Comm Svcs),
-    # NOT a single "Application Software" code. The screen gates on the documented software/SaaS INDUSTRY
+    # several GICS sectors (HCM SaaS -> Industrials, payments SaaS -> Financials), NOT a single "Application
+    # Software" code. The screen gates on the documented software/SaaS INDUSTRY
     # GROUP (peers.SOFTWARE_PEER_GROUP), so a firm's exact Level-4 need not be verifiable for it to qualify;
     # what matters is that it is a software/SaaS business in one of the group's sub-industries.
     REAL_PEERS = [
@@ -353,8 +353,9 @@ def generate():
     # FAILS CLOSED (KeyError) if a peer ever carries an un-mapped sub-industry. Note that a realistic software
     # peer set spans MULTIPLE GICS sectors — HCM SaaS (Paycom/Paylocity) sits in Industrials "Human Resource &
     # Employment Services", payments SaaS (Toast/Marqeta) in Financials "Transaction & Payment Processing
-    # Services", data/martech in Communication Services — which is exactly why the screen gates on a documented
-    # software/SaaS INDUSTRY GROUP (see peers.SOFTWARE_PEER_GROUP), not a single GICS code.
+    # Services" — which is exactly why the screen gates on a documented software/SaaS INDUSTRY GROUP (see
+    # peers.SOFTWARE_PEER_GROUP), not a single GICS code. (Some peers carry sub-industries OUTSIDE that group —
+    # e.g. Interactive Media & Services for ZoomInfo/Yelp — and are correctly screened out as non-software.)
     GICS_SECTOR = {
         "Application Software": "Information Technology",
         "Systems Software": "Information Technology",
@@ -363,14 +364,77 @@ def generate():
         "Human Resource & Employment Services": "Industrials",
         "Transaction & Payment Processing Services": "Financials",
     }
+    # Machine-readable PROVENANCE per peer: (revenue_period, market_cap_as_of, confidence, source_id). Kept IN
+    # the structured data (not only governance/real-peer-data.md) so a close-call band membership (e.g. QTWO
+    # near a size edge) is auditable from the CSV alone; mirrors the human provenance doc. confidence:
+    # high|medium|low_gics (low_gics = a confirmed software/SaaS business whose exact GICS Level-4 isn't
+    # publicly exposed). source_id is a short tag (stockanalysis|sec|ir|stocktitan_net|businesswire|...).
+    PROVENANCE = {
+        "TOST": ("FY2025", "2026-07-02", "high", "stockanalysis"),
+        "DOCU": ("TTM 2026-04-30", "2026-07-02", "high", "stockanalysis"),
+        "RNG": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
+        "DBX": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
+        "PAYC": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
+        "DT": ("FY2026", "2026-07-02", "high", "stockanalysis"),
+        "PEGA": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
+        "PCTY": ("FY2025", "2026-05", "high", "ir"),
+        "BSY": ("FY2025", "2026-07-02", "high", "ir"),
+        "BILL": ("FY2025", "2026-07-02", "medium", "stockanalysis"),
+        "GWRE": ("TTM 2026-04-30", "2026-07-02", "high", "stockanalysis"),
+        "YELP": ("FY2024", "2026-06", "high", "sec"),
+        "PCOR": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
+        "GTM": ("FY2025", "2026-06-30", "high", "ir"),
+        "KVYO": ("FY2025", "2026-07-02", "low_gics", "stocktitan_net"),
+        "MNDY": ("FY2025", "2026-07-02", "high", "stocktitan_net"),
+        "CVLT": ("FY2026", "2026-07-02", "high", "stockanalysis"),
+        "FIVN": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
+        "BLKB": ("FY2025", "2026-07-02", "medium", "stockanalysis"),
+        "MANH": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
+        "ALRM": ("FY2025", "2026-07-02", "high", "stockanalysis"),
+        "ZETA": ("FY2025", "2026-06", "low_gics", "sec"),
+        "PRGS": ("TTM 2026-05-31", "2026-07-02", "high", "stockanalysis"),
+        "APPF": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
+        "GTLB": ("FY2026", "2026-07-02", "high", "ir"),
+        "WK": ("FY2025", "2026-07-02", "high", "stockanalysis"),
+        "DOCN": ("FY2025", "2026-07-02", "high", "macrotrends_net"),
+        "CXM": ("FY2026", "2026-07-02", "high", "ir"),
+        "FRSH": ("FY2025", "2026-07-02", "medium", "stocktitan_net"),
+        "QTWO": ("FY2025", "2026-07-02", "high", "businesswire"),
+        "ASAN": ("FY2026", "2026-07-02", "high", "ir"),
+        "SPSC": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
+        "DV": ("FY2025", "2026-05-31", "high", "ir"),
+        "BRZE": ("FY2026", "2026-07-02", "high", "ir"),
+        "DSGX": ("FY2026", "2026-07-02", "low_gics", "stockanalysis"),
+        "QLYS": ("TTM 2026-03-31", "2026-07-02", "high", "stockanalysis"),
+        "MQ": ("FY2025", "2026-07-02", "medium", "stockanalysis"),
+        "FSLY": ("FY2024", "2026-06", "high", "sec"),
+        "NCNO": ("FY2026", "2026-07-02", "high", "sec"),
+        "INTA": ("FY2025", "2026-07-02", "medium", "stockanalysis"),
+        "PD": ("FY2026", "2026-07-02", "high", "pagerduty"),
+        "SPT": ("TTM 2026-07-02", "2026-07-02", "medium", "stockanalysis"),
+        "YEXT": ("FY2026", "2026-07-02", "high", "stockanalysis"),
+        "AVPT": ("FY2025", "2026-07-02", "high", "globenewswire"),
+        "CMRC": ("TTM 2026-07-02", "2026-07-02", "medium", "sec"),
+        "AMPL": ("FY2025", "2026-07-02", "high", "stocktitan_net"),
+        "HCAT": ("FY2025", "2026-07-02", "high", "stockanalysis"),
+        "DCBO": ("FY2025", "2026-07-02", "high", "stockanalysis"),
+        "DH": ("FY2025", "2026-07-02", "high", "stockanalysis"),
+        "EXFY": ("FY2025", "2026-07-02", "high", "stockanalysis"),
+    }
+    companies[0].update({"revenue_period": "synthetic", "market_cap_as_of": "synthetic",
+                         "confidence": "synthetic", "source_id": "synthetic"})   # the subject is not real
     for tk, nm, sub, rev, mc, emp, ta in REAL_PEERS:
         sector = GICS_SECTOR[sub]                          # fail closed on an un-mapped sub-industry
+        period, asof, conf, src = PROVENANCE[tk]           # fail closed (KeyError) if a peer lacks provenance
         companies.append({"ticker": tk, "company_name": nm, "gics_sector": sector,
                           "gics_subindustry": sub, "revenue_usd": rev, "market_cap_usd": mc,
-                          "employees": emp, "total_assets_usd": ta, "is_subject": "no"})
+                          "employees": emp, "total_assets_usd": ta, "is_subject": "no",
+                          "revenue_period": period, "market_cap_as_of": asof,
+                          "confidence": conf, "source_id": src})
     _write("peer_universe.csv", companies,
            ["ticker", "company_name", "gics_sector", "gics_subindustry", "revenue_usd",
-            "market_cap_usd", "employees", "total_assets_usd", "is_subject"])
+            "market_cap_usd", "employees", "total_assets_usd", "is_subject",
+            "revenue_period", "market_cap_as_of", "confidence", "source_id"])
 
     # ---- SYNTHETIC universe for the ISS pay screen (decoupled from the real peer universe) ----
     # The ISS screen needs 5-yr CEO pay + TSR, which we do NOT source for the real peers (that would attach a

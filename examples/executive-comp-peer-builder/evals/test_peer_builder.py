@@ -59,11 +59,14 @@ ok("employees" not in report["peers"][0]["checks"], "headcount is a soft fit fac
 ok(report["excl_industry"] + report["n_same"] == report["n_universe"], "industry-group funnel reconciles")
 ok(report["n_peers"] + report["excl_size"] == report["n_same"], "size funnel reconciles within the group")
 
-# ---- defensible exclusions: IN the software/SaaS group, kept out on SIZE (the gate, not the score) ----
+# ---- exclusions: EVERY non-peer is on the record, each failing at least one hard criterion (out of the
+# software/SaaS group OR outside a size band) — the "every exclusion on record" claim must hold literally ----
+ok(len(report["near_misses"]) == report["n_universe"] - report["n_peers"],
+   "every excluded company is rendered (not a truncated subset) — the 'every exclusion on record' claim is literal")
 for r in report["near_misses"]:
     c = r["company"]
-    ok(c["gics_subindustry"] in SOFTWARE_PEER_GROUP and not r["is_peer"] and r["checks"]["gics"],
-       f"near-miss {c['ticker']} is in the software/SaaS group, excluded, and failed a SIZE criterion")
+    ok(not r["is_peer"] and not all(r["checks"].values()),
+       f"exclusion {c['ticker']} is a non-peer that fails at least one hard criterion (group or size)")
     ok(not all((r["checks"]["revenue"], r["checks"]["market_cap"])),
        f"near-miss {c['ticker']} actually fails at least one active hard size band")
 

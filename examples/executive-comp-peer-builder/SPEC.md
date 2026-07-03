@@ -22,7 +22,8 @@ then a transparent fit-rank for ordering — and stops at a human approval gate.
 1. **Screen — the gate (defensible membership).** A hard, transparent per-criterion pass/fail:
    - revenue within **0.5–2.0×** of the subject,
    - market cap within **0.5–2.0×**,
-   - same **GICS sub-industry**.
+   - membership in the documented **software/SaaS peer group** (a set of GICS sub-industries; GICS
+     fragments SaaS across sectors, so an exact single-code match would drop real software peers).
 
    Membership is decided here and only here. Every inclusion and exclusion defends itself on one line.
    **Headcount is deliberately a *soft* factor**, not a hard gate — matching disclosed market practice,

@@ -220,6 +220,19 @@ ok(all(p["checks"].get("gics") for p in _rr["peers"]),
 
 # ---- round-6: real_peer_identifiers fails CLOSED under require=True (a public-safety guard can never be
 # silently disabled by an unloadable roster), and NAME matching is punctuation/suffix-insensitive ----
+# round-8 (P1-4): provenance lives IN the structured data, not only the governance doc — every candidate
+# carries revenue_period / market_cap_as_of / confidence / source_id so a close-call band membership is
+# auditable from the CSV alone
+_PCOLS = ("revenue_period", "market_cap_as_of", "confidence", "source_id")
+ok(all(all(c.get(k) for k in _PCOLS) for c in u.candidates),
+   "every peer carries the machine-readable provenance columns (period/as-of/confidence/source)")
+ok(all(c["confidence"] in ("high", "medium", "low_gics") for c in u.candidates),
+   "confidence is a controlled value (high/medium/low_gics)")
+ok({c["ticker"] for c in u.candidates if c["confidence"] == "low_gics"} >= {"ZETA", "DSGX", "KVYO"},
+   "the GICS-unconfirmed peers are flagged low_gics in the structured data")
+ok(all(v == "synthetic" for v in (u.subject["revenue_period"], u.subject["confidence"], u.subject["source_id"])),
+   "the synthetic subject's provenance is explicitly 'synthetic' (never a real source)")
+
 rt, rn = real_peer_identifiers()
 ok(rt and rn, "the shipped roster loads a non-empty ticker + name set")
 ok("GTLB" in rt and _canon_name("GitLab, Inc.") in rn, "roster carries real tickers + canonicalized names")
@@ -288,13 +301,16 @@ ok(peers_a == peers_b and len(peers_a) == r["n_peers"],
 
 # ---- fail-closed loader: missing file, wrong subject count, bad/degenerate fields ----
 FIELDS = ["ticker", "company_name", "gics_sector", "gics_subindustry",
-          "revenue_usd", "market_cap_usd", "employees", "total_assets_usd", "is_subject"]
+          "revenue_usd", "market_cap_usd", "employees", "total_assets_usd", "is_subject",
+          "revenue_period", "market_cap_as_of", "confidence", "source_id"]
 
 
 def _row(tk, subj, rev=50, mc=400, emp=150):
     return {"ticker": tk, "company_name": f"{tk} Inc", "gics_sector": "Information Technology",
             "gics_subindustry": "Application Software", "revenue_usd": rev, "market_cap_usd": mc,
-            "employees": emp, "total_assets_usd": 80, "is_subject": subj}
+            "employees": emp, "total_assets_usd": 80, "is_subject": subj,
+            "revenue_period": "FY2025", "market_cap_as_of": "2026-07-02",
+            "confidence": "high", "source_id": "stockanalysis"}
 
 
 def _write_universe(d, rows):

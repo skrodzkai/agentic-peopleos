@@ -22,9 +22,9 @@
   peer group ([`foundation/compute/peers.py`](../../foundation/compute/peers.py)) only to show the
   **overlap** between the two (different) peer objects.
 - Draw with the deterministic, stdlib SVG primitives — no JavaScript, no network.
-- Be **honest about what this is** (see the immutable section): an illustration of ISS's *public*
-  methodology on *synthetic* data, with thresholds from a published consultant source — never ISS's actual
-  output.
+- Be **honest about what this is** (see the immutable section): an illustration of ISS's *published*
+  methodology on *synthetic* data — thresholds + WLS mechanics taken from ISS's own published documents
+  (corroborated by a practitioner summary), never ISS's actual output.
 
 ## 3) Immutable section  🔒 (never change)
 

@@ -51,7 +51,8 @@ def main(argv):
     if hits:
         print(f"pii-scan: {len(hits)} likely identifier(s) in {scanned} public artifact(s)", file=sys.stderr)
         return 1
-    print(f"pii-scan OK — no direct identifiers in {scanned} public artifact(s)")
+    print(f"pii-scan OK — no OBVIOUS direct identifiers (email/SSN/phone heuristics) in {scanned} public "
+          f"artifact(s); a pattern scan, not a guarantee")
     return 0
 
 

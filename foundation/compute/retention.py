@@ -378,6 +378,8 @@ def _standardizer(X, idx):
 def _apply_std(row, mean, std):
     if len(row) != len(mean) or len(std) != len(mean):
         raise ModelError(f"design-row width {len(row)} does not match the model width {len(mean)}")
+    if any(s <= 0.0 for s in std):                       # a zero/negative std would divide-by-zero -> fail closed
+        raise ModelError("standardizer std has a non-positive entry")
     return [(row[j] - mean[j]) / std[j] for j in range(len(row))]
 
 
@@ -414,8 +416,13 @@ def fit_hazard(design, slices=None, l2=L2_LAMBDA, iters=IRLS_ITERS):
     standardized design matrix by IRLS (Newton), class-weighted for imbalance. Fit on the TRAIN slice ONLY
     (the standardizer too), so calibration/test are never seen. Returns a model dict:
     {intercept, coef{feature->weight (standardized units)}, mean, std, feature_names, pos_weight}."""
+    if not (isinstance(iters, int) and not isinstance(iters, bool) and iters >= 1):
+        raise ModelError(f"iters must be a positive int (got {iters!r})")
     X, y, names = design["X"], design["y"], design["feature_names"]
     sl = slices or temporal_slices(design)
+    # the artifact-creation path must fit on the CANONICAL train slice — a caller-forged slice (e.g. the test
+    # rows) would leak; reject anything but the out-of-time partition (same guard the eval path uses)
+    _validate_slices(design, sl)
     tr = sl["train"]
     if not tr:
         raise ModelError("no rows in the train slice")
@@ -464,6 +471,45 @@ def fit_hazard(design, slices=None, l2=L2_LAMBDA, iters=IRLS_ITERS):
             "mean": mean, "std": std, "feature_names": list(names), "pos_weight": pos_w}
 
 
+def _validate_model(model):
+    """Fail closed unless `model` is a STRUCTURALLY SOUND fitted artifact — not just the right vector width.
+    A corrupted/forged model (reversed feature order, zero standardizer std, a bool coefficient, a missing
+    key) must raise a controlled ModelError before it is ever scored, never silently return numbers. Pins
+    feature_names to the canonical DESIGN_FEATURES order (a reordering is a different, wrong model)."""
+    if not isinstance(model, dict):
+        raise ModelError("model must be a dict")
+    missing = {"intercept", "coef", "mean", "std", "feature_names", "pos_weight"} - set(model)
+    if missing:
+        raise ModelError(f"model missing keys: {sorted(missing)}")
+    fn = model["feature_names"]
+    if list(fn) != list(DESIGN_FEATURES):
+        raise ModelError("model feature_names drifted from the canonical design order (reordered/renamed model)")
+    n = len(fn)
+    for k in ("mean", "std"):
+        v = model[k]
+        if not (isinstance(v, list) and len(v) == n and all(_finite_num(x) for x in v)):
+            raise ModelError(f"model {k} must be {n} finite numbers")
+    if any(s <= 0.0 for s in model["std"]):
+        raise ModelError("model std has a non-positive entry (degenerate standardizer — would divide by zero)")
+    coef = model["coef"]
+    if not (isinstance(coef, dict) and set(coef) == set(fn) and all(_finite_num(v) for v in coef.values())):
+        raise ModelError("model coef must map each design feature to a finite number")
+    if not _finite_num(model["intercept"]):
+        raise ModelError("model intercept must be a finite number")
+    if not (_finite_num(model["pos_weight"]) and model["pos_weight"] > 0):
+        raise ModelError("model pos_weight must be a finite positive number")
+
+
+def _validate_calibration(cal):
+    """Fail closed unless `cal` is a sound Platt artifact — a dict with finite a/b (the runtime artifact is
+    `{a, b}`; the manifest additionally tags method='platt'). A bool/str/missing param must raise ModelError,
+    never be scored as a number."""
+    if not isinstance(cal, dict):
+        raise ModelError("calibration must be a dict")
+    if not (_finite_num(cal.get("a")) and _finite_num(cal.get("b"))):
+        raise ModelError("calibration params a/b must be finite numbers")
+
+
 def _logit(model, x):
     if len(x) != len(model["feature_names"]):
         raise ModelError(f"scoring row width {len(x)} does not match the model's {len(model['feature_names'])} features")
@@ -476,6 +522,7 @@ def predict_hazard(model, X, idx=None):
     """Uncalibrated monthly score for each design row. NOTE: these are pos_weight-inflated (the fit
     up-weights the rare positive rows), so they are NOT on the true-probability scale — for an absolute
     monthly exit risk use calibrated_probability(). Raw scores are still rank-correct for AUC/ranking."""
+    _validate_model(model)                               # validate the artifact ONCE before the scoring loop
     idx = range(len(X)) if idx is None else idx
     return [_sigmoid(_logit(model, X[i])) for i in idx]
 
@@ -539,8 +586,15 @@ def explain(model, x, top=5):
 def platt_calibrate(model, design, calib_idx, iters=60):
     """Fit Platt scaling p = sigmoid(a*logit + b) on the CALIBRATION slice by 2-parameter Newton, so the
     surfaced probabilities are honestly calibrated (fit on a slice disjoint from train and test)."""
+    if not (isinstance(iters, int) and not isinstance(iters, bool) and iters >= 1):
+        raise ModelError(f"iters must be a positive int (got {iters!r})")
+    _validate_model(model)
     if not calib_idx:
         raise ModelError("no rows in the calibration slice")
+    # calibrate ONLY on the canonical calibration slice — a caller-forged index set (e.g. train or test rows)
+    # would corrupt the Platt fit or leak; reject anything but the out-of-time calibration partition
+    if list(calib_idx) != temporal_slices(design)["calibration"]:
+        raise ModelError("platt_calibrate: calib_idx is not the canonical calibration slice")
     L = [_logit(model, design["X"][i]) for i in calib_idx]
     yt = [float(design["y"][i]) for i in calib_idx]
     npos = sum(yt)
@@ -584,7 +638,10 @@ def platt_calibrate(model, design, calib_idx, iters=60):
 
 
 def calibrated_probability(model, calibration, x):
-    """The calibrated monthly hazard for a single design row."""
+    """The calibrated monthly hazard for a single design row. Validates the model + calibration artifact
+    before scoring (a corrupted model/calibration fails closed, never returns a silent number)."""
+    _validate_model(model)
+    _validate_calibration(calibration)
     return _sigmoid(calibration["a"] * _logit(model, x) + calibration["b"])
 
 
@@ -798,6 +855,8 @@ def evaluate(model=None, calibration=None, design=None, slices=None, panel_path=
     elif any(v is None for v in bundle):
         raise ModelError("evaluate: pass NO bundle (train from panel_path) or a COMPLETE bundle "
                          "(model, calibration, design, slices) — a partial bundle is rejected")
+    _validate_model(model)                               # a supplied bundle's model/calibration must be sound
+    _validate_calibration(calibration)
     _validate_slices(design, slices)
     test = slices["test"]
     scores = [_logit(model, design["X"][i]) for i in test]

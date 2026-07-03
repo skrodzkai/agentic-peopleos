@@ -135,16 +135,19 @@ def build_report(universe):
     below = sum(1 for v in peer_revs if v < subj["revenue_usd"])
     subj_pctile = round(100 * below / n_peers)
 
-    # Defensible exclusions: IN the software/SaaS group, outside the size band — "right business, wrong size".
-    near = [r for r in same_industry if not r["is_peer"] and r["checks"].get("gics", False)]
-    near.sort(key=lambda r: (-r["pass_count"], abs(r["company"]["revenue_usd"] - subj["revenue_usd"])))
+    # Exclusions: EVERY non-peer, each with its failing criterion — in-group size-outs first (highest
+    # pass_count), then any out-of-group names last. Rendering all of them keeps the "every exclusion on
+    # the record" claim honest.
+    near = [r for r in res["results"] if not r["is_peer"]]
+    near.sort(key=lambda r: (-r["pass_count"], not r["checks"].get("gics", False),
+                             abs(r["company"]["revenue_usd"] - subj["revenue_usd"])))
 
     return {
         "res": res, "subject": subj, "peers": peers, "core": core, "watchlist": watchlist,
         "sub_industry": sub_ind, "n_universe": n_universe, "n_same": n_same, "n_peers": n_peers,
         "excl_industry": excl_industry, "excl_size": excl_size,
         "peer_revs": peer_revs, "peer_mcaps": peer_mcaps, "median_rev": median_rev,
-        "subj_pctile": subj_pctile, "near_misses": near[:6],
+        "subj_pctile": subj_pctile, "near_misses": near,   # ALL in-group size-outs (the claim is "every exclusion")
         "narrative": _narrative(subj, sub_ind, n_universe, n_peers, peers[0], median_rev, subj_pctile, excl_size),
     }
 
@@ -250,10 +253,11 @@ def _excl_table(report):
             f"<td class='mono r'>{_e(_money(c['revenue_usd']))}</td>"
             f"<td>{mark(c, 'revenue_usd', r['checks']['revenue'])}</td>"
             f"<td>{mark(c, 'market_cap_usd', r['checks']['market_cap'])}</td>"
-            f"<td class='si'>{_e(c['gics_subindustry'])} <span class='chk p'>✓</span></td>"
+            f"<td class='si'>{_e(c['gics_subindustry'])} "
+            f"<span class='chk {'p' if r['checks'].get('gics') else 'f'}'>{'✓' if r['checks'].get('gics') else '✗'}</span></td>"
             f"<td class='soft mono'>{_mult(c['employees'], subj['employees'])}</td></tr>")
     if not rows:
-        return "<div class='t-sub'>No in-group near-misses — every software/SaaS peer cleared the size gate.</div>"
+        return "<div class='t-sub'>No exclusions — every screened company is a peer.</div>"
     return (
         "<table class='ptable excl'><thead><tr>"
         "<th>Ticker</th><th>Company</th><th class='r'>Revenue</th>"
@@ -352,8 +356,9 @@ def render_html(report):
 
     # defensible exclusions — right business, wrong size
     body.append("<section class='tile wide'><div class='t-head'><div>"
-                "<h3>Defensible exclusions · right business, wrong size</h3>"
-                "<div class='t-sub'>In the software/SaaS group, outside the hard size gate (revenue or market cap) — "
+                f"<h3>Defensible exclusions · every screened company on record · all {len(report['near_misses'])}</h3>"
+                "<div class='t-sub'>Each non-peer with its failing criterion — outside the software/SaaS group "
+                "(industry ✗) or outside the hard size gate (revenue or market cap); "
                 "each multiple is vs the subject; <span class='chk p'>blue</span> passed, "
                 "<span class='chk f'>red</span> failed. Headcount shown for context (it ranks, it doesn't gate).</div>"
                 "</div><span class='t-scope'>Transparency</span></div>"
