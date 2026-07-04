@@ -189,6 +189,8 @@ _ALIASES = {
     "PROXY": "DEF 14A", "PROXY STATEMENT": "DEF 14A", "10K": "10-K", "10Q": "10-Q", "8K": "8-K",
     "20F": "20-F", "40F": "40-F", "6K": "6-K", "S1": "S-1", "FORM 4": "4", "FORM 3": "3", "FORM 5": "5",
     "SCHEDULE 13D": "SC 13D", "SCHEDULE 13G": "SC 13G", "13F": "13F-HR", "13D": "SC 13D", "13G": "SC 13G",
+    # prospectus variants under Rule 424(b) all resolve to the 424B4 entry
+    "424B1": "424B4", "424B2": "424B4", "424B3": "424B4", "424B5": "424B4", "424B": "424B4", "PROSPECTUS": "424B4",
 }
 
 

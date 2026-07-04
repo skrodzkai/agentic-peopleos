@@ -210,7 +210,14 @@ def benchmark(path: Path = PROXY_PATH):
     # mixed into a distribution the report calls "SCT-comparable".
     peers = [p for p in peers_all if p.get("disclosure") == "def14a"]
     foreign = sorted({(p["ticker"], p["company_name"]) for p in peers_all if p.get("disclosure") != "def14a"})
-    inc = _incumbents(peers)
+    # a row_caveat beginning "EXCLUDE:" is a documented per-row data-governance decision to drop a
+    # NON-REPRESENTATIVE observation from the distribution — e.g. a CFO appointed near fiscal year-end whose
+    # stub pay would pull the low tail toward zero. Dropping it lets _incumbents retain the full-year officer
+    # for that company/role instead of the stub. Excluded rows are surfaced as a caveated COUNT.
+    excluded = [p for p in peers if str(p.get("row_caveat", "")).startswith("EXCLUDE:")]
+    dist = [p for p in peers if not str(p.get("row_caveat", "")).startswith("EXCLUDE:")]
+    stub_excluded = sorted({(p["ticker"], p["role_bucket"]) for p in excluded})
+    inc = _incumbents(dist)
     subj_by_role = {}
     for s in subject:
         rb = s["role_bucket"]
@@ -241,6 +248,7 @@ def benchmark(path: Path = PROXY_PATH):
         "n_positions": len(rows),
         "n_below_target": len(below),
         "foreign_excluded": [{"ticker": t, "company_name": c} for t, c in foreign],
+        "transition_excluded": [{"ticker": t, "role": role} for t, role in stub_excluded],
         "elements": [{"key": k, "label": lab, "band": [lo, hi]} for k, lab, _f, lo, hi in ELEMENTS],
         "disclosure_note": "peer figures are actual US SCT-disclosed proxy pay (DEF 14A, not target); foreign "
                            "private issuers (different disclosure basis) are excluded from the distribution; "

@@ -10,10 +10,12 @@ description: >-
   build on. Public SEC data only; no login or API key.
 ---
 
-# SEC EDGAR — navigate & understand any filing
+# SEC EDGAR — navigate & understand filings
 
-The foundation layer for working with SEC disclosures. Point it at a company or a filing and it tells you
-**what you're looking at, what's inside, how it's disclosed, and how to read it** — then hands off to a
+The foundation layer for working with SEC disclosures. Point it at any company or filing and it resolves,
+lists, fetches, and indexes it; for the **common, high-signal filing types** it also tells you **what
+you're looking at, what's inside, how it's disclosed, and how to read it** (via a curated form-type catalog
+— it says "no catalog entry" for a less-common form rather than guessing). Then it hands off to a
 specialized workflow for deep extraction. Everything here uses only public SEC endpoints (no login, no key).
 
 **What you can do**

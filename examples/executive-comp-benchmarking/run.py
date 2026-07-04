@@ -135,6 +135,7 @@ def build_report(result):
         "n_peers": result["n_peers_total"], "n_positions": result["n_positions"],
         "n_below": result["n_below_target"], "suppressed": result["roles_suppressed"],
         "foreign_excluded": result.get("foreign_excluded", []),
+        "transition_excluded": result.get("transition_excluded", []),
     }
     report["narrative"] = _narrative(report)
     return report
@@ -395,8 +396,10 @@ def render_html(report):
         role_n = next((p["peer_n"] for p in report["positions"] if p["role"] == role), 0)
         thin = (" · <span class='thin'>thin peer set — read with care</span>"
                 if role_n < _THIN_PEER_N else "")
+        n_tx = sum(1 for t in report["transition_excluded"] if t["role"] == role)
+        tx = (f" · <span class='thin'>{n_tx} partial-year transition row excluded</span>" if n_tx else "")
         subtitle = (f"Each element vs the peer distribution · <b>{role_n} peers</b> disclose this role · "
-                    f"actual SCT pay · committee target band shaded{thin}")
+                    f"actual SCT pay · committee target band shaded{thin}{tx}")
         body.append(f"<section class='tile wide'><div class='t-head'><div>"
                     f"<h3>{_e(role)} — pay positioning</h3><div class='t-sub'>{subtitle}</div>"
                     "</div><span class='t-scope'>Positioning</span></div>"
@@ -455,10 +458,11 @@ def render_digest(report):
     ]
     if report["below_sorted"]:
         widest = report["below_sorted"][0]
+        thin = " *(thin peer set — read with care)*" if widest["peer_n"] < _THIN_PEER_N else ""
         lines.append(
             f"- Widest shortfall: **{_md(widest['role'])} {_md(report['el_label'][widest['element']])}** at "
             f"**P{widest['percentile']:.0f}** vs target **P{widest['target_lo']}** "
-            f"(**{widest['gap']:.0f}pt** below the band).")
+            f"(**{widest['gap']:.0f}pt** below the band){thin}.")
     if supp:
         supp_names = ", ".join(f"{_md(s['role'])} (n={s['peer_n']})" for s in supp)
         lines.append(
@@ -471,6 +475,12 @@ def render_digest(report):
         lines.append(
             f"- **{n_fx} foreign private issuer{'s' if n_fx != 1 else ''} excluded** from the SCT distribution "
             f"(20-F / furnished 6-K basis, not a US Summary Compensation Table — see governance/proxy-comp-data.md).")
+    if report.get("transition_excluded"):
+        n_tx = len(report["transition_excluded"])
+        lines.append(
+            f"- **{n_tx} partial-year transition officer{'s' if n_tx != 1 else ''} excluded** from the distribution "
+            f"(appointed near fiscal year-end — a stub figure, not representative; the full-year officer is used "
+            f"instead — see governance/proxy-comp-data.md).")
     lines += [
         "",
         "_Peer figures are **actual US SCT-disclosed** proxy pay (DEF 14A; equity at grant-date fair value), "

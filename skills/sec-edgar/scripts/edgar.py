@@ -35,6 +35,15 @@ except ImportError:                                        # allow running from 
 
 _UA_PLACEHOLDER = "sec-edgar (set SEC_UA to your name+email)"
 UA = os.environ.get("SEC_UA", _UA_PLACEHOLDER)
+# a real contact carries an email — name@example.com — not just an '@'. SEC's fair-access policy expects a
+# descriptive contact, so a bare '@', whitespace, or the placeholder is refused before any request goes out.
+_UA_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+
+
+def _effective_ua():
+    """The User-Agent to send, resolved at CALL time — so setting SEC_UA after import (or in library use)
+    takes effect (the module-level UA is only the import-time default)."""
+    return os.environ.get("SEC_UA") or UA
 _TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik10}.json"
 _ARCHIVE = "https://www.sec.gov/Archives/edgar/data"
@@ -51,9 +60,11 @@ class EdgarError(RuntimeError):
 
 
 def _require_ua():
-    if UA == _UA_PLACEHOLDER or "@" not in UA:
-        raise EdgarError("SEC_UA must be a real contact (an email), e.g. "
+    ua = _effective_ua()
+    if ua == _UA_PLACEHOLDER or not _UA_RE.search(ua):
+        raise EdgarError("SEC_UA must be a real contact with an email (name@example.com), e.g. "
                          "SEC_UA='Your Name your.email@example.com' — SEC's fair-access policy requires it")
+    return ua
 
 
 def _throttle():
@@ -64,8 +75,8 @@ def _throttle():
 
 
 def _get(url, want_json=True):
-    _require_ua()
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Encoding": "gzip, deflate"})
+    ua = _require_ua()
+    req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept-Encoding": "gzip, deflate"})
     last_exc = None
     for attempt in range(_MAX_RETRIES + 1):
         _throttle()
@@ -133,9 +144,15 @@ def latest_filing(cik10: str, forms) -> dict | None:
     return hits[0] if hits else None
 
 
+_ACCESSION_RE = re.compile(r"^\d{10}-\d{2}-\d{6}$")
+
+
 def filing_index(cik10: str, accession: str) -> dict:
     """The document index for one filing — every file in the submission (name, type, size). Lets an agent see
     all documents (the primary proxy, exhibits, the Inline-XBRL instance) rather than trusting one URL."""
+    if not _ACCESSION_RE.match(str(accession).strip()):
+        raise EdgarError(f"invalid accession {accession!r} — expected ##########-##-###### "
+                         f"(18 digits, e.g. 0001591698-25-000102)")
     acc_nodash = accession.replace("-", "")
     base = f"{_ARCHIVE}/{int(cik10)}/{acc_nodash}"
     idx = _get(f"{base}/index.json")

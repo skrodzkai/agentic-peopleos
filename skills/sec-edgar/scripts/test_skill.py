@@ -6,7 +6,11 @@ Proves: the form-type catalog is well-formed and classify() handles aliases/amen
 fair-access UA guard refuses a non-contact User-Agent; filing listing filters by form; def14a prefers a US
 DEF 14A and, for a foreign issuer, the ANNUAL 20-F over a stray 6-K; and URLs are built correctly.
 """
+import os
 import sys
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -48,18 +52,74 @@ ok(forms.classify("") is None and forms.classify(None) is None, "empty/None clas
 for f in ("DEF 14A", "8-K", "4", "20-F", "10-K", "S-1", "SC 13D"):
     ok(f in forms.FORMS, f"the catalog covers {f}")
 
-# ---- edgar fair-access UA guard ----
+# ---- edgar fair-access UA guard (a real email is required — a bare '@' must NOT pass) ----
+_orig_env = os.environ.pop("SEC_UA", None)      # control the env so we test edgar.UA deterministically
 _orig_ua = edgar.UA
 try:
     edgar.UA = edgar._UA_PLACEHOLDER
     raises(edgar.EdgarError, edgar._require_ua, "the placeholder UA is refused")
     edgar.UA = "no-email-here"
     raises(edgar.EdgarError, edgar._require_ua, "a UA without an email is refused")
+    edgar.UA = "@"
+    raises(edgar.EdgarError, edgar._require_ua, "a bare '@' is refused (a real name@example.com is required)")
     edgar.UA = "Real Person real@example.com"
-    edgar._require_ua()          # should not raise
-    ok(True, "a contact UA (with an email) passes the guard")
+    ok(edgar._require_ua() == "Real Person real@example.com", "a contact UA with an email passes + is returned")
+    # SEC_UA set AFTER import must be honored (import-time-capture footgun fixed)
+    edgar.UA = edgar._UA_PLACEHOLDER
+    os.environ["SEC_UA"] = "Later Set later@example.com"
+    ok(edgar._require_ua() == "Later Set later@example.com", "SEC_UA set after import is honored at call time")
+    os.environ.pop("SEC_UA", None)
 finally:
     edgar.UA = _orig_ua
+    if _orig_env is not None:
+        os.environ["SEC_UA"] = _orig_env
+
+
+# ---- the REAL _get retry/backoff — drive urllib.request.urlopen (NOT _get), so the fair-access loop that
+# ---- test_skill otherwise stubs away is actually exercised ----
+class _FakeResp:
+    def __init__(self, body):
+        self._b = body
+        self.headers = {"Content-Encoding": ""}
+
+    def read(self):
+        return self._b
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+_orig_env2 = os.environ.pop("SEC_UA", None)
+_saved = (urllib.request.urlopen, time.sleep, edgar.UA)
+edgar.UA = "Test Runner test@example.com"                 # a valid contact so _require_ua passes
+time.sleep = lambda *a, **k: None                         # don't actually back off during the test
+try:
+    calls = {"n": 0}
+
+    def _flaky_urlopen(req, timeout=None):
+        calls["n"] += 1
+        if calls["n"] < 3:                                # 503 twice, then succeed
+            raise urllib.error.HTTPError(req.full_url, 503, "busy", {}, None)
+        return _FakeResp(b'{"ok": true}')
+
+    urllib.request.urlopen = _flaky_urlopen
+    edgar._last_request[0] = 0.0
+    ok(edgar._get("https://data.sec.gov/x.json") == {"ok": True} and calls["n"] == 3,
+       "the real _get retries on 503 (twice) then succeeds — the fair-access backoff loop works")
+
+    def _forbid(req, timeout=None):
+        raise urllib.error.HTTPError(req.full_url, 403, "forbidden", {}, None)
+
+    urllib.request.urlopen = _forbid
+    raises(edgar.EdgarError, lambda: edgar._get("https://data.sec.gov/y.json"),
+           "a 403 raises EdgarError immediately (not retried — it is a UA problem)")
+finally:
+    urllib.request.urlopen, time.sleep, edgar.UA = _saved
+    if _orig_env2 is not None:
+        os.environ["SEC_UA"] = _orig_env2
 
 # ---- edgar navigation with a STUBBED _get (offline) ----
 _TICKERS = {"0": {"cik_str": 1234567, "ticker": "TEST", "title": "Test Co"},

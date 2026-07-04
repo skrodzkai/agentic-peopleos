@@ -64,9 +64,9 @@ monday.com Ltd. (CIK 0001845338) — foreign_issuer_or_no_def14a
         furnished via a 6-K circular, on a non-US basis.
 ```
 
-Add `--fetch` to also print a readable text window around the filing's **Summary Compensation Table**
-(located by name, since modern inline-XBRL proxies bury it deep in the document) so you can read each
-Named Executive Officer's pay.
+Use `--section "Summary Compensation Table"` to print a readable text window around that table (located by
+name, since modern inline-XBRL proxies bury it deep in the document) so you can read each Named Executive
+Officer's pay — e.g. `python3 ../sec-edgar/scripts/edgar.py PCTY --section "Summary Compensation Table"`.
 
 **3. Build a peer group** — the transparent screen a compensation committee uses (same industry group,
 revenue **and** market cap each within 0.5–2.0× of the subject; headcount a soft factor), ranked by

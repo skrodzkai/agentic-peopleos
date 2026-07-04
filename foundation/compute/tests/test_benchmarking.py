@@ -157,6 +157,9 @@ ok(r["n_peers_total"] == 14, "positions against the 14 US SCT peers (foreign iss
 # the two foreign private issuers are EXCLUDED from the SCT distribution + surfaced as a caveated reference
 ok({f["ticker"] for f in r["foreign_excluded"]} == {"MNDY", "DSGX"},
    "foreign private issuers (monday.com, Descartes) are excluded from the SCT-comparable distribution")
+# a partial-year transition stub (a CFO appointed near FY-end) is EXCLUDED so the full-year officer is used
+ok({(t["ticker"], t["role"]) for t in r["transition_excluded"]} == {("GTLB", "CFO")},
+   "the GitLab partial-year CFO stub is excluded (the full-year officer is retained as the incumbent)")
 ok(set(r["roles_benchmarked"]) == {"CEO", "CFO", "COO", "CLO"} and
    any(s["role"] == "CHRO" for s in r["roles_suppressed"]),
    "CEO/CFO/COO/CLO benchmarked; CHRO suppressed (thin peer disclosure)")

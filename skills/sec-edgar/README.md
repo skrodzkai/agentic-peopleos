@@ -1,10 +1,11 @@
 # sec-edgar
 
 A portable **agent skill** — the foundation layer for working with SEC EDGAR. Point an agent at a company
-or a filing and it can resolve the ticker, list the filings, **identify what each filing type is and what's
-inside it**, and fetch a filing plus its document index — with SEC fair-access built in. Specialized skills
-(like [`sec-comp-research`](../sec-comp-research/)) build on top of it. **Public SEC data only — no login,
-no API key, standard library only.**
+or a filing and it can resolve the ticker, list the filings, fetch a filing plus its document index, and —
+for the **common, high-signal filing types** — **identify what each one is and what's inside it** (a
+curated form-type catalog; it says "no catalog entry" for a rarer form rather than guessing). All with SEC
+fair-access built in. Specialized skills (like [`sec-comp-research`](../sec-comp-research/)) build on top of
+it. **Public SEC data only — no login, no API key, standard library only.**
 
 > A research/navigation aid, **not** investment, tax, accounting, or legal advice. It tells you *what a
 > filing is and where to look*; the filing itself is the source of truth.

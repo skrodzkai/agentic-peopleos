@@ -107,9 +107,14 @@ ok({f["ticker"] for f in result.get("foreign_excluded", [])} == {"MNDY", "DSGX"}
    "the engine reports the excluded foreign private issuers (monday.com, Descartes)")
 ok("foreign private issuer" in page.lower() and "foreign private issuer" in digest.lower(),
    "the dashboard + digest disclose the foreign-issuer exclusion (count-only, points to the provenance doc)")
-for _tk in ("MNDY", "DSGX"):
+for _tk in ("MNDY", "DSGX", "GTLB"):
     ok(_tk not in page and _tk not in digest,
-       f"the excluded foreign ticker {_tk} is NOT rendered in the output (stays ticker-free for the scanner)")
+       f"the excluded ticker {_tk} is NOT rendered in the output (stays ticker-free for the scanner)")
+# a partial-year transition stub (GitLab CFO) is excluded from the distribution + disclosed as a count
+ok({(t["ticker"], t["role"]) for t in result.get("transition_excluded", [])} == {("GTLB", "CFO")},
+   "the engine reports the excluded partial-year transition stub (GitLab CFO)")
+ok("partial-year transition" in page.lower() and "partial-year transition" in digest.lower(),
+   "the dashboard + digest disclose the transition-row exclusion (count-only)")
 ok("\\" in run._md("a*b_c") and run._md("a*b") == "a\\*b", "the digest markdown escaper neutralizes emphasis chars")
 
 # a hostile element LABEL / role must be escaped if it ever reaches the render (defense in depth: the
