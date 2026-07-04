@@ -27,6 +27,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
+import urllib.parse
 
 try:
     from forms import classify as classify_form            # form-type knowledge map (same dir)
@@ -146,11 +147,12 @@ def company_filings(cik10: str, forms=None, limit: int = 40) -> list[dict]:
             continue
         a, d = str(acc[i]), str(doc[i])
         # defensive: the accession + primary-doc come from SEC's JSON, but validate the path components
-        # anyway (an 18-digit dashed accession; a flat filename with no traversal) before building a URL.
-        if not _ACCESSION_RE.match(a) or ".." in d or d.startswith("/") or not d:
+        # anyway (an 18-digit dashed accession; a flat filename with no traversal, encoded or nested) first.
+        safe = _safe_doc_name(d)
+        if not _ACCESSION_RE.match(a) or safe is None:
             continue
         out.append({"form": form[i], "date": date[i], "accession": a, "primary_doc": d,
-                    "url": f"{_ARCHIVE}/{cik_int}/{a.replace('-', '')}/{d}"})
+                    "url": f"{_ARCHIVE}/{cik_int}/{a.replace('-', '')}/{safe}"})
         if len(out) >= limit:
             break
     return out
@@ -163,6 +165,19 @@ def latest_filing(cik10: str, forms) -> dict | None:
 
 
 _ACCESSION_RE = re.compile(r"^\d{10}-\d{2}-\d{6}$")
+
+
+def _safe_doc_name(name):
+    """A single safe path component for an Archives URL, or None. Decodes percent-encoding FIRST (so
+    %2e%2e / %2f nested-or-encoded traversal can't sneak through), rejects path separators, '..', whitespace
+    and control chars, then re-quotes the component. A SEC primary-doc name is a flat filename like
+    'pcty-20251021.htm' — anything with a slash or traversal is not one."""
+    if not name:
+        return None
+    raw = urllib.parse.unquote(str(name))
+    if "/" in raw or "\\" in raw or ".." in raw or any(c.isspace() or ord(c) < 32 for c in raw):
+        return None
+    return urllib.parse.quote(raw)
 
 
 def filing_index(cik10: str, accession: str) -> dict:
@@ -179,11 +194,12 @@ def filing_index(cik10: str, accession: str) -> dict:
     for it in items:
         name = it.get("name")
         # each item name must be a single safe path component before it becomes a URL — a directory listing
-        # carrying '..', an absolute path, or embedded whitespace would otherwise build a traversing/broken URL.
-        if not name or ".." in name or name.startswith("/") or any(c.isspace() for c in name):
+        # carrying '..', an absolute/nested path (encoded or not), or whitespace would build a traversing URL.
+        safe = _safe_doc_name(name)
+        if safe is None:
             continue
         docs.append({"name": name, "type": it.get("type"), "size": it.get("size"),
-                     "url": f"{base}/{name}"})
+                     "url": f"{base}/{safe}"})
     return {"accession": accession, "base_url": base, "documents": docs}
 
 

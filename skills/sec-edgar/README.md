@@ -11,8 +11,9 @@ it. **Public SEC data only — no login, no API key, standard library only.**
 > filing is and where to look*; the filing itself is the source of truth.
 
 > **Scope — this is the *map* layer.** Navigation + form intelligence. It is deliberately **not** a
-> proxy-table extractor; deep, deterministic table extraction with confidence scoring is a *planned*
-> separate layer, so the foundation stays small and stdlib-only. See [ROADMAP](../ROADMAP.md).
+> proxy-table extractor; deterministic Summary-Compensation-Table extraction with confidence scoring is the
+> separate [`sec-proxy-extractor`](../sec-proxy-extractor/) layer, so the foundation stays small and
+> stdlib-only. See [ROADMAP](../ROADMAP.md).
 
 ## What's in here
 

@@ -182,9 +182,12 @@ ok(r["n_peers_total"] == 14, "positions against the 14 US SCT peers (foreign iss
 # the two foreign private issuers are EXCLUDED from the SCT distribution + surfaced as a caveated reference
 ok({f["ticker"] for f in r["foreign_excluded"]} == {"MNDY", "DSGX"},
    "foreign private issuers (monday.com, Descartes) are excluded from the SCT-comparable distribution")
-# a partial-year transition stub (a CFO appointed near FY-end) is EXCLUDED so the full-year officer is used
-ok({(t["ticker"], t["role"]) for t in r["transition_excluded"]} == {("GTLB", "CFO")},
-   "the GitLab partial-year CFO stub is excluded (the full-year officer is retained as the incumbent)")
+# GitLab had NO full-year CFO in FY2026 (stub + interim + a mid-year departure) — ALL THREE CFO rows are
+# EXCLUDE'd, so GitLab contributes no CFO observation. The count must preserve all three rows, not dedup to one.
+gtlb_cfo_excl = [t for t in r["transition_excluded"] if t["ticker"] == "GTLB" and t["role"] == "CFO"]
+ok(len(gtlb_cfo_excl) == 3, "all three GitLab CFO rows are excluded (row count preserved, not deduped to one)")
+ok(all(t["role"] == "CFO" and t["ticker"] == "GTLB" for t in r["transition_excluded"]),
+   "the only excluded transition rows are GitLab's three CFO observations")
 ok(set(r["roles_benchmarked"]) == {"CEO", "CFO", "COO", "CLO"} and
    any(s["role"] == "CHRO" for s in r["roles_suppressed"]),
    "CEO/CFO/COO/CLO benchmarked; CHRO suppressed (thin peer disclosure)")

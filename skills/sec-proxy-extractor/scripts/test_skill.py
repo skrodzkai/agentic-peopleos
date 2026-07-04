@@ -258,6 +258,32 @@ vis = X.visible_tables(hidden_decoy)
 ok(len(vis) == 1 and all("Fake" not in " ".join(cell for row in t for cell in row) for t in vis),
    "visible_tables() drops the hidden decoy table entirely")
 
+# [P1] hidden via an ANCESTOR (a wrapper div / hidden / aria-hidden), not the table itself, is still skipped
+for wrap in ("<div style='display:none'>{}</div>", "<section hidden>{}</section>",
+             "<div aria-hidden='true'>{}</div>", "<div style='visibility:hidden'>{}</div>"):
+    decoy = wrap.format(f"<table>{_H}{_row('Ghost, CEO', 2025, '1,000', '0', '2,000', '0', '0', '3,000')}</table>")
+    real = f"<table>{_H}{_row('Live Officer, CEO', 2025, '650,000', '0', '4,200,000', '975,000', '12,500', '5,837,500')}</table>"
+    rr = X.extract_sct(decoy + real)
+    ok(rr["found"] and rr["rows"][0]["name"].startswith("Live") and all("Ghost" not in x["name"] for x in rr["rows"]),
+       f"a table hidden via an ancestor ({wrap[:22]}...) is skipped, not extracted")
+# a hidden <tr> inside the real table is dropped (a phantom officer row must not appear)
+hidden_row = (f"<table>{_H}"
+              f"{_row('Real CEO', 2025, '650,000', '0', '4,200,000', '975,000', '12,500', '5,837,500')}"
+              f"<tr style='display:none'><td>Phantom, CFO</td><td>2025</td><td>9</td><td>9</td><td>9</td><td>9</td><td>9</td><td>45</td></tr>"
+              f"</table>")
+rhr = X.extract_sct(hidden_row)
+ok(rhr["n_rows"] == 1 and all("Phantom" not in x["name"] for x in rhr["rows"]),
+   "a display:none <tr> is dropped — no phantom officer row is extracted")
+
+# [P2] reconciliation-first selection: a higher-SCORING non-reconciling decoy must not hide a real reconciling SCT
+score_decoy = (f"<table>{_H}"
+               + "".join(_row(f"Loud {i}", 2025, "1", "1", "1", "1", "1", "999") for i in range(5))   # 5 rows, none reconcile
+               + f"</table><table>{_H}"
+               f"{_row('Quiet CEO', 2025, '650,000', '0', '4,200,000', '975,000', '12,500', '5,837,500')}</table>")
+rsd = X.extract_sct(score_decoy)
+ok(rsd["found"] and rsd["rows"][0]["name"].startswith("Quiet"),
+   "the single reconciling SCT is selected over a higher-scoring non-reconciling decoy")
+
 # [P1] TWO visible tables that BOTH reconcile -> genuinely ambiguous -> fail closed (never guess one)
 ambiguous = (f"<table>{_H}{_row('A, CEO', 2025, '650,000', '0', '4,200,000', '975,000', '12,500', '5,837,500')}</table>"
              f"<table>{_H}{_row('B, CEO', 2024, '500,000', '0', '2,000,000', '800,000', '10,000', '3,310,000')}</table>")
@@ -298,6 +324,16 @@ scaled = (f"<table><tr><td colspan='8'>Summary Compensation Table (in thousands)
 rsc = X.extract_sct(scaled)
 ok(rsc["found"] and rsc["confidence"] != "high" and any("scale caption" in r for r in rsc["reasons"]),
    "an 'in thousands' caption caps confidence below high with an honest reason")
+
+# [P2] a PARTIAL (blank-column) recovery must also honor the negative guard — a negative component fails closed
+part_neg = (f"<table>{_H}"
+            f"{_row('Anchor CEO', 2025, '650,000', '0', '4,200,000', '975,000', '12,500', '5,837,500')}"
+            # continuation 2024 row, Bonus column blank (short by one) AND a negative stock value -> reject, not 'partial'
+            f"<tr><td></td><td>2024</td><td>600,000</td><td></td><td>(2,000,000)</td><td>900,000</td>"
+            f"<td>11,000</td><td>-488,000</td></tr></table>")
+rpn = X.extract_sct(part_neg)
+ok(all(r["year"] != 2024 for r in rpn["rows"]),
+   "a short (blank-column) row with a negative component is NOT recovered as 'partial' (negative guard applies)")
 
 print(f"OK — {passed} sec-proxy-extractor checks passed "
       f"({len(X.SCT_COLUMNS)} canonical SCT columns modeled).")

@@ -158,6 +158,12 @@ for _mut, _lbl in [
     (lambda r: r.update(roles_benchmarked=["CEO"]), "roles_benchmarked hiding a positioned role"),
     (lambda r: r["roles_suppressed"].append({"role": "CEO", "peer_n": 999, "reason": "x"}), "a role both suppressed AND benchmarked"),
     (lambda r: r["positions"][0].update(target_lo=99), "a position band that diverges from its element policy band"),
+    (lambda r: r["positions"].append(dict(r["positions"][0])), "a duplicate (role, element) position"),
+    (lambda r: (r["positions"].__delitem__(next(i for i, p in enumerate(r["positions"])
+                if p["role"] == run.HERO_ROLE and p["element"] == run.HERO_ELEMENT)),
+                r.__setitem__("roles_benchmarked", sorted({p["role"] for p in r["positions"]}))),
+     "a missing hero (CEO total-direct-comp) position"),
+    (lambda r: r.update(roles_benchmarked=r["roles_benchmarked"] + r["roles_benchmarked"][:1]), "duplicate roles_benchmarked entries"),
 ]:
     _r = _copy.deepcopy(benchmark()); _mut(_r)
     try:

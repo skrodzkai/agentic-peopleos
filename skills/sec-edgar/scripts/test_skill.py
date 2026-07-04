@@ -194,6 +194,13 @@ try:
         edgar._get = _saved_get
     ok("foreign private issuer" in fpi["note"], "the FPI note explains the different basis")
 
+    # _safe_doc_name: a document name becomes a URL path component only if it is a flat, safe filename —
+    # percent-encoded and nested traversal must be decoded + rejected, valid filenames pass (case preserved)
+    ok(edgar._safe_doc_name("pcty-20251021.htm") == "pcty-20251021.htm", "a flat filename passes")
+    for bad in ("sub/dir/proxy.htm", "../secret.htm", "%2e%2e%2fboot.htm", "a b.htm", "/abs.htm", "", "x\ty",
+                "back\\slash"):
+        ok(edgar._safe_doc_name(bad) is None, f"_safe_doc_name rejects {bad!r} (nested/encoded/absolute/blank)")
+
     # filing_index: builds per-document URLs from a directory listing, and must DROP any item whose name is
     # not a safe single path component (a listing carrying '..'/absolute/whitespace could build a traversing URL)
     _saved_get2 = edgar._get
@@ -201,6 +208,8 @@ try:
         {"name": "proxy.htm", "type": "DEF 14A", "size": 10},
         {"name": "../secret.htm", "type": "x", "size": 1},          # traversal — must be dropped
         {"name": "/etc/hosts", "type": "x", "size": 1},             # absolute — must be dropped
+        {"name": "sub/dir/x.htm", "type": "x", "size": 1},          # nested path — must be dropped
+        {"name": "%2e%2e%2fboot.htm", "type": "x", "size": 1},      # percent-encoded traversal — must be dropped
         {"name": "a b.htm", "type": "x", "size": 1},                # whitespace — must be dropped
         {"name": "", "type": "x", "size": 1}]}}                     # empty — must be dropped
     try:

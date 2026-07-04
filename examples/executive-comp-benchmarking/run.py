@@ -181,10 +181,23 @@ def _check_result(result, positions):
     npt = result.get("n_peers_total")
     if isinstance(npt, bool) or not isinstance(npt, int) or npt <= 0:
         raise ReportError(f"n_peers_total must be a positive int (got {npt!r})")
+    # no duplicate (role, element) positions — a dup would silently overwrite in the by_rc lookup + double-count
+    seen_re = {}
+    for p in positions:
+        key = (p["role"], p["element"])
+        if key in seen_re:
+            raise ReportError(f"duplicate position for role/element {key!r} — the engine must emit one per pair")
+        seen_re[key] = p
+    rb = result.get("roles_benchmarked", [])
+    if len(rb) != len(set(rb)):
+        raise ReportError(f"roles_benchmarked has duplicates: {rb!r}")
     pos_roles = {p["role"] for p in positions}
-    if set(result.get("roles_benchmarked", [])) != pos_roles:
-        raise ReportError(f"roles_benchmarked {result.get('roles_benchmarked')!r} != the roles in positions "
+    if set(rb) != pos_roles:
+        raise ReportError(f"roles_benchmarked {rb!r} != the roles in positions "
                           f"{sorted(pos_roles)} (a role section would be hidden or invented)")
+    # the hero tile (CEO total-direct-comp) must exist — never silently fall back to an arbitrary position
+    if (HERO_ROLE, HERO_ELEMENT) not in seen_re:
+        raise ReportError(f"the hero position {(HERO_ROLE, HERO_ELEMENT)!r} is missing — cannot render the headline")
     min_n = _min_n()
     for s in result.get("roles_suppressed", []):
         if not isinstance(s.get("role"), str) or not s["role"].strip():
@@ -229,7 +242,7 @@ def build_report(result):
     # narrative can't claim "concentrated in equity" when it isn't (the below set could be cash, or mixed).
     concentration = _concentration(below, equity_below)
 
-    hero = by_rc.get((HERO_ROLE, HERO_ELEMENT)) or positions[0]
+    hero = by_rc[(HERO_ROLE, HERO_ELEMENT)]        # guaranteed present by _check_result (no silent fallback)
 
     report = {
         "result": result, "positions": positions, "roles": roles, "elements": elements,
@@ -502,7 +515,8 @@ def render_html(report):
         thin = (" · <span class='thin'>thin peer set — read with care</span>"
                 if role_n < _THIN_PEER_N else "")
         n_tx = sum(1 for t in report["transition_excluded"] if t["role"] == role)
-        tx = (f" · <span class='thin'>{n_tx} partial-year transition row excluded</span>" if n_tx else "")
+        tx = (f" · <span class='thin'>{n_tx} partial-year transition row{'s' if n_tx != 1 else ''} excluded</span>"
+              if n_tx else "")
         subtitle = (f"Each element vs the peer distribution · <b>{role_n} peers</b> disclose this role · "
                     f"actual SCT pay · committee target band shaded{thin}{tx}")
         body.append(f"<section class='tile wide'><div class='t-head'><div>"

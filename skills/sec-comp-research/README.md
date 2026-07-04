@@ -11,10 +11,9 @@ positions pay at target percentiles. **Public SEC data only — no login, no API
 > A research aid, **not** investment, tax, accounting, or legal advice. Everything it produces is an
 > illustrative, dated snapshot that a compensation professional should sanity-check before use.
 
-> **How it reads the SCT today:** the **agent** reads the Summary Compensation Table (WebFetch the filing,
-> or the foundation's `--section` window) — an honest, working *semantic* read. A deterministic proxy-table
-> extractor with confidence scoring + row-level provenance is a *planned* separate layer — see
-> [ROADMAP](../ROADMAP.md).
+> **How it reads the SCT:** the **agent** can read the Summary Compensation Table semantically (WebFetch the
+> filing, or the foundation's `--section` window), or hand off to the [`sec-proxy-extractor`](../sec-proxy-extractor/)
+> layer for a **deterministic**, reconciled parse with a confidence score. See [ROADMAP](../ROADMAP.md).
 
 ## Install
 

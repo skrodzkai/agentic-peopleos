@@ -266,7 +266,9 @@ def benchmark(path: Path = PROXY_PATH):
     # for that company/role instead of the stub. Excluded rows are surfaced as a caveated COUNT.
     excluded = [p for p in peers if str(p.get("row_caveat", "")).startswith("EXCLUDE:")]
     dist = [p for p in peers if not str(p.get("row_caveat", "")).startswith("EXCLUDE:")]
-    stub_excluded = sorted({(p["ticker"], p["role_bucket"]) for p in excluded})
+    # one entry PER EXCLUDED ROW, not deduped by (ticker, role) — a company with three churned CFO rows
+    # (GitLab: stub + interim + departed) must count as three excluded observations, not one.
+    stub_excluded = sorted((p["ticker"], p["role_bucket"]) for p in excluded)
     inc = _incumbents(dist)
     subj_by_role = {}
     for s in subject:

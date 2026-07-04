@@ -46,7 +46,9 @@ data. **Built and shipping** for the **Summary Compensation Table**:
 - The **other proxy tables** — Director Compensation, Grants of Plan-Based Awards, Outstanding Equity Awards,
   Option Exercises & Stock Vested, Pension Benefits, Nonqualified Deferred Compensation, CEO Pay Ratio,
   Pay-versus-Performance (Item 402(v), Inline-XBRL).
-- **"In thousands" unit captions** and other table-level scale hints.
+- **Unit-adjusting** from scale captions. A **table-local** "in thousands"/"in millions" caption is already
+  *detected* and caps confidence below high with a reason; what's not yet done is applying the scale to the
+  numbers, and detecting a caption that sits **outside** the table (a section header above it).
 - **Per-row provenance** in the output — accession, document URL, table index, footnote text.
 - **Labeled semantic/LLM fallback** — runs **only** when deterministic confidence is low, and is labeled as
   fallback (a different data-handling posture), so the default path stays fully deterministic.

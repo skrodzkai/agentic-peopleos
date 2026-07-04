@@ -68,29 +68,46 @@ class ExtractError(RuntimeError):
     pass
 
 
+# void elements open no context — they can't contain a table, so they never go on the ancestor stack
+_VOID = {"br", "img", "input", "hr", "meta", "link", "area", "base", "col", "embed", "source", "track",
+         "wbr", "param"}
+
+
 # ------------------------------------------------------------------ HTML table parsing (structure-preserving)
 class _TableParser(HTMLParser):
     """Collect every <table> as a list of rows, each a list of cell TEXT. Nested tables are collected
     separately (a proxy often wraps the SCT in a layout table). Footnote superscripts (<sup>) are dropped so
     a '(5)' marker doesn't corrupt a value or name. Entities decoded; whitespace collapsed. colspan expands a
-    cell into N padded columns so alignment survives."""
+    cell into N padded columns so alignment survives. A general element stack tracks hidden state across ALL
+    ancestors (a table inside <div style='display:none'> is hidden), and a hidden <tr> is dropped."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.tables = []
-        self.hidden = []            # parallel to self.tables: was this <table> visually hidden?
-        self._stack = []
+        self.hidden = []            # parallel to self.tables: was this <table> visually hidden (self or ancestor)?
+        self._stack = []            # open <table> frames
+        self._el = []               # general open-element stack: (tag, hidden_here) for hidden-ancestor tracking
         self._suppress = 0          # inside <sup>/<style>/<script>: ignore text
         self._pending_colspan = 1
 
+    def _anc_hidden(self):
+        return any(h for _, h in self._el)
+
     def handle_starttag(self, tag, attrs):
+        hid = _is_hidden(attrs)
+        anc = self._anc_hidden()                         # ancestors' hidden state BEFORE pushing self
+        if tag not in _VOID:
+            self._el.append((tag, hid))
         if tag == "table":
-            self._stack.append({"rows": [], "row": None, "cell": None, "hidden": _is_hidden(attrs)})
+            self._stack.append({"rows": [], "row": None, "cell": None,
+                                "hidden": hid or anc, "row_hidden": False})
         elif tag == "tr" and self._stack:
             self._stack[-1]["row"] = []
+            self._stack[-1]["row_hidden"] = hid or anc   # a hidden <tr> (or hidden ancestor) -> drop the row
         elif tag in ("td", "th") and self._stack:
             if self._stack[-1]["row"] is None:
                 self._stack[-1]["row"] = []
+                self._stack[-1]["row_hidden"] = hid or anc
             self._stack[-1]["cell"] = []
             span = dict(attrs).get("colspan", "1")
             try:
@@ -101,26 +118,31 @@ class _TableParser(HTMLParser):
             self._suppress += 1
 
     def handle_endtag(self, tag):
+        if tag in ("sup", "style", "script"):
+            self._suppress = max(0, self._suppress - 1)
+        for i in range(len(self._el) - 1, -1, -1):       # pop the element stack to the last matching tag
+            if self._el[i][0] == tag:                     # (tolerates unclosed inner tags)
+                del self._el[i:]
+                break
         if tag == "table" and self._stack:
             frame = self._stack.pop()
             if frame["row"] is not None and frame["cell"] is not None:
                 self._flush_cell(frame)
-            if frame["row"]:
+            if frame["row"] and not frame["row_hidden"]:
                 frame["rows"].append(frame["row"])
             if frame["rows"]:
                 self.tables.append(frame["rows"])
-                # a nested table inherits its ancestors' hidden state (a decoy hidden via a wrapper div/table)
-                self.hidden.append(frame["hidden"] or any(f["hidden"] for f in self._stack))
+                self.hidden.append(frame["hidden"])
         elif tag == "tr" and self._stack and self._stack[-1]["row"] is not None:
             frame = self._stack[-1]
             if frame["cell"] is not None:
                 self._flush_cell(frame)
-            frame["rows"].append(frame["row"])
+            if not frame["row_hidden"]:                   # a hidden <tr> is dropped entirely
+                frame["rows"].append(frame["row"])
             frame["row"] = None
+            frame["row_hidden"] = False
         elif tag in ("td", "th") and self._stack and self._stack[-1]["cell"] is not None:
             self._flush_cell(self._stack[-1])
-        elif tag in ("sup", "style", "script"):
-            self._suppress = max(0, self._suppress - 1)
 
     def _flush_cell(self, frame):
         text = " ".join("".join(frame["cell"]).split())
@@ -442,6 +464,10 @@ def _partial_row(cleaned, keys, first_is_year, name_first, carried):
     comps = [parse_money(x) for x in nums[:-1]]
     if any(f == "unparseable" for _, f in comps):
         return None
+    # partial rows skip the per-column negative guard (columns are unattributed), so apply it here: a
+    # negative Total or any negative component means a mis-parse/shift — fail closed rather than "recover" it.
+    if total_val < 0 or any(v is not None and v < 0 for v, f in comps):
+        return None
     comp_sum = sum(v for v, f in comps if f == "ok")
     if abs(comp_sum - total_val) > _RECON_TOLERANCE:               # the recovery is only trusted if it reconciles
         return None
@@ -542,13 +568,15 @@ def extract_sct(doc: str) -> dict:
     if not cands:
         return {**empty, "reasons": ["no table with the Summary Compensation Table columns "
                                      "(name / year / salary / total) was found"]}
-    # ambiguity: if two or more distinct candidate tables each reconcile at least one row, we cannot honestly
-    # pick one — fail closed and tell the caller to target a specific document (rather than guess confidently).
+    # Selection is reconciliation-first, not score-first: a higher-scoring non-reconciling DECOY must not hide
+    # a real, reconciling SCT lower in the list. So — if exactly one candidate reconciles, take it; if two or
+    # more reconcile it is genuinely ambiguous (fail closed); if none reconcile, fall back to the best-scoring
+    # candidate and let the confidence band come out low.
     reconciling = [c for c in cands if _reconciles((None, c[1], c[2], c[3]))]
     if len(reconciling) >= 2:
         return {**empty, "reasons": [f"ambiguous: {len(reconciling)} distinct tables match the SCT schema and "
                                      "reconcile — cannot disambiguate; extract from a specific document (--file)"]}
-    _, table, header_ri, keys = cands[0]
+    _, table, header_ri, keys = reconciling[0] if len(reconciling) == 1 else cands[0]
     rows, cell_ok, cell_total, unaligned, partial, suspicious = _extract_rows(table, header_ri, keys)
     present = [k for k in _COL_KEYS if k in set(keys)]
     band, score, reasons = _confidence(present, rows, cell_ok, cell_total, unaligned, partial, suspicious)
@@ -655,12 +683,17 @@ def _main(argv):
         doc, info = DEMO_HTML, {"company": "Synthetic Demo Corp", "ticker": "DEMO"}
     elif "--file" in argv:
         i = argv.index("--file")
-        if i + 1 >= len(argv):
-            print("extractor: --file needs a path", file=sys.stderr)
+        path = argv[i + 1] if i + 1 < len(argv) else None
+        if not path or path.startswith("-"):                    # missing value or another flag -> clean error
+            print("extractor: --file needs a path (e.g. --file proxy.html)", file=sys.stderr)
             return 2
-        with open(argv[i + 1], encoding="utf-8", errors="replace") as fh:
-            doc = fh.read()
-        info = {"company": argv[i + 1], "ticker": "(file)"}
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                doc = fh.read()
+        except OSError as e:
+            print(f"extractor: cannot read {path!r}: {e}", file=sys.stderr)
+            return 2
+        info = {"company": path, "ticker": "(file)"}
     elif args:
         doc, info = _fetch_proxy_html(args[0])
     else:
