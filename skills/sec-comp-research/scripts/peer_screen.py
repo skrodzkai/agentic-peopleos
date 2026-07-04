@@ -31,15 +31,16 @@ class ScreenError(ValueError):
     """A user-facing input error (bad CSV / bad --subject). Printed as one clean line, never a traceback."""
 
 
-def _pos(v, ctx):
-    """A finite POSITIVE number ($millions). Rejects non-numeric, NaN, inf, zero, and negative — a size
-    screen on nan/inf/<=0 would silently produce garbage bands or fits, so fail closed instead."""
+def _pos(v, ctx, unit="$millions"):
+    """A finite POSITIVE number. Rejects non-numeric, NaN, inf, zero, and negative — a size
+    screen on nan/inf/<=0 would silently produce garbage bands or fits, so fail closed instead.
+    `unit` labels the value in the error (revenue/market cap are $millions; employees is a headcount)."""
     try:
         f = float(v)
     except (TypeError, ValueError):
         raise ScreenError(f"{ctx}: must be a number (got {v!r})")
     if not math.isfinite(f) or f <= 0:
-        raise ScreenError(f"{ctx}: must be a finite positive $millions value (got {v!r})")
+        raise ScreenError(f"{ctx}: must be a finite positive {unit} value (got {v!r})")
     return f
 
 
@@ -114,7 +115,7 @@ def _load_peers(path):
                 raise ScreenError(f"peers CSV line {i}: fewer fields than headers (short row)")
             rev = _pos(r["revenue_musd"], f"peers CSV line {i} revenue_musd")
             cap = _pos(r["market_cap_musd"], f"peers CSV line {i} market_cap_musd")
-            emp = _pos(r["employees"], f"peers CSV line {i} employees") if (r.get("employees") or "").strip() else None
+            emp = _pos(r["employees"], f"peers CSV line {i} employees", "headcount") if (r.get("employees") or "").strip() else None
             out.append({"ticker": r.get("ticker", ""), "name": r.get("name", ""),
                         "revenue": rev, "market_cap": cap, "industry": r.get("industry", ""), "employees": emp})
     if not out:
@@ -175,7 +176,7 @@ def _main(argv):
                                       f"— got {argv[i + 1]!r}")
                 name, rev, cap, ind = parts[:4]
                 # headcount only shapes the fit if BOTH subject and a peer supply it — pass a 5th field to use it
-                emp = _pos(parts[4], "--subject employees") if len(parts) == 5 and parts[4] else None
+                emp = _pos(parts[4], "--subject employees", "headcount") if len(parts) == 5 and parts[4] else None
                 subj = {"ticker": name, "name": name, "employees": emp,
                         "revenue": _pos(rev, "--subject revenue"),
                         "market_cap": _pos(cap, "--subject market cap"), "industry": ind}

@@ -138,13 +138,32 @@ ok("<script>alert(1)</script>" not in _ps and "&lt;script&gt;alert(1)" in _ps,
 import copy as _copy  # noqa: E402
 _cash = _copy.deepcopy(benchmark())
 for _p in _cash["positions"]:
-    _p["status"] = "below" if _p["element"] == "base" else "within"
-    _p["gap"] = 5.0 if _p["element"] == "base" else 0.0
+    _lo, _hi = _p["target_lo"], _p["target_hi"]
+    # keep each mutated position INTERNALLY CONSISTENT (percentile drives status/gap, now enforced): only the
+    # cash 'base' element is put below target, everything else within.
+    if _p["element"] == "base":
+        _p["percentile"], _p["status"], _p["gap"] = float(_lo) - 5.0, "below", 5.0
+    else:
+        _p["percentile"], _p["status"], _p["gap"] = (float(_lo) + float(_hi)) / 2, "within", 0.0
 _cash["n_below_target"] = sum(1 for _p in _cash["positions"] if _p["status"] == "below")
 _cr = run.build_report(_cash)
 ok("equity" not in _cr["concentration"][0], "an all-cash below-set concentration is not described as 'equity'")
 ok("concentrated in **long-term equity" not in run.render_digest(_cr),
    "the digest concentration claim is derived from the data, not a hardcoded 'long-term equity'")
+
+# CONSISTENCY guards: build_report must REJECT a self-contradictory result before it can render a false story
+for _mut, _lbl in [
+    (lambda r: r["positions"][0].update(percentile=90.0, status="below", gap=1.0), "status/gap contradicting the percentile"),
+    (lambda r: r["elements"].__setitem__(0, {**r["elements"][0], "band": [90, 20]}), "an inverted element band [90,20]"),
+    (lambda r: r.update(roles_benchmarked=["CEO"]), "roles_benchmarked hiding a positioned role"),
+    (lambda r: r["roles_suppressed"].append({"role": "CEO", "peer_n": 999, "reason": "x"}), "a role both suppressed AND benchmarked"),
+    (lambda r: r["positions"][0].update(target_lo=99), "a position band that diverges from its element policy band"),
+]:
+    _r = _copy.deepcopy(benchmark()); _mut(_r)
+    try:
+        run.build_report(_r); ok(False, f"build_report rejects {_lbl}")
+    except run.ReportError:
+        ok(True, f"build_report rejects {_lbl}")
 
 # the per-role pay tables read 'Positioning' (NOT 'Recommend-only'), and peer_n is surfaced with a thin caveat
 ok("t-scope'>Positioning<" in page and "Recommend-only" not in page,

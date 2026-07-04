@@ -14,12 +14,12 @@ The executive-comp **benchmarking** agent positions the synthetic subject (Acme)
 | `BILL` | BILL Holdings, Inc. | FY2025 | def14a | 5 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1786352/000119312525251571/d25146ddef14a.htm) |
 | `BSY` | Bentley Systems, Incorporated | FY2025 | def14a | 5 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1031308/000110465926042019/tm261386-1_def14a.htm) |
 | `CVLT` | Commvault Systems, Inc. | FY2026 | def14a | 4 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1169561/000116956126000018/cvlt-20260624.htm) |
-| `DSGX` | The Descartes Systems Group Inc. | FY2026 | foreign_issuer_limited | 5 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1050140/000092963826001765/exhibit99-1.htm) |
+| `DSGX` | The Descartes Systems Group Inc. | FY2026 | foreign_issuer_limited | 5 | [6-K / furnished circular](https://www.sec.gov/Archives/edgar/data/1050140/000092963826001765/exhibit99-1.htm) |
 | `GTLB` | GitLab Inc. | FY2026 | def14a | 8 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1653482/000165348226000085/gtlb-20260501.htm) |
 | `GWRE` | Guidewire Software, Inc. | FY2025 | def14a | 5 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1528396/000152839625000233/gdwre-20251030.htm) |
 | `KVYO` | Klaviyo, Inc. | FY2025 | def14a | 5 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1835830/000183583026000018/kvyo-20260429.htm) |
 | `MANH` | Manhattan Associates, Inc. | FY2025 | def14a | 6 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1056696/000119312526140024/manh-20260402.htm) |
-| `MNDY` | monday.com Ltd. | FY2025 | foreign_issuer_limited | 5 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1845338/000117891326000870/zk2634436.htm) |
+| `MNDY` | monday.com Ltd. | FY2025 | foreign_issuer_limited | 5 | [6-K / furnished circular](https://www.sec.gov/Archives/edgar/data/1845338/000117891326000870/zk2634436.htm) |
 | `PCOR` | Procore Technologies, Inc. | FY2025 | def14a | 6 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1611052/000119312526177306/d808364ddef14a.htm) |
 | `PCTY` | Paylocity Holding Corporation | FY2025 | def14a | 6 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1591698/000159169825000102/pcty-20251021.htm) |
 | `PEGA` | Pegasystems Inc. | FY2025 | def14a | 5 | [DEF 14A / proxy](https://www.sec.gov/Archives/edgar/data/1013857/000101385726000031/pega-20260424.htm) |

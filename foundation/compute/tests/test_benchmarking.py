@@ -141,8 +141,12 @@ with tempfile.TemporaryDirectory() as dd:
     # non-ISO date, and non-USD currency all fail closed
     for mut, label in (({"source_url": ""}, "a blank source_url"),
                        ({"source_url": "http://evil.example.com/x"}, "a non-SEC source_url"),
+                       ({"source_url": "https://www.sec.gov/Archives/a b.htm"}, "a source_url with embedded whitespace"),
                        ({"extraction_date": "2026/01/01"}, "a non-ISO extraction_date"),
+                       ({"extraction_date": "2026-13-45"}, "an ISO-shaped but impossible extraction_date"),
                        ({"currency": "EUR"}, "a non-USD currency"),
+                       ({"disclosure": "foreign_issuer_limited"}, "a foreign_issuer_limited row still tagged form DEF 14A"),
+                       ({"form": "6-K"}, "a def14a row whose form is 6-K (disclosure/form mismatch)"),
                        ({"is_subject": "maybe"}, "an is_subject that is not yes/no")):
         m = list(good)
         m[1] = {**good[1], **mut}

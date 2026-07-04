@@ -174,8 +174,15 @@ def filing_index(cik10: str, accession: str) -> dict:
     base = f"{_ARCHIVE}/{int(cik10)}/{acc_nodash}"
     idx = _get(f"{base}/index.json")
     items = idx.get("directory", {}).get("item", [])
-    docs = [{"name": it.get("name"), "type": it.get("type"), "size": it.get("size"),
-             "url": f"{base}/{it.get('name')}"} for it in items]
+    docs = []
+    for it in items:
+        name = it.get("name")
+        # each item name must be a single safe path component before it becomes a URL — a directory listing
+        # carrying '..', an absolute path, or embedded whitespace would otherwise build a traversing/broken URL.
+        if not name or ".." in name or name.startswith("/") or any(c.isspace() for c in name):
+            continue
+        docs.append({"name": name, "type": it.get("type"), "size": it.get("size"),
+                     "url": f"{base}/{name}"})
     return {"accession": accession, "base_url": base, "documents": docs}
 
 
@@ -232,6 +239,16 @@ def _print_overview(ticker):
 _VALUE_FLAGS = {"--explain", "--form", "--index", "--section"}
 
 
+def _flag_value(argv, flag):
+    """The token after a value-taking flag. Fail closed if it is missing or is itself another flag —
+    `edgar AAPL --form` (or `--form --def14a`) would otherwise silently search for the empty form."""
+    i = argv.index(flag)
+    if i + 1 >= len(argv) or argv[i + 1].startswith("--"):
+        raise EdgarError(f"{flag} needs a value (e.g. `{flag} "
+                         f"{'8-K' if flag in ('--form', '--explain') else 'Summary Compensation Table' if flag == '--section' else '0001591698-25-000102'}`)")
+    return argv[i + 1]
+
+
 def _main(argv):
     flags = {a for a in argv if a.startswith("--")}
     # a value-taking flag consumes the NEXT token, so it is NOT the positional ticker (e.g. `--form 8-K`
@@ -242,8 +259,7 @@ def _main(argv):
         print(__doc__)
         return 0
     if "--explain" in flags:
-        i = argv.index("--explain")
-        form = argv[i + 1] if i + 1 < len(argv) else ""
+        form = _flag_value(argv, "--explain")
         info = classify_form(form)
         if not info:
             print(f"edgar: no catalog entry for {form!r}", file=sys.stderr)
@@ -253,8 +269,7 @@ def _main(argv):
 
     ticker = args[0]
     if "--section" in flags:
-        i = argv.index("--section")
-        heading = argv[i + 1] if i + 1 < len(argv) else ""
+        heading = _flag_value(argv, "--section")
         info = def14a(ticker)                         # section lookups default to the latest proxy (e.g. the SCT)
         url = info.get("url")
         if not url:
@@ -273,8 +288,7 @@ def _main(argv):
             print(f"  NOTE: {info['note']}")
         return 0
     if "--index" in flags:
-        i = argv.index("--index")
-        acc = argv[i + 1] if i + 1 < len(argv) else ""
+        acc = _flag_value(argv, "--index")
         cik10, _ = cik_for_ticker(ticker)
         idx = filing_index(cik10, acc)
         print(f"Documents in {acc} ({idx['base_url']}):")
@@ -282,8 +296,7 @@ def _main(argv):
             print(f"  {str(d['type'] or ''):10s} {d['name']}")
         return 0
     if "--form" in flags:
-        i = argv.index("--form")
-        form = argv[i + 1] if i + 1 < len(argv) else ""
+        form = _flag_value(argv, "--form")
         cik10, title = cik_for_ticker(ticker)
         hits = company_filings(cik10, forms=(form,), limit=12)
         info = classify_form(form)

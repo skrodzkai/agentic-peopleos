@@ -126,13 +126,53 @@ def _check_position(p):
         raise ReportError(f"peer_n must be positive (got {p['peer_n']!r})")
     if float(p["gap"]) < 0:
         raise ReportError(f"gap must be >= 0 (got {p['gap']!r})")
-    if p["status"] == "within" and float(p["gap"]) != 0:
-        raise ReportError(f"a within-band position must have gap 0 (got {p['gap']!r})")
+    # status + gap must be DERIVABLE from the percentile and the band — recompute and reject a contradiction
+    # (a P90 that claims status='below' with gap=1 would otherwise render and publish a false story).
+    pct = float(p["percentile"])
+    if pct < lo:
+        exp_status, exp_gap = "below", round(lo - pct, 1)
+    elif pct > hi:
+        exp_status, exp_gap = "above", round(pct - hi, 1)
+    else:
+        exp_status, exp_gap = "within", 0.0
+    if p["status"] != exp_status or round(float(p["gap"]), 1) != exp_gap:
+        raise ReportError(f"position status/gap contradicts P{pct} vs band P{lo:.0f}-P{hi:.0f}: got "
+                          f"{p['status']}/{p['gap']}, expected {exp_status}/{exp_gap}")
+
+
+def _check_elements(elements, positions):
+    """The element policy (label + target band per pay element) must be well-formed AND agree with the
+    positions — a bad element band like [90,20], a duplicate key, or a multi-line label would otherwise drive
+    the matrix/tables even when the per-position bands are valid."""
+    by_key, keys = {}, set()
+    for e in elements:
+        if set(e.keys()) < {"key", "label", "band"}:
+            raise ReportError(f"element missing key/label/band: {e!r}")
+        k, label, band = e["key"], e["label"], e["band"]
+        if not isinstance(k, str) or not k or k in keys:
+            raise ReportError(f"element key must be a unique non-empty string (got {k!r})")
+        keys.add(k)
+        if not isinstance(label, str) or not label.strip() or "\n" in label:
+            raise ReportError(f"element label must be a one-line string (got {label!r})")
+        if not (isinstance(band, (list, tuple)) and len(band) == 2
+                and all(isinstance(b, int) and not isinstance(b, bool) for b in band)
+                and 0 <= band[0] <= band[1] <= 100):
+            raise ReportError(f"element band must be ordered ints 0<=lo<=hi<=100 (got {band!r})")
+        by_key[k] = (band[0], band[1])
+    # every position's band must MATCH its element's policy band (no silent divergence)
+    for p in positions:
+        eb = by_key.get(p["element"])
+        if eb is None:
+            raise ReportError(f"position element {p['element']!r} is not in the element policy")
+        if (int(p["target_lo"]), int(p["target_hi"])) != eb:
+            raise ReportError(f"position band P{p['target_lo']}-{p['target_hi']} != element {p['element']} "
+                              f"policy band P{eb[0]}-{eb[1]}")
 
 
 def _check_result(result, positions):
-    """Aggregate counts must TIE to the positions, and each suppressed-role record must be well-formed —
-    a stale count or a corrupted suppressed row would render a false headline."""
+    """Aggregate counts must TIE to the positions, roles_benchmarked must MATCH the positioned roles, and
+    each suppressed-role record must be consistent — a stale count, a hidden role section, or a bogus
+    suppression would render a false headline."""
     if result.get("n_positions") != len(positions):
         raise ReportError(f"n_positions ({result.get('n_positions')!r}) != actual positions ({len(positions)})")
     below = sum(1 for p in positions if p["status"] == "below")
@@ -141,14 +181,24 @@ def _check_result(result, positions):
     npt = result.get("n_peers_total")
     if isinstance(npt, bool) or not isinstance(npt, int) or npt <= 0:
         raise ReportError(f"n_peers_total must be a positive int (got {npt!r})")
+    pos_roles = {p["role"] for p in positions}
+    if set(result.get("roles_benchmarked", [])) != pos_roles:
+        raise ReportError(f"roles_benchmarked {result.get('roles_benchmarked')!r} != the roles in positions "
+                          f"{sorted(pos_roles)} (a role section would be hidden or invented)")
+    min_n = _min_n()
     for s in result.get("roles_suppressed", []):
         if not isinstance(s.get("role"), str) or not s["role"].strip():
             raise ReportError(f"suppressed role must be a non-empty string (got {s.get('role')!r})")
         pn = s.get("peer_n")
         if isinstance(pn, bool) or not isinstance(pn, int) or pn < 0:
             raise ReportError(f"suppressed peer_n must be a non-negative int (got {pn!r})")
-        if not isinstance(s.get("reason"), str):
-            raise ReportError(f"suppressed reason must be a string (got {s.get('reason')!r})")
+        if pn >= min_n:
+            raise ReportError(f"a suppressed role must be BELOW the peer floor ({pn} >= MIN_PEER_N {min_n})")
+        if s["role"] in pos_roles:
+            raise ReportError(f"role {s['role']!r} is both suppressed AND benchmarked")
+        reason = s.get("reason")
+        if not isinstance(reason, str) or not reason.strip() or "\n" in reason:
+            raise ReportError(f"suppressed reason must be a non-empty one-line string (got {reason!r})")
 
 
 def build_report(result):
@@ -157,6 +207,7 @@ def build_report(result):
         raise ReportError("benchmarking returned no positions — a pay-positioning view must not ship empty")
     for p in positions:
         _check_position(p)
+    _check_elements(result.get("elements", []), positions)
     _check_result(result, positions)
 
     roles = result["roles_benchmarked"]

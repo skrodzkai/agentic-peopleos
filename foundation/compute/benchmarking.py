@@ -22,6 +22,7 @@ from __future__ import annotations
 import csv
 import math
 import re
+from datetime import date as _date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -37,6 +38,7 @@ REQUIRED_COLS = ("ticker", "company_name", "role_bucket", "title", "salary", "bo
                  "is_subject")
 _MONEY_COLS = ("salary", "bonus", "stock_awards", "option_awards", "non_equity_incentive", "other_comp", "total")
 _DISCLOSURE_VALUES = ("def14a", "foreign_issuer_limited")   # a real peer row's disclosure basis
+_FOREIGN_FORMS = ("20-F", "40-F", "6-K")                    # the forms a foreign private issuer discloses comp on
 _SEC_ARCHIVE_PREFIX = "https://www.sec.gov/Archives/"       # every real figure traces to a SEC filing
 _ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ROLES = ("CEO", "CFO", "COO", "CLO", "CHRO")     # the subject's benchmarked roles, in committee-report order
@@ -121,17 +123,28 @@ def load_proxy_comp(path: Path = PROXY_PATH):
                 raise BenchmarkError(f"line {i}: currency must be USD (got {r.get('currency')!r})")
             # real peer rows carry ENFORCED provenance — governance claims every figure traces to a filing
             if is_subj == "no":
-                if r.get("disclosure") not in _DISCLOSURE_VALUES:
-                    raise BenchmarkError(f"line {i}: disclosure must be one of {_DISCLOSURE_VALUES} "
-                                         f"(got {r.get('disclosure')!r})")
-                if not str(r.get("form", "")).strip():
-                    raise BenchmarkError(f"line {i}: empty form (SEC form type)")
-                if not str(r.get("source_url", "")).startswith(_SEC_ARCHIVE_PREFIX):
-                    raise BenchmarkError(f"line {i}: source_url must be a SEC archive URL "
-                                         f"({_SEC_ARCHIVE_PREFIX}…), got {r.get('source_url')!r}")
-                if not _ISO_DATE_RE.match(str(r.get("extraction_date", ""))):
-                    raise BenchmarkError(f"line {i}: extraction_date must be ISO YYYY-MM-DD "
-                                         f"(got {r.get('extraction_date')!r})")
+                disc = r.get("disclosure")
+                if disc not in _DISCLOSURE_VALUES:
+                    raise BenchmarkError(f"line {i}: disclosure must be one of {_DISCLOSURE_VALUES} (got {disc!r})")
+                form = str(r.get("form", "")).strip()
+                # disclosure and form must be CONSISTENT — a def14a row claiming a 6-K form would slip a
+                # foreign-basis figure into the US SCT distribution.
+                if disc == "def14a" and form != "DEF 14A":
+                    raise BenchmarkError(f"line {i}: disclosure=def14a requires form 'DEF 14A' (got {form!r})")
+                if disc == "foreign_issuer_limited" and form not in _FOREIGN_FORMS:
+                    raise BenchmarkError(f"line {i}: foreign_issuer_limited requires form {_FOREIGN_FORMS} "
+                                         f"(got {form!r})")
+                url = str(r.get("source_url", ""))
+                if not url.startswith(_SEC_ARCHIVE_PREFIX) or any(c.isspace() for c in url):
+                    raise BenchmarkError(f"line {i}: source_url must be a whitespace-free SEC archive URL "
+                                         f"({_SEC_ARCHIVE_PREFIX}…), got {url!r}")
+                ed = str(r.get("extraction_date", ""))
+                if not _ISO_DATE_RE.match(ed):
+                    raise BenchmarkError(f"line {i}: extraction_date must be ISO YYYY-MM-DD (got {ed!r})")
+                try:
+                    _date.fromisoformat(ed)   # reject an impossible calendar date like 2026-99-99
+                except ValueError as exc:
+                    raise BenchmarkError(f"line {i}: extraction_date is not a real date (got {ed!r})") from exc
             # components must reconcile to the reported SCT Total — ALWAYS, not only when total>0. A row with
             # positive components but total=0 (a dropped/miskeyed Total) must FAIL, not slip through. The
             # tolerance is scaled off whichever of {components, total} is larger so a zero Total still trips it.

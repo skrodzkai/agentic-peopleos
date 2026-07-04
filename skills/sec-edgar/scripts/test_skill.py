@@ -194,7 +194,34 @@ try:
         edgar._get = _saved_get
     ok("foreign private issuer" in fpi["note"], "the FPI note explains the different basis")
 
+    # filing_index: builds per-document URLs from a directory listing, and must DROP any item whose name is
+    # not a safe single path component (a listing carrying '..'/absolute/whitespace could build a traversing URL)
+    _saved_get2 = edgar._get
+    edgar._get = lambda url, want_json=True: {"directory": {"item": [
+        {"name": "proxy.htm", "type": "DEF 14A", "size": 10},
+        {"name": "../secret.htm", "type": "x", "size": 1},          # traversal — must be dropped
+        {"name": "/etc/hosts", "type": "x", "size": 1},             # absolute — must be dropped
+        {"name": "a b.htm", "type": "x", "size": 1},                # whitespace — must be dropped
+        {"name": "", "type": "x", "size": 1}]}}                     # empty — must be dropped
+    try:
+        idx = edgar.filing_index("0001234567", "0000000000-25-000004")
+        names = [d["name"] for d in idx["documents"]]
+        ok(names == ["proxy.htm"], "filing_index keeps only safe path components (drops ../, absolute, whitespace, empty)")
+        ok(all(".." not in d["url"] and " " not in d["url"] for d in idx["documents"]),
+           "no built document URL contains traversal or whitespace")
+        raises(edgar.EdgarError, lambda: edgar.filing_index("0001234567", "not-an-accession"),
+               "filing_index rejects a malformed accession")
+    finally:
+        edgar._get = _saved_get2
+
     ok(edgar.classify_form("8-K")["name"].startswith("Current report"), "classify_form is wired to the catalog")
+
+    # CLI: a value-taking flag with no value fails closed (never silently searches for the empty string)
+    raises(edgar.EdgarError, lambda: edgar._flag_value(["AAPL", "--form"], "--form"),
+           "--form with no following token fails closed")
+    raises(edgar.EdgarError, lambda: edgar._flag_value(["AAPL", "--form", "--def14a"], "--form"),
+           "--form followed by another flag fails closed (does not consume the flag as a value)")
+    ok(edgar._flag_value(["AAPL", "--form", "8-K"], "--form") == "8-K", "--form consumes its value token")
 finally:
     edgar._get = _orig_get
 
