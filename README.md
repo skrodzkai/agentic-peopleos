@@ -175,6 +175,19 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   must navigate, on transparent public methodology over synthetic Acme data — anticipating the board read,
   never deciding pay, and never claiming to be ISS's actual output.
 
+## Portable skills — point your agent at real SEC data
+
+Two **portable, standard-library agent skills** ([`skills/`](skills/)) — copy them into any agent's skills
+directory and it can work with **real, public SEC EDGAR data** (no login, no API key, no paid provider):
+
+- **[`sec-edgar`](skills/sec-edgar/)** — the foundation. Resolve any ticker, list a company's filings, and
+  **identify what each filing type is and how to read it** (proxy/comp, 10-K, 8-K exec changes, insider
+  Form 4, activist 13D, IPO S-1, foreign 20-F, …) via a form-type knowledge map — with SEC fair-access
+  (required contact User-Agent, throttle, retry) built in.
+- **[`sec-comp-research`](skills/sec-comp-research/)** — builds on the foundation for the **proxy-season
+  workflow**: find the DEF 14A, read the Summary Compensation Table, screen a size + industry peer group,
+  and position pay at target percentiles. The real-data companion to the Executive Compensation arm above.
+
 ## Examples (reference patterns)
 
 - **[Talent Acquisition reporting agent](examples/ta-reporting/)** — the recruiting-pipeline

@@ -38,28 +38,27 @@ proxy season. Everything here uses only public SEC endpoints (no login, no paid 
 
 ## Step 1 — Find a company's latest proxy (DEF 14A)
 
-Use the helper `scripts/edgar.py` (standard library only; hits SEC's public JSON APIs with a compliant
-User-Agent). Give it a ticker; it returns the CIK and the latest DEF 14A URL:
+Use the **`sec-edgar` foundation skill** (installed alongside this one) to resolve the ticker and find the
+proxy — it owns EDGAR navigation, form-type intelligence, and the SEC fair-access discipline:
 
 ```bash
-python3 scripts/edgar.py AAPL
+export SEC_UA="Your Name your.email@example.com"          # required contact (SEC fair-access)
+python3 ../sec-edgar/scripts/edgar.py AAPL --def14a
 # -> Apple Inc. (CIK 0000320193)
-#    latest DEF 14A: 2026-01-09
-#    https://www.sec.gov/Archives/edgar/data/320193/000114036126000xxx/ny20xxxxxx_def14a.htm
+#    latest DEF 14A: <date>
+#    https://www.sec.gov/Archives/edgar/data/320193/.../ny...def14a.htm
 ```
 
-Under the hood it uses:
-- `https://www.sec.gov/files/company_tickers.json` — ticker → CIK
-- `https://data.sec.gov/submissions/CIK##########.json` — the company's filing history
-- filters to `form == "DEF 14A"`, takes the most recent, and builds the archive URL.
-
-If the ticker resolves but there is **no** DEF 14A, the company is likely a **foreign private issuer** —
-`edgar.py` will say so and point you at its `20-F` / `6-K` filings instead (comp is disclosed differently).
+Under the hood it uses `company_tickers.json` (ticker → CIK) → `submissions/CIK##########.json` (filing
+history) → the archive URL. If there is **no** DEF 14A the company is a **foreign private issuer** — the
+foundation flags it and points you at its **annual 20-F/40-F** (preferred over a furnished 6-K), where comp
+is disclosed on a **different, non-US basis** (do not treat it as a US SCT).
 
 ## Step 2 — Read the Summary Compensation Table
 
-Fetch the DEF 14A URL (WebFetch, or `edgar.py --fetch`) and locate the **Summary Compensation Table**.
-It is the canonical exec-pay table; every NEO (usually 5) appears with, for the latest fiscal year:
+Fetch the DEF 14A URL and locate the **Summary Compensation Table** — WebFetch the URL, or use the
+foundation's section finder: `python3 ../sec-edgar/scripts/edgar.py AAPL --section "Summary Compensation
+Table"`. It is the canonical exec-pay table; every NEO (usually 5) appears with, for the latest fiscal year:
 
 | Column | Maps to |
 |---|---|
@@ -83,8 +82,17 @@ Extraction tips:
   incumbent (title without "Former"/"Interim") for a market distribution.
 - **Reconcile**: the component columns must sum to the reported **Total** (within rounding). If they
   don't, you missed a column — re-read; do not silently proceed.
-- Foreign issuers (e.g. Canada NI 51-102F6) use different column names (no separate Bonus column; STI
-  is all in the incentive column) — map by meaning, not by exact header.
+
+**SCT reading traps (why a number looks wrong):**
+- **Footnotes are load-bearing.** A mega-grant, a one-time award, a modification, or a pension adjustment is
+  explained in a footnote, not the grid — read the footnotes before trusting an outlier.
+- **Parentheses = negative;** an **em-dash / blank = no value** (not zero-with-meaning). Don't coerce them.
+- **Watch a units caption** — most SCTs are in whole dollars, but check for a rare "in thousands" note.
+- **Foreign issuers** (e.g. Canada NI 51-102F6) use different column names (no separate Bonus column; STI is
+  all in the incentive column) — map by meaning, not by header — and their pay is a **different basis**, so
+  keep it out of a US-SCT distribution.
+- **State your confidence.** "Found the SCT, latest FY, N NEOs, expected columns → high confidence" vs.
+  "multiple comp-like tables, no clean SCT heading → medium, verify" — don't silently guess.
 
 ## Step 3 — Build a peer group
 
@@ -118,7 +126,7 @@ say the peer figures are actual SCT-disclosed pay.
 
 1. Ask for (or infer) the subject's revenue, market cap, and industry.
 2. Screen a candidate list with `peer_screen.py` → the peer group.
-3. For each peer, `edgar.py <TICKER>` → latest DEF 14A → read the SCT CEO row.
+3. For each peer, `../sec-edgar/scripts/edgar.py <TICKER> --def14a` → latest DEF 14A → read the SCT CEO row.
 4. Summarize: peer CEO median / P25 / P75 (medians!), each with its SEC source URL, dated snapshot,
    actual-not-target caveat.
 

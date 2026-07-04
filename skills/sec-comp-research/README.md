@@ -2,35 +2,37 @@
 
 A portable **agent skill** for pulling **real, public** executive-compensation data from SEC EDGAR and
 building a defensible compensation **peer group** — the work a Total Rewards team does during proxy
-season. Point an agent at this folder and it can find a company's latest proxy, read the Summary
-Compensation Table, screen a peer group, and position pay at target percentiles. **Public SEC data
-only — no login, no API key, no paid data provider.**
+season. It finds a company's latest proxy, reads the Summary Compensation Table, screens a peer group, and
+positions pay at target percentiles. **Public SEC data only — no login, no API key, no paid data provider.**
 
-> This is a research aid, **not** investment, tax, accounting, or legal advice. Everything it produces
-> is an illustrative, dated snapshot that a compensation professional should sanity-check before use.
+> Builds on the **[`sec-edgar`](../sec-edgar/) foundation skill** for EDGAR navigation (resolve a ticker,
+> find the proxy, read a section, fair-access). Install both. This one adds the comp-specific workflow.
+
+> A research aid, **not** investment, tax, accounting, or legal advice. Everything it produces is an
+> illustrative, dated snapshot that a compensation professional should sanity-check before use.
 
 ## Install
 
-Copy the `sec-comp-research/` folder into your agent's skills directory. For Claude Code / the Claude
-Agent SDK that is `.claude/skills/` in your project (or `~/.claude/skills/` for a personal skill):
+Copy **both** `sec-edgar/` and `sec-comp-research/` into your agent's skills directory. For Claude Code /
+the Claude Agent SDK that is `.claude/skills/` in your project (or `~/.claude/skills/` for a personal skill):
 
 ```bash
 # from the repo root
-cp -r skills/sec-comp-research ~/.claude/skills/
-# or, to try it against a checkout of this repo, just run the scripts directly (below)
+cp -r skills/sec-edgar skills/sec-comp-research ~/.claude/skills/
 ```
 
-The agent reads `SKILL.md` for the procedure and calls the two helper scripts in `scripts/`.
+The agent reads `SKILL.md` for the procedure, uses the foundation's `edgar.py` to find/read filings, and
+calls this skill's `scripts/peer_screen.py` for the peer screen.
 
 ## What's in here
 
 | File | What it does |
 |---|---|
 | `SKILL.md` | The procedure the agent follows (find proxy → read SCT → screen peers → position pay) + guardrails |
-| `scripts/edgar.py` | Ticker → CIK → **latest DEF 14A URL** via SEC's public JSON APIs (stdlib only) |
 | `scripts/peer_screen.py` | Portable **size + industry peer screen** (0.5–2.0× revenue & market cap), fit-ranked (stdlib only) |
+| *(EDGAR navigation)* | comes from the [`sec-edgar`](../sec-edgar/) foundation — `edgar.py` (ticker → proxy → SCT) + `forms.py` |
 
-Both scripts are pure standard library (no `pip install`) and run on Python 3.9+.
+All scripts are pure standard library (no `pip install`) and run on Python 3.9+.
 
 ## Quick start
 
@@ -41,25 +43,25 @@ generic one. Set yours once:
 export SEC_UA="Your Name your.email@example.com"
 ```
 
-**2. Find any US company's latest proxy statement** (example outputs below — *your dates/URLs will differ
-as companies file new proxies*):
+**2. Find any US company's latest proxy statement** with the foundation skill (example outputs below —
+*your dates/URLs will differ as companies file new proxies*):
 
 ```bash
-$ python3 scripts/edgar.py PCTY
+$ python3 ../sec-edgar/scripts/edgar.py PCTY --def14a
 Paylocity Holding Corp (CIK 0001591698) — def14a
   latest DEF 14A: 2025-10-23
   https://www.sec.gov/Archives/edgar/data/1591698/000159169825000102/pcty-20251021.htm
 ```
 
-Foreign private issuers don't file a DEF 14A — the script detects that and points you at the right form:
+Foreign private issuers don't file a DEF 14A — the foundation detects that and points you at the annual form:
 
 ```bash
-$ python3 scripts/edgar.py MNDY
+$ python3 ../sec-edgar/scripts/edgar.py MNDY --def14a
 monday.com Ltd. (CIK 0001845338) — foreign_issuer_or_no_def14a
-  latest 6-K: <recent date>          # 6-Ks are furnished often, so this drifts
+  latest 20-F: <recent date>
   https://www.sec.gov/Archives/edgar/data/1845338/...
-  NOTE: No DEF 14A found — likely a foreign private issuer; exec comp is disclosed on a 20-F/40-F
-        or furnished via 6-K, in a non-US format.
+  NOTE: No DEF 14A — likely a foreign private issuer; exec comp is on the 20-F/40-F (annual) or
+        furnished via a 6-K circular, on a non-US basis.
 ```
 
 Add `--fetch` to also print a readable text window around the filing's **Summary Compensation Table**
@@ -97,7 +99,7 @@ $ python3 scripts/peer_screen.py --subject "Acme,852,6400,software" --peers my_p
 > "How does our CEO's cash comp compare to peers?"
 
 1. Screen a peer group for the subject (`peer_screen.py`) — same industry, within 0.5–2.0× your size.
-2. For each peer, `edgar.py <TICKER>` → latest DEF 14A → read the CEO row of the Summary Compensation
+2. For each peer, `../sec-edgar/scripts/edgar.py <TICKER> --def14a` → latest DEF 14A → read the CEO row of the Summary Compensation
    Table (salary, bonus + non-equity incentive = cash; stock + option = equity; Total).
 3. Summarize the peer distribution with **medians and quartiles** (never a mean — one founder mega-grant
    would blow up an average), and cite the SEC URL behind every figure.
@@ -116,7 +118,7 @@ $ python3 scripts/peer_screen.py --subject "Acme,852,6400,software" --peers my_p
 ## Provenance & compliance
 
 SEC's public data programs ask automated users to send a descriptive `User-Agent` and to stay within
-their fair-access rate limits. `edgar.py` sends the `SEC_UA` you set and makes only a handful of small
+their fair-access rate limits. The `sec-edgar` foundation sends the `SEC_UA` you set and makes only a handful of small
 requests per company. See SEC's [webmaster FAQ](https://www.sec.gov/os/webmaster-faq#developers) and
 [EDGAR APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces).
 

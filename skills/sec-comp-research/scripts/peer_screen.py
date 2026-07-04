@@ -29,6 +29,18 @@ class ScreenError(ValueError):
     """A user-facing input error (bad CSV / bad --subject). Printed as one clean line, never a traceback."""
 
 
+def _pos(v, ctx):
+    """A finite POSITIVE number ($millions). Rejects non-numeric, NaN, inf, zero, and negative — a size
+    screen on nan/inf/<=0 would silently produce garbage bands or fits, so fail closed instead."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        raise ScreenError(f"{ctx}: must be a number (got {v!r})")
+    if not math.isfinite(f) or f <= 0:
+        raise ScreenError(f"{ctx}: must be a finite positive $millions value (got {v!r})")
+    return f
+
+
 def _closeness(co_v, subj_v):
     """1.0 == identical size; 0.0 == at/beyond the 0.5x/2.0x band edge. Log-symmetric, clamped [0,1]."""
     if co_v <= 0 or subj_v <= 0:
@@ -52,8 +64,10 @@ def screen(subject, candidates, rev_mult=REV_MULT, cap_mult=CAP_MULT):
     """Return the screen result: each candidate with per-criterion pass/fail, and the fit-ranked peer group.
     A candidate is a peer iff it passes ALL hard gates (industry + revenue band + market-cap band)."""
     sg = str(subject.get("industry", "")).strip().lower()
-    rlo, rhi = subject["revenue"] * rev_mult[0], subject["revenue"] * rev_mult[1]
-    clo, chi = subject["market_cap"] * cap_mult[0], subject["market_cap"] * cap_mult[1]
+    subj_rev = _pos(subject.get("revenue"), "subject revenue")            # fail closed on nan/inf/<=0
+    subj_cap = _pos(subject.get("market_cap"), "subject market cap")
+    rlo, rhi = subj_rev * rev_mult[0], subj_rev * rev_mult[1]
+    clo, chi = subj_cap * cap_mult[0], subj_cap * cap_mult[1]
     results = []
     for c in candidates:
         checks = {
@@ -82,14 +96,9 @@ def _load_peers(path):
             raise ScreenError(f"peers CSV is missing column(s): {', '.join(missing)}. Required header: "
                               f"ticker,name,revenue_musd,market_cap_musd,industry[,employees]")
         for i, r in enumerate(reader, start=2):
-            try:
-                rev = float(r["revenue_musd"])
-                cap = float(r["market_cap_musd"])
-                emp = float(r["employees"]) if (r.get("employees") or "").strip() else None
-            except (TypeError, ValueError):
-                raise ScreenError(f"peers CSV line {i}: revenue_musd / market_cap_musd / employees must be "
-                                  f"numeric $millions (got revenue={r.get('revenue_musd')!r}, "
-                                  f"market_cap={r.get('market_cap_musd')!r}, employees={r.get('employees')!r})")
+            rev = _pos(r["revenue_musd"], f"peers CSV line {i} revenue_musd")
+            cap = _pos(r["market_cap_musd"], f"peers CSV line {i} market_cap_musd")
+            emp = _pos(r["employees"], f"peers CSV line {i} employees") if (r.get("employees") or "").strip() else None
             out.append({"ticker": r.get("ticker", ""), "name": r.get("name", ""),
                         "revenue": rev, "market_cap": cap, "industry": r.get("industry", ""), "employees": emp})
     if not out:
@@ -149,12 +158,8 @@ def _main(argv):
                                       "fields; revenue & market cap in $millions), e.g. 'Acme,852,6400,software' "
                                       f"— got {argv[i + 1]!r}")
                 name, rev, cap, ind = parts
-                try:
-                    subj = {"ticker": name, "name": name, "revenue": float(rev),
-                            "market_cap": float(cap), "industry": ind}
-                except ValueError:
-                    raise ScreenError(f"--subject revenue and market cap must be numeric $millions "
-                                      f"(got revenue={rev!r}, market_cap={cap!r})")
+                subj = {"ticker": name, "name": name, "revenue": _pos(rev, "--subject revenue"),
+                        "market_cap": _pos(cap, "--subject market cap"), "industry": ind}
             elif a == "--peers":
                 if i + 1 >= len(argv):
                     raise ScreenError("--peers needs a file path")

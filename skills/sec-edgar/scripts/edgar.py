@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+"""Navigate SEC EDGAR: resolve a ticker, list a company's filings, identify what each filing IS, and fetch
+a filing (and its document index) — with SEC fair-access built in. This is the foundation an agent points
+at ANY filing to know how to read it; specialized skills (e.g. sec-comp-research) build on top.
+
+Standard library only. Public SEC JSON endpoints, no login/API key. SEC's fair-access policy REQUIRES a
+descriptive contact User-Agent — set SEC_UA to "Your Name your.email@example.com" (it must contain an
+email) or calls are refused before they hit SEC.
+
+    export SEC_UA="Your Name you@example.com"
+    python3 edgar.py AAPL                     # company + its recent filings, each labeled with what it is
+    python3 edgar.py AAPL --form "8-K"        # recent filings of one form
+    python3 edgar.py AAPL --def14a            # latest proxy (executive compensation)
+    python3 edgar.py AAPL --index <ACCESSION> # every document in a filing (the index)
+    python3 edgar.py --explain "8-K"          # what a form IS (delegates to forms.py; accepts amendments)
+
+As a library:
+    from edgar import cik_for_ticker, company_filings, latest_filing, def14a, filing_index, classify_form
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+import time
+import urllib.request
+import urllib.error
+
+try:
+    from forms import classify as classify_form            # form-type knowledge map (same dir)
+except ImportError:                                        # allow running from another cwd
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from forms import classify as classify_form
+
+_UA_PLACEHOLDER = "sec-edgar (set SEC_UA to your name+email)"
+UA = os.environ.get("SEC_UA", _UA_PLACEHOLDER)
+_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik10}.json"
+_ARCHIVE = "https://www.sec.gov/Archives/edgar/data"
+
+# fair access: SEC's ceiling is 10 req/s — stay well under it, and retry politely on throttle/5xx.
+_MIN_INTERVAL = 0.2          # ~5 req/s
+_RETRY_CODES = {429, 500, 502, 503, 504}
+_MAX_RETRIES = 3
+_last_request = [0.0]
+
+
+class EdgarError(RuntimeError):
+    pass
+
+
+def _require_ua():
+    if UA == _UA_PLACEHOLDER or "@" not in UA:
+        raise EdgarError("SEC_UA must be a real contact (an email), e.g. "
+                         "SEC_UA='Your Name your.email@example.com' — SEC's fair-access policy requires it")
+
+
+def _throttle():
+    wait = _MIN_INTERVAL - (time.monotonic() - _last_request[0])
+    if wait > 0:
+        time.sleep(wait)
+    _last_request[0] = time.monotonic()
+
+
+def _get(url, want_json=True):
+    _require_ua()
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Encoding": "gzip, deflate"})
+    last_exc = None
+    for attempt in range(_MAX_RETRIES + 1):
+        _throttle()
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = resp.read()
+                if resp.headers.get("Content-Encoding") == "gzip":
+                    import gzip
+                    data = gzip.decompress(data)
+                text = data.decode("utf-8", errors="replace")
+            return json.loads(text) if want_json else text
+        except urllib.error.HTTPError as e:
+            last_exc = e
+            if e.code in _RETRY_CODES and attempt < _MAX_RETRIES:
+                time.sleep(0.5 * (2 ** attempt))            # exponential backoff on throttle / transient 5xx
+                continue
+            if e.code == 403:
+                raise EdgarError(f"SEC returned 403 for {url} — set SEC_UA to a real 'Name email' contact") from e
+            raise EdgarError(f"SEC returned HTTP {e.code} for {url}") from e
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            last_exc = e
+            if attempt < _MAX_RETRIES:
+                time.sleep(0.5 * (2 ** attempt))
+                continue
+            raise EdgarError(f"network error fetching {url}: {e}") from e
+    raise EdgarError(f"failed to fetch {url}: {last_exc}")   # pragma: no cover (loop always returns/raises)
+
+
+def cik_for_ticker(ticker: str) -> tuple[str, str]:
+    """(10-digit CIK, company title) for a ticker, via SEC's ticker->CIK map. Case-insensitive."""
+    t = ticker.strip().upper()
+    for row in _get(_TICKERS_URL).values():
+        if str(row.get("ticker", "")).upper() == t:
+            return f"{int(row['cik_str']):010d}", row.get("title", "")
+    raise EdgarError(f"ticker {ticker!r} not found in SEC company_tickers.json")
+
+
+def _submissions(cik10: str) -> dict:
+    return _get(_SUBMISSIONS_URL.format(cik10=cik10))
+
+
+def company_filings(cik10: str, forms=None, limit: int = 40) -> list[dict]:
+    """Recent filings for a company as {form, date, accession, primary_doc, url}, newest first. `forms` (an
+    iterable of form strings, case-insensitive) filters; None returns all. Reads the submissions 'recent'
+    block (the last ~1000 filings — always covers current proxies/annuals)."""
+    recent = _submissions(cik10).get("filings", {}).get("recent", {})
+    form, acc = recent.get("form", []), recent.get("accessionNumber", [])
+    doc, date = recent.get("primaryDocument", []), recent.get("filingDate", [])
+    want = {f.upper() for f in forms} if forms else None
+    cik_int = int(cik10)
+    out = []
+    for i in range(len(form)):
+        if want is not None and form[i].upper() not in want:
+            continue
+        out.append({"form": form[i], "date": date[i], "accession": acc[i], "primary_doc": doc[i],
+                    "url": f"{_ARCHIVE}/{cik_int}/{acc[i].replace('-', '')}/{doc[i]}"})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def latest_filing(cik10: str, forms) -> dict | None:
+    """The single most recent filing whose form is in `forms` (or None)."""
+    hits = company_filings(cik10, forms=forms, limit=1)
+    return hits[0] if hits else None
+
+
+def filing_index(cik10: str, accession: str) -> dict:
+    """The document index for one filing — every file in the submission (name, type, size). Lets an agent see
+    all documents (the primary proxy, exhibits, the Inline-XBRL instance) rather than trusting one URL."""
+    acc_nodash = accession.replace("-", "")
+    base = f"{_ARCHIVE}/{int(cik10)}/{acc_nodash}"
+    idx = _get(f"{base}/index.json")
+    items = idx.get("directory", {}).get("item", [])
+    docs = [{"name": it.get("name"), "type": it.get("type"), "size": it.get("size"),
+             "url": f"{base}/{it.get('name')}"} for it in items]
+    return {"accession": accession, "base_url": base, "documents": docs}
+
+
+def def14a(ticker: str) -> dict:
+    """Resolve a ticker to its latest DEF 14A (US executive-comp proxy). If none exists the company is a
+    foreign private issuer — return its most recent ANNUAL foreign form (20-F/40-F preferred over a furnished
+    6-K), with a note, since comp is disclosed there on a different basis."""
+    cik10, title = cik_for_ticker(ticker)
+    proxy = latest_filing(cik10, ("DEF 14A",))
+    if proxy:
+        return {"ticker": ticker.upper(), "cik": cik10, "company": title, "disclosure": "def14a", **proxy}
+    # FPI fallback: prefer the ANNUAL report (20-F, then 40-F) over a recent unrelated 6-K.
+    alt = latest_filing(cik10, ("20-F",)) or latest_filing(cik10, ("40-F",)) or latest_filing(cik10, ("6-K",))
+    return {"ticker": ticker.upper(), "cik": cik10, "company": title, "disclosure": "foreign_issuer_or_no_def14a",
+            "note": "No DEF 14A — likely a foreign private issuer; exec comp is on the 20-F/40-F (annual) or "
+                    "furnished via a 6-K circular, on a non-US basis.",
+            **(alt or {"url": None, "form": None, "date": None, "accession": None, "primary_doc": None})}
+
+
+def find_section(url: str, heading: str, window: int = 2800) -> str | None:
+    """Fetch a filing and return a readable text window around a named heading (e.g. 'Summary Compensation
+    Table'), tags stripped — modern inline-XBRL filings bury such tables deep, so locate them by NAME. Returns
+    None if the heading isn't found."""
+    import html
+    doc = _get(url, want_json=False)
+    idx = doc.lower().find(heading.lower())
+    if idx == -1:
+        return None
+    snippet = doc[max(0, idx - 200): idx + window]
+    text = html.unescape(re.sub(r"<[^>]+>", " ", snippet))    # strip tags, then decode &#160;/&amp; entities
+    return re.sub(r"\s+", " ", text).strip()[:window]
+
+
+# ---------------------------------------------------------------- CLI
+def _print_overview(ticker):
+    cik10, title = cik_for_ticker(ticker)
+    print(f"{title} (CIK {cik10})")
+    print("Recent filings — each labeled with what it is:\n")
+    seen_forms = []
+    for f in company_filings(cik10, limit=18):
+        info = classify_form(f["form"])
+        label = info["name"] if info else "(form not in the catalog)"
+        print(f"  {f['date']}  {f['form']:9s} {label}")
+        if info and f["form"] not in seen_forms:
+            seen_forms.append(f["form"])
+    print("\nExplain a form:  python3 edgar.py --explain \"<FORM>\"   |   proxy/comp:  --def14a   |   index:  --index <ACC>")
+
+
+def _main(argv):
+    flags = {a for a in argv if a.startswith("--")}
+    args = [a for a in argv if not a.startswith("--")]
+    if "--help" in flags or (not args and "--explain" not in flags):
+        print(__doc__)
+        return 0
+    if "--explain" in flags:
+        i = argv.index("--explain")
+        form = argv[i + 1] if i + 1 < len(argv) else ""
+        info = classify_form(form)
+        if not info:
+            print(f"edgar: no catalog entry for {form!r}", file=sys.stderr)
+            return 1
+        print(json.dumps(info, indent=2))
+        return 0
+
+    ticker = args[0]
+    if "--section" in flags:
+        i = argv.index("--section")
+        heading = argv[i + 1] if i + 1 < len(argv) else ""
+        info = def14a(ticker)                         # section lookups default to the latest proxy (e.g. the SCT)
+        url = info.get("url")
+        if not url:
+            print(f"edgar: no filing URL for {ticker} to search", file=sys.stderr)
+            return 1
+        window = find_section(url, heading)
+        print(f"{info.get('company')} — '{heading}' in {info.get('form')} ({info.get('date')}):\n")
+        print(window if window else f"  (heading '{heading}' not found by name — open {url} and search for it)")
+        return 0
+    if "--def14a" in flags:
+        info = def14a(ticker)
+        print(f"{info.get('company','?')} (CIK {info.get('cik','?')}) — {info.get('disclosure')}")
+        if info.get("url"):
+            print(f"  latest {info.get('form')}: {info.get('date')}\n  {info['url']}")
+        if info.get("note"):
+            print(f"  NOTE: {info['note']}")
+        return 0
+    if "--index" in flags:
+        i = argv.index("--index")
+        acc = argv[i + 1] if i + 1 < len(argv) else ""
+        cik10, _ = cik_for_ticker(ticker)
+        idx = filing_index(cik10, acc)
+        print(f"Documents in {acc} ({idx['base_url']}):")
+        for d in idx["documents"]:
+            print(f"  {str(d['type'] or ''):10s} {d['name']}")
+        return 0
+    if "--form" in flags:
+        i = argv.index("--form")
+        form = argv[i + 1] if i + 1 < len(argv) else ""
+        cik10, title = cik_for_ticker(ticker)
+        hits = company_filings(cik10, forms=(form,), limit=12)
+        info = classify_form(form)
+        print(f"{title} — recent {form} ({info['name'] if info else 'form'}):")
+        for f in hits:
+            print(f"  {f['date']}  {f['url']}")
+        if not hits:
+            print("  (none in the recent block)")
+        return 0
+    _print_overview(ticker)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(_main(sys.argv[1:]))
+    except EdgarError as e:
+        print(f"edgar: {e}", file=sys.stderr)
+        sys.exit(1)

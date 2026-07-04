@@ -43,7 +43,7 @@ SKIP_PARTS = {"tests", "evals", "__pycache__", ".git", "node_modules"}
 REAL_PEER_ALLOW = ("foundation/data/acme/peer_universe.csv", "governance/real-peer-data.md",
                    "foundation/data/acme/proxy_comp.csv", "governance/proxy-comp-data.md",
                    "examples/executive-comp-peer-builder/output/",
-                   "skills/sec-comp-research/")
+                   "skills/sec-comp-research/", "skills/sec-edgar/")
 
 
 def _allowed_real(path):
@@ -114,6 +114,8 @@ def _self_test():
         failures.append("the sec-comp-research skill must be allow-listed (it is a real-SEC-data tool)")
     if not _allowed_real("skills/sec-comp-research/scripts/edgar.py"):
         failures.append("the sec-comp-research skill scripts must be allow-listed")
+    if not _allowed_real("skills/sec-edgar/scripts/forms.py"):
+        failures.append("the sec-edgar foundation skill must be allow-listed (real-SEC-data tool)")
     if _allowed_real("skills/some-other-skill/SKILL.md"):
         failures.append("an unrelated skill must NOT be allow-listed")
     # the benchmarking OUTPUT renders no tickers, so it must stay SCANNED (not allow-listed) — a real

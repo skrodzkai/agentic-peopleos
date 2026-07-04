@@ -41,6 +41,14 @@ jobs:
           examples/comp-reporting/run.py examples/comp-reporting/evals/test_comp.py
           examples/visible-handoff/run.py examples/visible-handoff/evals/test_handoff.py
           examples/visible-handoff/scenarios.py examples/visible-handoff/render_view.py
+          skills/sec-edgar/scripts/edgar.py skills/sec-edgar/scripts/forms.py skills/sec-edgar/scripts/test_skill.py
+          skills/sec-comp-research/scripts/peer_screen.py
+
+      - name: Portable skills — offline self-checks (no network)
+        run: |
+          python3 skills/sec-edgar/scripts/test_skill.py
+          python3 skills/sec-edgar/scripts/forms.py "DEF 14A" >/dev/null
+          python3 skills/sec-comp-research/scripts/peer_screen.py --demo >/dev/null
 
       - name: Public-safety PII scan (ALL committed text, BEFORE generators run)
         run: python3 tools/pii_scan.py .   # whole repo (README/docs/governance/yml/scripts); tests+evals excluded
