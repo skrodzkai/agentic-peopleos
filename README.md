@@ -188,6 +188,10 @@ directory and it can work with **real, public SEC EDGAR data** (no login, no API
   workflow**: find the DEF 14A, read the Summary Compensation Table, screen a size + industry peer group,
   and position pay at target percentiles. The real-data companion to the Executive Compensation arm above.
 
+The skills are **layered on purpose** — `sec-edgar` is the map (navigation + form intelligence), not a
+table extractor; deterministic proxy-table extraction with confidence scoring is a named next layer, kept
+separate so the foundation stays small and stdlib-only. See [skills/ROADMAP.md](skills/ROADMAP.md).
+
 ## Examples (reference patterns)
 
 - **[Talent Acquisition reporting agent](examples/ta-reporting/)** — the recruiting-pipeline
