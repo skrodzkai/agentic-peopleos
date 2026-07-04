@@ -1,10 +1,13 @@
 # Notes for automated reviewers
 
 This is a **public** reference project (synthetic **Acme Corp**). It contains **no secrets, credentials, or
-real PII**. It is synthetic throughout, with ONE deliberate exception: the exec-comp peer-screener universe
-(`foundation/data/acme/peer_universe.csv` + the peer-builder outputs) benchmarks against **real public
-companies** with as-disclosed public financials (a dated, illustrative snapshot; provenance in
-`governance/real-peer-data.md`). No real name ever carries a fabricated pay/TSR figure — the ISS + rTSR arms
+real PII**. It is synthetic throughout, with TWO deliberate exceptions — both **real public companies** with
+as-disclosed public data, role-based with **no individual person names**: (1) the exec-comp peer-screener
+universe (`foundation/data/acme/peer_universe.csv` + the peer-builder outputs — real financials, provenance
+in `governance/real-peer-data.md`), and (2) the benchmarking proxy-pay dataset
+(`foundation/data/acme/proxy_comp.csv` — real DEF 14A Summary-Compensation-Table figures, provenance in
+`governance/proxy-comp-data.md`; each figure traces to a SEC filing URL). No real name ever carries a
+fabricated pay/TSR figure — the ISS + rTSR arms
 run on separate synthetic universes. `core/approval_registry.py` and
 `governance/approval-registry.md` are governance **code/docs** (an access-control model); they
 hold no secrets.

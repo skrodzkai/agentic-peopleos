@@ -28,7 +28,7 @@ incentive, total cash, LTI / equity, total direct comp — the dashboard shows:
 - a **below / on-target / above** call, with the gap in percentile points.
 
 The honest headline for Acme: **cash is competitive, but long-term equity sits below target across
-roles** — 8 of 20 positions land below the committee's band, concentrated in LTI and total direct comp.
+roles** — 6 of 20 positions land below the committee's band, all in LTI and total direct comp.
 A thin role (**CHRO**, only two peers disclose it) is **suppressed**, not given a spurious percentile.
 
 ## The methodology (defensible by construction)
@@ -66,6 +66,10 @@ python3 evals/test_benchmarking_agent.py
 
 - [Committee dashboard (HTML)](output/report.sample.html)
 - [Committee digest](output/day1-digest.sample.md)
+
+> The `.html` + `.md` are the **deterministic** artifacts (CI byte-diffs them against a fresh `run.py`).
+> The `.png` is an **illustrative browser render** committed for the README preview — it is not byte-gated
+> (screenshots are browser-dependent), so treat it as a snapshot, not the source of truth.
 
 ## What it demonstrates
 

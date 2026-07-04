@@ -116,6 +116,11 @@ try:
     urllib.request.urlopen = _forbid
     raises(edgar.EdgarError, lambda: edgar._get("https://data.sec.gov/y.json"),
            "a 403 raises EdgarError immediately (not retried — it is a UA problem)")
+    # SSRF/file-read guard: _get refuses anything that is not an https SEC host (before any fetch)
+    raises(edgar.EdgarError, lambda: edgar._get("file:///etc/hosts"),
+           "a file:// URL is refused (no SSRF / local file read via find_section)")
+    raises(edgar.EdgarError, lambda: edgar._get("https://evil.example.com/x"),
+           "a non-SEC https host is refused")
 finally:
     urllib.request.urlopen, time.sleep, edgar.UA = _saved
     if _orig_env2 is not None:
@@ -165,7 +170,18 @@ try:
     fpi = edgar.def14a("FPI")
     ok(fpi["disclosure"] == "foreign_issuer_or_no_def14a", "a foreign issuer is flagged (no DEF 14A)")
     ok(fpi["form"] == "20-F" and "annual20f.htm" in fpi["url"],
-       "the FPI fallback prefers the ANNUAL 20-F over a newer 6-K (Codex fix)")
+       "the FPI fallback prefers the ANNUAL 20-F over a newer 6-K")
+    # find_section: locate a heading in a fetched document (SEC HTML), return a tag-stripped window; None if absent
+    _saved_get = edgar._get
+    edgar._get = lambda url, want_json=True: "<html><body><p>x</p><h2>Summary Compensation Table</h2>" \
+                                             "<table>Salary 500,000</table></body></html>"
+    try:
+        win = edgar.find_section("https://www.sec.gov/x.htm", "Summary Compensation Table")
+        ok(win and "Summary Compensation Table" in win and "<" not in win, "find_section returns a tag-stripped window at the heading")
+        ok(edgar.find_section("https://www.sec.gov/x.htm", "Nonexistent Heading Zzz") is None,
+           "find_section returns None when the heading is absent (no guess)")
+    finally:
+        edgar._get = _saved_get
     ok("foreign private issuer" in fpi["note"], "the FPI note explains the different basis")
 
     ok(edgar.classify_form("8-K")["name"].startswith("Current report"), "classify_form is wired to the catalog")

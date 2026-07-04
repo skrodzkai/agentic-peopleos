@@ -110,7 +110,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full model.
 The **People Analytics & reporting** arm is a set of agents that turn the metric registry into
 governed operating dashboards. They share one design: a **shared compute engine**
 ([`foundation/compute/engine.py`](foundation/compute/engine.py)) is the single source of math over a
-[synthetic data foundation](foundation/data/) (synthetic throughout, except the exec-comp peer universe — real public companies, see [real-peer-data](governance/real-peer-data.md)), a **shared dark renderer**
+[synthetic data foundation](foundation/data/) (synthetic throughout, except two exec-comp datasets built on **real public companies** — the peer universe ([real-peer-data](governance/real-peer-data.md)) and the real proxy-pay figures ([proxy-comp-data](governance/proxy-comp-data.md)), both role-based with no individual names), a **shared dark renderer**
 ([`foundation/render/dashboard.py`](foundation/render/dashboard.py)) plus a deterministic
 [SVG chart toolkit](foundation/render/charts.py) draw every dashboard, and each agent is
 **presentation + governance only** — it does no metric math, cites the registry, shows

@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -100,10 +101,30 @@ def _money(usd) -> str:
 
 
 # ---------------------------------------------------------------- compute (no positioning math here)
+_NUMERIC_POS_FIELDS = ("percentile", "target_lo", "target_hi", "peer_n", "gap",
+                       "peer_p25", "peer_median", "peer_p75", "subject_value")
+
+
+def _check_position(p):
+    """Fail closed on a corrupted engine position before it reaches the renderer — a non-finite / non-numeric
+    percentile/band/peer_n could otherwise inject markup into the HTML/Markdown (the numeric fields are
+    interpolated without escaping, on the assumption they are numbers)."""
+    for k in _NUMERIC_POS_FIELDS:
+        v = p.get(k)
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(float(v)):
+            raise ReportError(f"corrupted position field {k}={v!r} (expected a finite number)")
+    if not (0.0 <= float(p["percentile"]) <= 100.0):
+        raise ReportError(f"position percentile out of range: {p['percentile']!r}")
+    if p.get("status") not in ("below", "within", "above"):
+        raise ReportError(f"corrupted position status: {p.get('status')!r}")
+
+
 def build_report(result):
     positions = result.get("positions", [])
     if not positions:
         raise ReportError("benchmarking returned no positions — a pay-positioning view must not ship empty")
+    for p in positions:
+        _check_position(p)
 
     roles = result["roles_benchmarked"]
     elements = result["elements"]                        # [{key,label,band:[lo,hi]}...] — the policy, from the engine
@@ -296,7 +317,7 @@ def _matrix(report):
 
 def _short_el(label):
     return {"Base salary": "Base", "Annual cash incentive": "Cash inc.", "Total cash (actual)": "Total cash",
-            "LTI / equity": "LTI", "Total direct comp": "TDC"}.get(label, label)
+            "LTI / equity": "LTI", "Total direct comp (SCT)": "TDC"}.get(label, label)
 
 
 def _gap_list(report):
@@ -369,7 +390,7 @@ def render_html(report):
                       f"<span class='sf-l'>{_e(l)}</span></div>" for l, v in facts)
     strip = _hero_strip(hero["percentile"], lo, hi, f"{HERO_ROLE} TDC")
     body.append("<section class='beacon'><div class='head'>"
-                f"<div><div class='label'>Headline · {_e(HERO_ROLE)} total direct comp</div>"
+                f"<div><div class='label'>Headline · {_e(HERO_ROLE)} total comp (SCT Total basis)</div>"
                 f"<div class='hero'><span class='v mono'>{_e(_money(hero['subject_value']))}</span>"
                 f"<span class='pct'>{ch.ordinal(round(hero['percentile']))} percentile of {report['n_peers']} peers "
                 f"· target P{lo}–{hi}</span></div></div>"
@@ -452,7 +473,7 @@ def render_digest(report):
         f"target band"
         + (f" — {_md(report['concentration'][0])}" if report['concentration'][0] else "")
         + f"; annual cash is {'at or above target' if not report['cash_below'] else 'mixed vs target'}.",
-        f"- {_md(HERO_ROLE)} total direct comp **{_money(hero['subject_value'])}** sits at the "
+        f"- {_md(HERO_ROLE)} total comp (SCT Total basis) **{_money(hero['subject_value'])}** sits at the "
         f"**~{ch.ordinal(round(hero['percentile']))} percentile** (peer median **{_money(hero['peer_median'])}**; "
         f"target P{report['el_band'][HERO_ELEMENT][0]}–{report['el_band'][HERO_ELEMENT][1]}).",
     ]
@@ -641,6 +662,12 @@ def main(argv=None) -> int:
     raw_approver = args.approved_by or ""
     approver = raw_approver.strip()
     if args.publish and (any(ord(c) < 32 for c in raw_approver) or not APPROVER_RE.fullmatch(approver)):
+        # a REFUSED publish must invalidate any prior approval — a stale PUBLISHED.json can't survive a
+        # failed sign-off attempt and keep the last report looking approved.
+        try:
+            (OUT / "PUBLISHED.json").unlink(missing_ok=True)
+        except OSError:
+            pass
         print("PUBLISH GATE: refused. Publishing a pay-positioning view requires a named committee approver "
               "(Compensation Committee).\n"
               "  Re-run with:  --publish --approved-by \"Your Name\"", file=sys.stderr)

@@ -73,7 +73,7 @@ ELEMENTS = (
     ("sti",        "Annual cash incentive", _sti,        50, 60),
     ("total_cash", "Total cash (actual)",   _total_cash, 50, 60),
     ("ltie",       "LTI / equity",          _ltie,       50, 65),
-    ("tdc",        "Total direct comp",     _tdc,        50, 65),
+    ("tdc",        "Total direct comp (SCT)", _tdc,      50, 65),
 )
 
 
@@ -105,8 +105,9 @@ def load_proxy_comp(path: Path = PROXY_PATH):
             # tolerance is scaled off whichever of {components, total} is larger so a zero Total still trips it.
             comp_sum = r["salary"] + r["bonus"] + r["stock_awards"] + r["option_awards"] + \
                 r["non_equity_incentive"] + r["other_comp"]
-            tol = max(2.0, 0.005 * max(r["total"], comp_sum))
-            if abs(comp_sum - r["total"]) > tol:
+            # a HARD dollar tolerance (SCT components sum to Total to the dollar; $50 only absorbs rounding).
+            # A percentage tolerance would let a five-figure error hide inside a large CEO row.
+            if abs(comp_sum - r["total"]) > 50.0:
                 raise BenchmarkError(f"line {i} ({r['ticker']}/{rb}): components ${comp_sum:,.0f} do not "
                                      f"reconcile to SCT Total ${r['total']:,.0f}")
             (subject if r.get("is_subject") == "yes" else peers).append(r)

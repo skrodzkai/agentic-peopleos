@@ -118,6 +118,11 @@ with tempfile.TemporaryDirectory() as dd:
     bad = list(good)
     bad[1] = _row("P0", "CEO", 400_000, 2_000_000, 9_999_999)   # Total nowhere near components
     raises(BenchmarkError, lambda: load_proxy_comp(_write(dd, bad)), "a component/Total mismatch fails closed")
+    # a HARD $50 tolerance: even a five-figure error in a large row fails (a % tolerance would have hidden it)
+    moderate = list(good)
+    moderate[1] = _row("P0", "CEO", 400_000, 2_010_000, 2_400_000)   # components $10k over the Total
+    raises(BenchmarkError, lambda: load_proxy_comp(_write(dd, moderate)),
+           "a $10k reconciliation error fails closed (hard $50 tolerance, not a loose percentage)")
     # schema drift
     raises(BenchmarkError, lambda: load_proxy_comp(_write(dd, good, FIELDS[:-1])), "a missing column fails closed")
     # a DUPLICATE header must fail closed (DictReader silently collapses dups + drops a column's data;

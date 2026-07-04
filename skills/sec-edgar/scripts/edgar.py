@@ -74,8 +74,15 @@ def _throttle():
     _last_request[0] = time.monotonic()
 
 
+_ALLOWED_HOSTS = ("https://www.sec.gov/", "https://data.sec.gov/")
+
+
 def _get(url, want_json=True):
     ua = _require_ua()
+    # only ever fetch from SEC over https — a reusable public skill must not be turned into an SSRF/file
+    # reader (e.g. find_section(url=...) with file:///etc/hosts or an internal host).
+    if not any(str(url).startswith(h) for h in _ALLOWED_HOSTS):
+        raise EdgarError(f"refusing a non-SEC URL {url!r} — only {' and '.join(_ALLOWED_HOSTS)} are allowed")
     req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept-Encoding": "gzip, deflate"})
     last_exc = None
     for attempt in range(_MAX_RETRIES + 1):
@@ -207,9 +214,15 @@ def _print_overview(ticker):
     print("\nExplain a form:  python3 edgar.py --explain \"<FORM>\"   |   proxy/comp:  --def14a   |   index:  --index <ACC>")
 
 
+_VALUE_FLAGS = {"--explain", "--form", "--index", "--section"}
+
+
 def _main(argv):
     flags = {a for a in argv if a.startswith("--")}
-    args = [a for a in argv if not a.startswith("--")]
+    # a value-taking flag consumes the NEXT token, so it is NOT the positional ticker (e.g. `--form 8-K`
+    # must not be read as `ticker=8-K`). Exclude those value tokens from the positional args.
+    value_idx = {i + 1 for i, a in enumerate(argv) if a in _VALUE_FLAGS and i + 1 < len(argv)}
+    args = [a for i, a in enumerate(argv) if not a.startswith("--") and i not in value_idx]
     if "--help" in flags or (not args and "--explain" not in flags):
         print(__doc__)
         return 0

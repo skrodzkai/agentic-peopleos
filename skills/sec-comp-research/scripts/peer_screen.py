@@ -9,8 +9,10 @@ Membership is defensible on one line: "same industry, within 0.5-2.0x our size."
 
     python3 peer_screen.py --demo
     python3 peer_screen.py --subject "Acme,852,6400,software" --peers peers.csv
+    python3 peer_screen.py --subject "Acme,852,6400,software,2400" --peers peers.csv   # 5th field = employees
+      # --subject: name,rev_musd,cap_musd,industry[,employees]  (revenue & market cap in $ MILLIONS)
       # peers.csv columns: ticker,name,revenue_musd,market_cap_musd,industry[,employees]
-      # (revenue and market cap in $ MILLIONS)
+      # headcount only shapes the fit RANK when BOTH the subject and a peer supply it (never gates membership)
 """
 from __future__ import annotations
 
@@ -64,14 +66,17 @@ def screen(subject, candidates, rev_mult=REV_MULT, cap_mult=CAP_MULT):
     """Return the screen result: each candidate with per-criterion pass/fail, and the fit-ranked peer group.
     A candidate is a peer iff it passes ALL hard gates (industry + revenue band + market-cap band)."""
     sg = str(subject.get("industry", "")).strip().lower()
+    if not sg:
+        raise ScreenError("subject industry must be non-empty (a blank industry cannot gate a peer group)")
     subj_rev = _pos(subject.get("revenue"), "subject revenue")            # fail closed on nan/inf/<=0
     subj_cap = _pos(subject.get("market_cap"), "subject market cap")
     rlo, rhi = subj_rev * rev_mult[0], subj_rev * rev_mult[1]
     clo, chi = subj_cap * cap_mult[0], subj_cap * cap_mult[1]
     results = []
     for c in candidates:
+        cind = str(c.get("industry", "")).strip().lower()
         checks = {
-            "industry": str(c.get("industry", "")).strip().lower() == sg,
+            "industry": bool(cind) and cind == sg,                        # a blank candidate never matches
             "revenue": rlo <= c["revenue"] <= rhi,
             "market_cap": clo <= c["market_cap"] <= chi,
         }
@@ -91,7 +96,12 @@ def _load_peers(path):
     out = []
     with fh:
         reader = csv.DictReader(fh)
-        missing = [c for c in _REQUIRED_PEER_COLS if c not in (reader.fieldnames or [])]
+        fnames = reader.fieldnames or []
+        # a DUPLICATE header silently collapses in DictReader (last value wins, data lost) — reject it
+        dups = sorted({c for c in fnames if fnames.count(c) > 1})
+        if dups:
+            raise ScreenError(f"peers CSV has duplicate header(s): {', '.join(dups)}")
+        missing = [c for c in _REQUIRED_PEER_COLS if c not in fnames]
         if missing:
             raise ScreenError(f"peers CSV is missing column(s): {', '.join(missing)}. Required header: "
                               f"ticker,name,revenue_musd,market_cap_musd,industry[,employees]")
@@ -151,14 +161,17 @@ def _main(argv):
         for i, a in enumerate(argv):
             if a == "--subject":
                 if i + 1 >= len(argv):
-                    raise ScreenError("--subject needs a value: 'name,rev_musd,cap_musd,industry'")
+                    raise ScreenError("--subject needs a value: 'name,rev_musd,cap_musd,industry[,employees]'")
                 parts = [p.strip() for p in argv[i + 1].split(",")]
-                if len(parts) != 4:
-                    raise ScreenError("--subject must be 'name,rev_musd,cap_musd,industry' (4 comma-separated "
-                                      "fields; revenue & market cap in $millions), e.g. 'Acme,852,6400,software' "
+                if len(parts) not in (4, 5):
+                    raise ScreenError("--subject must be 'name,rev_musd,cap_musd,industry[,employees]' (4 or 5 "
+                                      "comma-separated fields; $millions), e.g. 'Acme,852,6400,software,2400' "
                                       f"— got {argv[i + 1]!r}")
-                name, rev, cap, ind = parts
-                subj = {"ticker": name, "name": name, "revenue": _pos(rev, "--subject revenue"),
+                name, rev, cap, ind = parts[:4]
+                # headcount only shapes the fit if BOTH subject and a peer supply it — pass a 5th field to use it
+                emp = _pos(parts[4], "--subject employees") if len(parts) == 5 and parts[4] else None
+                subj = {"ticker": name, "name": name, "employees": emp,
+                        "revenue": _pos(rev, "--subject revenue"),
                         "market_cap": _pos(cap, "--subject market cap"), "industry": ind}
             elif a == "--peers":
                 if i + 1 >= len(argv):

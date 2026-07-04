@@ -35,4 +35,9 @@ guarantee).
    none of which appears in the vault or ledger. In production, the ledger references workforce
    identities by id, not by personal record.
 
-All data in this repository is synthetic (Acme Corp).
+All data in this repository is synthetic (Acme Corp), with **two deliberate exceptions** — the exec-comp
+peer arm's `foundation/data/acme/peer_universe.csv` (real public-company financials) and the benchmarking
+arm's `foundation/data/acme/proxy_comp.csv` (real DEF 14A Summary-Compensation-Table figures). Both are
+**public data about public companies**, are **role-based with no individual person names** (verifiable via
+the SEC filing URLs in `governance/{real-peer-data,proxy-comp-data}.md`), and carry **no PII**; only the
+subject (Acme) is synthetic.
