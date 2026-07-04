@@ -29,6 +29,12 @@ approval gate.
   percentiles** (never a mean, so a founder mega-grant can't distort the read).
 - For the like-for-like comparison to hold, the **subject's own inputs must be SCT-basis actuals** too
   (the committed Acme rows are synthetic SCT-shaped actuals for this reason).
+- **Foreign private issuers are excluded from the distribution.** Two peers file a 20-F / furnish a 6-K
+  circular (not a US SCT); the percentile math runs on the **14 US-SCT peers** only, and the FPIs are shown
+  as a caveated count (named in `governance/proxy-comp-data.md`, not in the ticker-scanned output).
+- **Row-level provenance.** `proxy_comp.csv` carries per-row `form`, `currency`, `source_url` (the SEC
+  filing), `extraction_date`, and `row_caveat` — every figure traces to a specific filing, and ambiguous
+  incumbent rows (e.g. a Former CFO, a PFO also serving as COO) carry an explicit caveat.
 
 ## The dashboard
 1. **Insight ribbon** — a deterministic narrator (no model) leading with the honest headline (cash

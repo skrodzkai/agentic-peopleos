@@ -40,6 +40,12 @@ A thin role (**CHRO**, only two peers disclose it) is **suppressed**, not given 
   dropped; a single founder mega-grant can't distort the market read.
 - **Suppress thin roles.** A role below the engine's minimum peer count is shown suppressed, never
   positioned off two data points.
+- **US SCT only in the distribution.** Two peers are foreign private issuers (they file a 20-F / furnish a
+  6-K circular, not a US Summary Compensation Table, and their grant-date equity is not cleanly comparable);
+  they are **excluded** from the percentile distribution and surfaced as a caveated count — the math runs on
+  the 14 US-SCT peers.
+- **Row-level provenance.** Every peer figure in `proxy_comp.csv` carries its SEC filing URL, form type,
+  currency, extraction date, and a per-row basis caveat — so any number traces back to the exact filing.
 
 ## Run it
 ```bash

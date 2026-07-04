@@ -81,7 +81,7 @@ ok("real public peers" in page.lower() and "illustrative" in page.lower(), "real
 
 # ---- digest: honest headline + suppression + actual-not-target + synthetic subject ----
 ok("below" in digest.lower() and "long-term equity" in digest.lower(), "digest states the equity-below-target headline")
-ok("actual sct-disclosed" in digest.lower(), "digest labels peer pay actual SCT-disclosed (not target)")
+ok("actual us sct-disclosed" in digest.lower(), "digest labels peer pay actual US SCT-disclosed (not target)")
 ok("acme) is synthetic" in digest.lower(), "digest discloses the subject is synthetic")
 ok("chro" in digest.lower() and "suppress" in digest.lower(), "digest names the suppressed role")
 ok("Compensation Committee" in page and "Compensation Committee" in digest, "the human approver is named")
@@ -100,6 +100,17 @@ ok(not re.search(r"\bE-\d{4}\b", page) and not re.search(r"\bC-\d{4}\b", page),
    "no per-person employee/contractor ids appear (aggregate/role-level only)")
 ok(not ({"AAPL", "MSFT", "AMZN", "GOOGL", "NVDA", "META"} & set(re.findall(r"\b[A-Z]{2,5}\b", page))),
    "no out-of-universe mega-cap ticker leaks (this view positions roles, not named peers)")
+
+# foreign private issuers are EXCLUDED from the SCT distribution + disclosed as a COUNT — and the excluded
+# tickers/companies must NOT be rendered in the output (it is ticker-scanned; names live in the provenance doc)
+ok({f["ticker"] for f in result.get("foreign_excluded", [])} == {"MNDY", "DSGX"},
+   "the engine reports the excluded foreign private issuers (monday.com, Descartes)")
+ok("foreign private issuer" in page.lower() and "foreign private issuer" in digest.lower(),
+   "the dashboard + digest disclose the foreign-issuer exclusion (count-only, points to the provenance doc)")
+for _tk in ("MNDY", "DSGX"):
+    ok(_tk not in page and _tk not in digest,
+       f"the excluded foreign ticker {_tk} is NOT rendered in the output (stays ticker-free for the scanner)")
+ok("\\" in run._md("a*b_c") and run._md("a*b") == "a\\*b", "the digest markdown escaper neutralizes emphasis chars")
 
 # a hostile element LABEL / role must be escaped if it ever reaches the render (defense in depth: the
 # engine's vocab is fixed, but the agent must not trust it blindly) — inject into a copy and re-render.
@@ -133,7 +144,7 @@ ok("concentrated in **long-term equity" not in run.render_digest(_cr),
 # the per-role pay tables read 'Positioning' (NOT 'Recommend-only'), and peer_n is surfaced with a thin caveat
 ok("t-scope'>Positioning<" in page and "Recommend-only" not in page,
    "per-role pay tables read 'Positioning' — the agent positions pay, it never recommends a level")
-ok("16 peers</b> disclose this role" in page, "peer_n is surfaced on a benchmarked role (transparency)")
+ok("14 peers</b> disclose this role" in page, "peer_n is surfaced on a benchmarked role (transparency)")
 ok("thin peer set" in page, "a thin non-suppressed role (COO n=7 / CLO n=8, < 10) carries a read-with-care caveat")
 
 # ---- governance: the engine the agent reads exposes no pay-setting / decisional mutator ----

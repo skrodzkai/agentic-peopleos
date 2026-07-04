@@ -27,10 +27,13 @@ HERE = Path(__file__).resolve().parent
 DATA = HERE.parents[1] / "foundation" / "data" / "acme"
 PROXY_PATH = DATA / "proxy_comp.csv"
 
-# exact schema the proxy dataset must have (fail closed on drift)
+# exact schema the proxy dataset must have (fail closed on drift). The provenance columns (form / currency /
+# source_url / extraction_date / row_caveat) carry row-level data controls: every real figure traces to a
+# specific SEC filing URL, its form type + currency, when it was sourced, and any per-row basis caveat.
 REQUIRED_COLS = ("ticker", "company_name", "role_bucket", "title", "salary", "bonus", "stock_awards",
                  "option_awards", "non_equity_incentive", "other_comp", "total", "fiscal_year",
-                 "disclosure", "is_subject")
+                 "disclosure", "form", "currency", "source_url", "extraction_date", "row_caveat",
+                 "is_subject")
 _MONEY_COLS = ("salary", "bonus", "stock_awards", "option_awards", "non_equity_incentive", "other_comp", "total")
 ROLES = ("CEO", "CFO", "COO", "CLO", "CHRO")     # the subject's benchmarked roles, in committee-report order
 MIN_PEER_N = 6                                    # suppress a role with fewer than this many peer observations
@@ -82,9 +85,12 @@ def load_proxy_comp(path: Path = PROXY_PATH):
         raise BenchmarkError(f"proxy comp dataset not found: {path}")
     with open(path, newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh)
-        if reader.fieldnames is None or set(reader.fieldnames) != set(REQUIRED_COLS):
-            raise BenchmarkError(f"proxy_comp schema mismatch: expected {sorted(REQUIRED_COLS)}, "
-                                 f"got {sorted(reader.fieldnames or [])}")
+        fields = reader.fieldnames or []
+        # exact header set AND exact count — the count check rejects a DUPLICATE header (DictReader would
+        # silently collapse duplicates into one column and drop data), which a plain set() compare misses.
+        if set(fields) != set(REQUIRED_COLS) or len(fields) != len(REQUIRED_COLS):
+            raise BenchmarkError(f"proxy_comp schema mismatch (or duplicate header): expected "
+                                 f"{sorted(REQUIRED_COLS)}, got {fields}")
         peers, subject = [], []
         for i, r in enumerate(reader, start=2):
             for c in _MONEY_COLS:
@@ -94,10 +100,13 @@ def load_proxy_comp(path: Path = PROXY_PATH):
                 raise BenchmarkError(f"line {i}: empty role_bucket")
             r["role_bucket"] = rb
             r["title"] = (r.get("title") or "").strip()
-            # component sum must reconcile to the reported SCT Total (catches a units error / a dropped column)
+            # components must reconcile to the reported SCT Total — ALWAYS, not only when total>0. A row with
+            # positive components but total=0 (a dropped/miskeyed Total) must FAIL, not slip through. The
+            # tolerance is scaled off whichever of {components, total} is larger so a zero Total still trips it.
             comp_sum = r["salary"] + r["bonus"] + r["stock_awards"] + r["option_awards"] + \
                 r["non_equity_incentive"] + r["other_comp"]
-            if r["total"] > 0 and abs(comp_sum - r["total"]) > max(2.0, 0.005 * r["total"]):
+            tol = max(2.0, 0.005 * max(r["total"], comp_sum))
+            if abs(comp_sum - r["total"]) > tol:
                 raise BenchmarkError(f"line {i} ({r['ticker']}/{rb}): components ${comp_sum:,.0f} do not "
                                      f"reconcile to SCT Total ${r['total']:,.0f}")
             (subject if r.get("is_subject") == "yes" else peers).append(r)
@@ -194,7 +203,13 @@ def benchmark(path: Path = PROXY_PATH):
     """Full positioning of every subject NEO vs the peer group, per pay element, against the policy bands.
     Roles with fewer than MIN_PEER_N peer observations are SUPPRESSED (reported, never a spurious percentile).
     Deterministic + fail-closed."""
-    peers, subject = load_proxy_comp(path)
+    peers_all, subject = load_proxy_comp(path)
+    # The SCT-comparable distribution is US DEF 14A rows ONLY. Foreign private issuers file a 20-F / furnish a
+    # 6-K proxy circular on a different basis (grant-date equity is not cleanly comparable to SCT stock awards),
+    # so they are EXCLUDED from the percentile math and surfaced separately as a caveated reference — never
+    # mixed into a distribution the report calls "SCT-comparable".
+    peers = [p for p in peers_all if p.get("disclosure") == "def14a"]
+    foreign = sorted({(p["ticker"], p["company_name"]) for p in peers_all if p.get("disclosure") != "def14a"})
     inc = _incumbents(peers)
     subj_by_role = {}
     for s in subject:
@@ -219,14 +234,17 @@ def benchmark(path: Path = PROXY_PATH):
     below = [r for r in rows if r["status"] == "below"]
     return {
         "subject_company": subject[0]["company_name"],
-        "n_peers_total": len({r["ticker"] for r in peers}),
+        "n_peers_total": len({r["ticker"] for r in peers}),          # US SCT peers in the distribution
         "roles_benchmarked": sorted({r["role"] for r in rows}, key=lambda x: ROLES.index(x)),
         "roles_suppressed": suppressed,
         "positions": rows,
         "n_positions": len(rows),
         "n_below_target": len(below),
+        "foreign_excluded": [{"ticker": t, "company_name": c} for t, c in foreign],
         "elements": [{"key": k, "label": lab, "band": [lo, hi]} for k, lab, _f, lo, hi in ELEMENTS],
-        "disclosure_note": "peer figures are actual SCT-disclosed proxy pay (not target); subject is synthetic",
+        "disclosure_note": "peer figures are actual US SCT-disclosed proxy pay (DEF 14A, not target); foreign "
+                           "private issuers (different disclosure basis) are excluded from the distribution; "
+                           "subject is synthetic",
     }
 
 

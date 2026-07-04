@@ -45,8 +45,8 @@ _STD_OUTPUTS = ("output/report.sample.html", "output/report.sample.png", "output
 REQUIRED_OUTPUTS = [
     f"examples/{ex}/{a}"
     for ex in ("headcount-reporting", "attrition-reporting", "people-ops-reporting", "operating-review",
-               "people-intelligence", "executive-comp-peer-builder", "rtsr-psu-valuation", "iss-pay-screen",
-               "ta-reporting", "comp-reporting")
+               "people-intelligence", "executive-comp-peer-builder", "executive-comp-benchmarking",
+               "rtsr-psu-valuation", "iss-pay-screen", "ta-reporting", "comp-reporting")
     for a in _STD_OUTPUTS
 ] + [
     "examples/operating-review/output/decision.sample.events.jsonl",

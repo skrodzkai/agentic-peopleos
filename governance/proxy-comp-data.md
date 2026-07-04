@@ -6,7 +6,7 @@ The executive-comp **benchmarking** agent positions the synthetic subject (Acme)
 
 - **Individual executive names are intentionally NOT stored** in the dataset (`proxy_comp.csv` is role-based: ticker · role · title · SCT columns). The named individuals are public in each linked DEF 14A.
 
-- **Coverage:** 14 of 16 peers file a US DEF 14A with a full top-5 SCT; **2 are foreign private issuers** (Descartes — Canadian, furnishes a proxy circular via Form 6-K; monday.com — Israeli) that disclose top-executive comp on the SEC-furnished proxy but under a non-US format. Thin roles (e.g. CHRO, n=2) are **suppressed** in positioning, not shown as a spurious percentile.
+- **Coverage:** 14 of 16 peers file a US DEF 14A with a full top-5 SCT; **2 are foreign private issuers** (Descartes — Canadian, furnishes a proxy circular via Form 6-K; monday.com — Israeli) that disclose top-executive comp on the SEC-furnished proxy but under a non-US format. **Those 2 FPIs are EXCLUDED from the benchmark percentile distribution** — a 20-F / 6-K circular is not a US Summary Compensation Table, and its grant-date equity is not cleanly comparable to SCT stock/option awards — so the distribution is built from the **14 US-SCT peers only**, and the FPIs are surfaced separately as a caveated reference (the dashboard/digest name the count, not the issuers). Thin roles (e.g. CHRO, n=2) are **suppressed** in positioning, not shown as a spurious percentile.
 
 | Ticker | Company | Proxy FY | Disclosure | # NEOs | Source (SEC) |
 |---|---|---|---|--:|---|
@@ -39,4 +39,3 @@ The executive-comp **benchmarking** agent positions the synthetic subject (Acme)
 > **Subject inputs must be on the same basis.** The positioning is like-for-like only if the subject's own pay elements are **SCT-basis actuals** (equity at grant-date fair value of what was *granted*), exactly as the peer figures are. Dropping a *target* LTI grant value into the subject row instead of realized SCT stock/option awards would silently make every equity/TDC percentile a target-vs-actual comparison. The committed Acme rows are synthetic SCT-shaped actuals for this reason.
 
 _Sourced from the SEC-hosted filings themselves (not third-party summaries) and independently re-verified (every NEO's component sum reconciles to the reported SCT Total). A comp professional should sanity-check before external use._
-

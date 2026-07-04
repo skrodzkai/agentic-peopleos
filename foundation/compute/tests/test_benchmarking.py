@@ -120,6 +120,16 @@ with tempfile.TemporaryDirectory() as dd:
     raises(BenchmarkError, lambda: load_proxy_comp(_write(dd, bad)), "a component/Total mismatch fails closed")
     # schema drift
     raises(BenchmarkError, lambda: load_proxy_comp(_write(dd, good, FIELDS[:-1])), "a missing column fails closed")
+    # a DUPLICATE header must fail closed (DictReader silently collapses dups + drops a column's data;
+    # a plain set() compare would miss it, so the loader also checks the field COUNT)
+    dup_path = Path(dd) / "dup.csv"
+    dup_path.write_text(",".join(FIELDS) + ",salary\n", encoding="utf-8")   # header with salary twice
+    raises(BenchmarkError, lambda: load_proxy_comp(dup_path), "a duplicate CSV header fails closed")
+    # total=0 with POSITIVE components must fail reconciliation (a dropped/miskeyed Total can't slip through)
+    zero_total = list(good)
+    zero_total[1] = _row("P0", "CEO", 400_000, 2_000_000, 0)   # components > 0 but Total = 0
+    raises(BenchmarkError, lambda: load_proxy_comp(_write(dd, zero_total)),
+           "positive components with a zero SCT Total fail reconciliation (not skipped)")
     # a non-numeric salary in the CSV fails closed. NOTE: csv.DictWriter serializes Python True -> "True",
     # so this row exercises the non-numeric-STRING guard, not the bool-type guard (that is proven directly
     # below, so the isinstance(x, bool) check in _money is demonstrably load-bearing).
@@ -143,7 +153,10 @@ with tempfile.TemporaryDirectory() as dd:
 # ---- the SHIPPED committed dataset benchmarks cleanly + tells a coherent story ----
 r = benchmark()
 ok(r["subject_company"] == "Acme Corp", "the shipped subject is Acme")
-ok(r["n_peers_total"] == 16, "positions against the 16-company peer group")
+ok(r["n_peers_total"] == 14, "positions against the 14 US SCT peers (foreign issuers excluded from the distribution)")
+# the two foreign private issuers are EXCLUDED from the SCT distribution + surfaced as a caveated reference
+ok({f["ticker"] for f in r["foreign_excluded"]} == {"MNDY", "DSGX"},
+   "foreign private issuers (monday.com, Descartes) are excluded from the SCT-comparable distribution")
 ok(set(r["roles_benchmarked"]) == {"CEO", "CFO", "COO", "CLO"} and
    any(s["role"] == "CHRO" for s in r["roles_suppressed"]),
    "CEO/CFO/COO/CLO benchmarked; CHRO suppressed (thin peer disclosure)")
@@ -154,8 +167,10 @@ ok(all(p["peer_n"] >= MIN_PEER_N for p in r["positions"]), "every benchmarked po
 # the honest headline: Acme is below target on long-term equity (LTI/TDC) across roles
 ltie_below = [p for p in r["positions"] if p["element"] in ("ltie", "tdc") and p["status"] == "below"]
 ok(len(ltie_below) >= 4, "the LTI/TDC equity gap shows up (subject below target on long-term pay)")
-ok(r["disclosure_note"].startswith("peer figures are actual SCT"),
-   "the result is labelled SCT-actual (not target) + synthetic subject")
+ok(all(p["element"] in ("ltie", "tdc") for p in r["positions"] if p["status"] == "below"),
+   "every below-target position is long-term equity (cash is at or above target)")
+ok(r["disclosure_note"].startswith("peer figures are actual US SCT"),
+   "the result is labelled US-SCT-actual (not target) + foreign-excluded + synthetic subject")
 
 # ---- determinism ----
 ok(benchmark()["positions"] == benchmark()["positions"], "benchmark() is deterministic")

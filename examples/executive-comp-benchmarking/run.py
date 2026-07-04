@@ -81,6 +81,16 @@ def _e(v):
     return html.escape(str(v))
 
 
+_MD_SPECIAL = set("\\`*_[]<>|")
+
+
+def _md(v):
+    """Escape Markdown/HTML-active characters in a data-derived value before it goes into the .md digest —
+    the digest's parity with the HTML escaping, so a hostile company/role string can't inject emphasis,
+    a code span, a link, raw HTML, or a table pipe."""
+    return "".join("\\" + c if c in _MD_SPECIAL else c for c in str(v))
+
+
 def _money(usd) -> str:
     """Compact comp money: $8.47M / $675K (proxy pay lives in the $100K–$80M range)."""
     usd = float(usd)
@@ -124,6 +134,7 @@ def build_report(result):
         "concentration": concentration, "hero": hero,
         "n_peers": result["n_peers_total"], "n_positions": result["n_positions"],
         "n_below": result["n_below_target"], "suppressed": result["roles_suppressed"],
+        "foreign_excluded": result.get("foreign_excluded", []),
     }
     report["narrative"] = _narrative(report)
     return report
@@ -164,12 +175,15 @@ def _narrative(report):
                      f"peers disclose the role to position it honestly.</span>")
     conc = report["concentration"][1]
     conc_clause = f", {conc}" if conc else ""
+    n_fx = len(report.get("foreign_excluded") or [])
+    fx_clause = (f" <span class='warn'>{n_fx} foreign private issuer{'s' if n_fx != 1 else ''} "
+                 f"(20-F/6-K basis, not a US SCT) are excluded from the distribution.</span>" if n_fx else "")
     return (f"Positioned <b>{COMPANY}</b>'s <b>{len(report['roles'])} benchmarked NEOs</b> across <b>{n_pos} pay "
-            f"positions</b> against <b>{n_peers} real peers'</b> SEC-disclosed proxy pay. "
+            f"positions</b> against <b>{n_peers} real US-SCT peers'</b> DEF 14A proxy pay. "
             f"The headline: <span class='up'>{cash_line}</span>, but {equity_line} — "
             f"<b>{n_below} of {n_pos}</b> positions land below target{conc_clause}. "
             f"{COMPANY}'s CEO total direct comp sits at the <b>{ch.ordinal(round(hero['percentile']))} percentile</b> "
-            f"(peer median <b>{_money(hero['peer_median'])}</b>).{supp_line} "
+            f"(peer median <b>{_money(hero['peer_median'])}</b>).{supp_line}{fx_clause} "
             f"<span class='warn'>Peer figures are actual SCT-disclosed pay, not target opportunity.</span>")
 
 
@@ -424,39 +438,47 @@ def render_digest(report):
     result = report["result"]
     hero = report["hero"]
     supp = report["suppressed"]
+    roles_txt = ", ".join(_md(r) for r in report["roles"])
     lines = [
-        f"# {COMPANY} — Executive Comp Benchmarking (Compensation Committee) digest",
+        f"# {_md(COMPANY)} — Executive Comp Benchmarking (Compensation Committee) digest",
         f"_{PERIOD} · draft for committee review_", "",
-        f"- Positioned **{COMPANY}**'s **{len(report['roles'])} benchmarked NEOs** "
-        f"({', '.join(report['roles'])}) across **{report['n_positions']} pay positions** vs "
-        f"**{report['n_peers']} real peers'** SEC-disclosed proxy pay.",
+        f"- Positioned **{_md(COMPANY)}**'s **{len(report['roles'])} benchmarked NEOs** "
+        f"({roles_txt}) across **{report['n_positions']} pay positions** vs "
+        f"**{report['n_peers']} real US-SCT peers'** DEF 14A proxy pay.",
         f"- **{report['n_below']} of {report['n_positions']}** positions are **below** the committee's "
         f"target band"
-        + (f" — {report['concentration'][0].replace('&amp;', '&')}" if report['concentration'][0] else "")
+        + (f" — {_md(report['concentration'][0])}" if report['concentration'][0] else "")
         + f"; annual cash is {'at or above target' if not report['cash_below'] else 'mixed vs target'}.",
-        f"- {HERO_ROLE} total direct comp **{_money(hero['subject_value'])}** sits at the "
+        f"- {_md(HERO_ROLE)} total direct comp **{_money(hero['subject_value'])}** sits at the "
         f"**~{ch.ordinal(round(hero['percentile']))} percentile** (peer median **{_money(hero['peer_median'])}**; "
         f"target P{report['el_band'][HERO_ELEMENT][0]}–{report['el_band'][HERO_ELEMENT][1]}).",
     ]
     if report["below_sorted"]:
         widest = report["below_sorted"][0]
         lines.append(
-            f"- Widest shortfall: **{widest['role']} {report['el_label'][widest['element']]}** at "
+            f"- Widest shortfall: **{_md(widest['role'])} {_md(report['el_label'][widest['element']])}** at "
             f"**P{widest['percentile']:.0f}** vs target **P{widest['target_lo']}** "
             f"(**{widest['gap']:.0f}pt** below the band).")
     if supp:
-        supp_names = ", ".join(f"{s['role']} (n={s['peer_n']})" for s in supp)
+        supp_names = ", ".join(f"{_md(s['role'])} (n={s['peer_n']})" for s in supp)
         lines.append(
             f"- Suppressed (thin peer disclosure, n &lt; {_min_n()}): "
             f"**{supp_names}** — shown, not given a spurious percentile.")
+    if report.get("foreign_excluded"):
+        # NOTE: name the COUNT only, not the tickers/companies — the benchmarking output is ticker-scanned
+        # (it must stay ticker-free); the excluded issuers are named in the allow-listed provenance doc.
+        n_fx = len(report["foreign_excluded"])
+        lines.append(
+            f"- **{n_fx} foreign private issuer{'s' if n_fx != 1 else ''} excluded** from the SCT distribution "
+            f"(20-F / furnished 6-K basis, not a US Summary Compensation Table — see governance/proxy-comp-data.md).")
     lines += [
         "",
-        "_Peer figures are **actual SCT-disclosed** proxy pay (equity at grant-date fair value), **not** "
-        "target opportunity; positioned against the committee's target-percentile policy._",
+        "_Peer figures are **actual US SCT-disclosed** proxy pay (DEF 14A; equity at grant-date fair value), "
+        "**not** target opportunity; positioned against the committee's target-percentile policy._",
         "_Real public-company peers (as-disclosed public financials, an illustrative snapshot — see "
         "governance/proxy-comp-data.md); the subject (Acme) is synthetic._",
-        "_The agent POSITIONS pay; the Compensation Committee sets it (human-in-the-loop). Publish gate: a "
-        "named committee approver must sign off._",
+        "_The agent POSITIONS pay; the Compensation Committee sets it (human-in-the-loop). The publish gate "
+        "records an illustrative named sign-off; a production deployment binds it to the approval registry._",
     ]
     return "\n".join(lines) + "\n"
 
@@ -624,9 +646,14 @@ def main(argv=None) -> int:
         return _fail_closed(f"benchmarking data unavailable: {exc}")
 
     pub_path = OUT / "PUBLISHED.json"
-    pub_json = (json.dumps({"approved_by": approver, "scope": SCOPE, "as_of": AS_OF,
-                            "roles_benchmarked": report["roles"], "positions": report["n_positions"],
-                            "below_target": report["n_below"]}, indent=2) + "\n")
+    # NOTE on the gate: this records an ILLUSTRATIVE committee sign-off in a synthetic example — it checks a
+    # name's SHAPE, not a person's authority. A production deployment binds publication to the approval
+    # registry (entitlement + causation + scope), exactly as examples/operating-review already demonstrates.
+    pub_json = (json.dumps({"signed_off_by": approver, "basis": "illustrative_demo_signoff",
+                            "scope": SCOPE, "as_of": AS_OF, "roles_benchmarked": report["roles"],
+                            "positions": report["n_positions"], "below_target": report["n_below"],
+                            "production_control": "approval_registry (see examples/operating-review)"},
+                           indent=2) + "\n")
     try:
         OUT.mkdir(exist_ok=True)
         for p in (REPORT, DIGEST, pub_path):     # clear any prior .stale quarantine for what we (re)write
@@ -637,16 +664,17 @@ def main(argv=None) -> int:
         rep_tmp = _stage(REPORT, html_doc)
         dig_tmp = _stage(DIGEST, digest_doc)
         pub_tmp = _stage(pub_path, pub_json) if args.publish else None
-        # COMMIT with os.replace: report + digest, then the approval marker LAST. A crash mid-commit can
-        # only leave a fresh report/digest WITHOUT a PUBLISHED.json (reads as a draft) — never a published
-        # marker without its report. A redrawn DRAFT removes any prior approval INSIDE this guarded block,
-        # so a failure there degrades to one clean fail-closed line instead of an uncaught crash.
+        # A redrawn DRAFT invalidates any prior approval: remove the stale PUBLISHED.json FIRST, BEFORE the
+        # new draft lands, so a crash can never leave a fresh draft carrying a prior run's "published" marker.
+        if not args.publish:
+            pub_path.unlink(missing_ok=True)
+        # COMMIT with os.replace: report + digest, then (on publish) the approval marker LAST. A crash
+        # mid-commit can only leave a fresh report/digest WITHOUT a PUBLISHED.json (reads as a draft) —
+        # never a published marker without its report, and never a draft with a stale approval attached.
         os.replace(rep_tmp, REPORT)
         os.replace(dig_tmp, DIGEST)
         if args.publish:
             os.replace(pub_tmp, pub_path)
-        else:
-            pub_path.unlink(missing_ok=True)
     except OSError as exc:
         for p in (REPORT, DIGEST, pub_path):
             try:
@@ -663,7 +691,9 @@ def main(argv=None) -> int:
         print(f"  suppressed (thin peer disclosure): {', '.join(s['role'] for s in report['suppressed'])}")
     print("  wrote report.sample.html and day1-digest.sample.md")
     if args.publish:
-        print(f"\nBenchmarking approved by {approver}. Recorded locally (no external send).")
+        print(f"\nIllustrative committee sign-off recorded locally for '{approver}' (demo — checks a name's "
+              "shape, not authority; no external send).")
+        print("  Production binds this gate to the approval registry (entitlement + scope) — see examples/operating-review.")
     else:
         print("\nDRAFT only. The Compensation Committee sets pay. Nothing was sent.")
     return 0
