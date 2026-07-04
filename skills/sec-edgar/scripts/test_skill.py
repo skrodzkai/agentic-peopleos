@@ -121,6 +121,10 @@ try:
            "a file:// URL is refused (no SSRF / local file read via find_section)")
     raises(edgar.EdgarError, lambda: edgar._get("https://evil.example.com/x"),
            "a non-SEC https host is refused")
+    # invalid JSON from SEC must become a clean EdgarError, not a raw JSONDecodeError
+    urllib.request.urlopen = lambda req, timeout=None: _FakeResp(b"not json{")
+    raises(edgar.EdgarError, lambda: edgar._get("https://data.sec.gov/x.json"),
+           "invalid JSON is wrapped as EdgarError (not a raw JSONDecodeError)")
 finally:
     urllib.request.urlopen, time.sleep, edgar.UA = _saved
     if _orig_env2 is not None:
@@ -180,6 +184,12 @@ try:
         ok(win and "Summary Compensation Table" in win and "<" not in win, "find_section returns a tag-stripped window at the heading")
         ok(edgar.find_section("https://www.sec.gov/x.htm", "Nonexistent Heading Zzz") is None,
            "find_section returns None when the heading is absent (no guess)")
+        # a heading split by markup / non-breaking spaces still matches (whole-doc normalization)
+        edgar._get = lambda url, want_json=True: "<h2>Summary&nbsp;Compensation<br>Table</h2><p>Salary 500,000</p>"
+        ok(edgar.find_section("https://www.sec.gov/x.htm", "Summary Compensation Table"),
+           "find_section normalizes entities/tags so a split heading still matches")
+        raises(edgar.EdgarError, lambda: edgar.find_section("https://www.sec.gov/x.htm", "   "),
+               "find_section refuses a blank heading (no first-window guess)")
     finally:
         edgar._get = _saved_get
     ok("foreign private issuer" in fpi["note"], "the FPI note explains the different basis")

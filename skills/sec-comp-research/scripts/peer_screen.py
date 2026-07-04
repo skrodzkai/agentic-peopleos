@@ -2,7 +2,7 @@
 """Build a compensation peer group by a transparent, disclosed-market screen. Standard library only.
 
 The screen (the defensible norm a compensation committee uses):
-  HARD gates  : same industry group  AND  revenue within 0.5-2.0x  AND  market cap within 0.5-2.0x
+  HARD gates  : same industry (exact match on the label you give)  AND  revenue 0.5-2.0x  AND  market cap 0.5-2.0x
   SOFT factor : headcount (shapes the size-fit RANK, never membership)
 Then rank the in-band group by a revenue-weighted size-closeness fit (100 = identical size, 0 = band edge).
 Membership is defensible on one line: "same industry, within 0.5-2.0x our size."
@@ -106,6 +106,12 @@ def _load_peers(path):
             raise ScreenError(f"peers CSV is missing column(s): {', '.join(missing)}. Required header: "
                               f"ticker,name,revenue_musd,market_cap_musd,industry[,employees]")
         for i, r in enumerate(reader, start=2):
+            # a RAGGED / OVERWIDE row doesn't match the header — DictReader stashes surplus fields under the
+            # None key and leaves short-row fields None; either way the row is corrupt, so fail closed
+            if None in r:
+                raise ScreenError(f"peers CSV line {i}: more fields than headers (overwide/ragged row)")
+            if any(v is None for v in r.values()):
+                raise ScreenError(f"peers CSV line {i}: fewer fields than headers (short row)")
             rev = _pos(r["revenue_musd"], f"peers CSV line {i} revenue_musd")
             cap = _pos(r["market_cap_musd"], f"peers CSV line {i} market_cap_musd")
             emp = _pos(r["employees"], f"peers CSV line {i} employees") if (r.get("employees") or "").strip() else None

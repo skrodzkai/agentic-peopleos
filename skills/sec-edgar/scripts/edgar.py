@@ -94,7 +94,12 @@ def _get(url, want_json=True):
                     import gzip
                     data = gzip.decompress(data)
                 text = data.decode("utf-8", errors="replace")
-            return json.loads(text) if want_json else text
+            if not want_json:
+                return text
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError as e:
+                raise EdgarError(f"SEC returned invalid JSON for {url}: {e}") from e
         except urllib.error.HTTPError as e:
             last_exc = e
             if e.code in _RETRY_CODES and attempt < _MAX_RETRIES:
@@ -138,8 +143,13 @@ def company_filings(cik10: str, forms=None, limit: int = 40) -> list[dict]:
     for i in range(len(form)):
         if want is not None and form[i].upper() not in want:
             continue
-        out.append({"form": form[i], "date": date[i], "accession": acc[i], "primary_doc": doc[i],
-                    "url": f"{_ARCHIVE}/{cik_int}/{acc[i].replace('-', '')}/{doc[i]}"})
+        a, d = str(acc[i]), str(doc[i])
+        # defensive: the accession + primary-doc come from SEC's JSON, but validate the path components
+        # anyway (an 18-digit dashed accession; a flat filename with no traversal) before building a URL.
+        if not _ACCESSION_RE.match(a) or ".." in d or d.startswith("/") or not d:
+            continue
+        out.append({"form": form[i], "date": date[i], "accession": a, "primary_doc": d,
+                    "url": f"{_ARCHIVE}/{cik_int}/{a.replace('-', '')}/{d}"})
         if len(out) >= limit:
             break
     return out
@@ -177,8 +187,9 @@ def def14a(ticker: str) -> dict:
     proxy = latest_filing(cik10, ("DEF 14A",))
     if proxy:
         return {"ticker": ticker.upper(), "cik": cik10, "company": title, "disclosure": "def14a", **proxy}
-    # FPI fallback: prefer the ANNUAL report (20-F, then 40-F) over a recent unrelated 6-K.
-    alt = latest_filing(cik10, ("20-F",)) or latest_filing(cik10, ("40-F",)) or latest_filing(cik10, ("6-K",))
+    # FPI fallback: prefer the newest ANNUAL report (either 20-F OR 40-F, whichever is more recent) over a
+    # recent unrelated 6-K — a Canadian MJDS filer may file 40-F, not 20-F.
+    alt = latest_filing(cik10, ("20-F", "40-F")) or latest_filing(cik10, ("6-K",))
     return {"ticker": ticker.upper(), "cik": cik10, "company": title, "disclosure": "foreign_issuer_or_no_def14a",
             "note": "No DEF 14A — likely a foreign private issuer; exec comp is on the 20-F/40-F (annual) or "
                     "furnished via a 6-K circular, on a non-US basis.",
@@ -187,16 +198,20 @@ def def14a(ticker: str) -> dict:
 
 def find_section(url: str, heading: str, window: int = 2800) -> str | None:
     """Fetch a filing and return a readable text window around a named heading (e.g. 'Summary Compensation
-    Table'), tags stripped — modern inline-XBRL filings bury such tables deep, so locate them by NAME. Returns
-    None if the heading isn't found."""
+    Table'), tags stripped — modern inline-XBRL filings bury such tables deep, so locate them by NAME. The
+    WHOLE document is first normalized (tags -> spaces, HTML entities decoded, whitespace collapsed) so a
+    heading split by markup or non-breaking spaces ('Summary&nbsp;Compensation<br>Table') still matches.
+    Returns None if the heading isn't found; a blank heading is refused."""
     import html
+    h = " ".join(str(heading).split()).lower()
+    if not h:
+        raise EdgarError("find_section: heading must be non-empty")
     doc = _get(url, want_json=False)
-    idx = doc.lower().find(heading.lower())
+    text = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", doc)))   # normalize the whole document
+    idx = text.lower().find(h)
     if idx == -1:
         return None
-    snippet = doc[max(0, idx - 200): idx + window]
-    text = html.unescape(re.sub(r"<[^>]+>", " ", snippet))    # strip tags, then decode &#160;/&amp; entities
-    return re.sub(r"\s+", " ", text).strip()[:window]
+    return text[max(0, idx - 200): idx + window].strip()[:window]
 
 
 # ---------------------------------------------------------------- CLI

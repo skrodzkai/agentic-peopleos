@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import csv
 import math
+import re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -35,6 +36,9 @@ REQUIRED_COLS = ("ticker", "company_name", "role_bucket", "title", "salary", "bo
                  "disclosure", "form", "currency", "source_url", "extraction_date", "row_caveat",
                  "is_subject")
 _MONEY_COLS = ("salary", "bonus", "stock_awards", "option_awards", "non_equity_incentive", "other_comp", "total")
+_DISCLOSURE_VALUES = ("def14a", "foreign_issuer_limited")   # a real peer row's disclosure basis
+_SEC_ARCHIVE_PREFIX = "https://www.sec.gov/Archives/"       # every real figure traces to a SEC filing
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ROLES = ("CEO", "CFO", "COO", "CLO", "CHRO")     # the subject's benchmarked roles, in committee-report order
 MIN_PEER_N = 6                                    # suppress a role with fewer than this many peer observations
 _NON_INCUMBENT = ("former", "outgoing", "interim", "retired")   # title markers of a non-incumbent officer
@@ -93,6 +97,16 @@ def load_proxy_comp(path: Path = PROXY_PATH):
                                  f"{sorted(REQUIRED_COLS)}, got {fields}")
         peers, subject = [], []
         for i, r in enumerate(reader, start=2):
+            # a RAGGED / OVERWIDE row doesn't match the header: DictReader stuffs surplus fields under the
+            # None key and leaves short-row fields None. Either way the row is corrupt — fail closed rather
+            # than silently drop or misalign data.
+            if None in r:
+                raise BenchmarkError(f"line {i}: more fields than headers (overwide/ragged row)")
+            if any(v is None for v in r.values()):
+                raise BenchmarkError(f"line {i}: fewer fields than headers (short row)")
+            is_subj = r.get("is_subject")
+            if is_subj not in ("yes", "no"):
+                raise BenchmarkError(f"line {i}: is_subject must be 'yes' or 'no' (got {is_subj!r})")
             for c in _MONEY_COLS:
                 r[c] = _money(r[c], f"line {i} {c}")
             rb = (r.get("role_bucket") or "").strip()
@@ -100,6 +114,24 @@ def load_proxy_comp(path: Path = PROXY_PATH):
                 raise BenchmarkError(f"line {i}: empty role_bucket")
             r["role_bucket"] = rb
             r["title"] = (r.get("title") or "").strip()
+            for col in ("ticker", "company_name", "title", "fiscal_year"):
+                if not str(r.get(col, "")).strip():
+                    raise BenchmarkError(f"line {i}: empty {col}")
+            if str(r.get("currency", "")).strip() != "USD":
+                raise BenchmarkError(f"line {i}: currency must be USD (got {r.get('currency')!r})")
+            # real peer rows carry ENFORCED provenance — governance claims every figure traces to a filing
+            if is_subj == "no":
+                if r.get("disclosure") not in _DISCLOSURE_VALUES:
+                    raise BenchmarkError(f"line {i}: disclosure must be one of {_DISCLOSURE_VALUES} "
+                                         f"(got {r.get('disclosure')!r})")
+                if not str(r.get("form", "")).strip():
+                    raise BenchmarkError(f"line {i}: empty form (SEC form type)")
+                if not str(r.get("source_url", "")).startswith(_SEC_ARCHIVE_PREFIX):
+                    raise BenchmarkError(f"line {i}: source_url must be a SEC archive URL "
+                                         f"({_SEC_ARCHIVE_PREFIX}…), got {r.get('source_url')!r}")
+                if not _ISO_DATE_RE.match(str(r.get("extraction_date", ""))):
+                    raise BenchmarkError(f"line {i}: extraction_date must be ISO YYYY-MM-DD "
+                                         f"(got {r.get('extraction_date')!r})")
             # components must reconcile to the reported SCT Total — ALWAYS, not only when total>0. A row with
             # positive components but total=0 (a dropped/miskeyed Total) must FAIL, not slip through. The
             # tolerance is scaled off whichever of {components, total} is larger so a zero Total still trips it.
@@ -110,7 +142,7 @@ def load_proxy_comp(path: Path = PROXY_PATH):
             if abs(comp_sum - r["total"]) > 50.0:
                 raise BenchmarkError(f"line {i} ({r['ticker']}/{rb}): components ${comp_sum:,.0f} do not "
                                      f"reconcile to SCT Total ${r['total']:,.0f}")
-            (subject if r.get("is_subject") == "yes" else peers).append(r)
+            (subject if is_subj == "yes" else peers).append(r)
     if not peers:
         raise BenchmarkError("proxy_comp has no peer rows")
     if not subject:
@@ -187,7 +219,9 @@ def position(subject_value, peer_values, band_lo, band_hi):
         raise BenchmarkError(f"target band must be ints 0<=lo<=hi<=100 (got {band_lo},{band_hi})")
     sv = _money(subject_value, "subject_value")
     peers = _sorted(peer_values)
-    pr = percentile_rank(peers, sv)
+    # decide status against the SAME rounded percentile that is displayed, so a P49.96 that rounds to P50
+    # inside a P50–65 band reads "within", not "below by 0pts".
+    pr = round(percentile_rank(peers, sv), 1)
     if pr < band_lo:
         status, gap = "below", round(band_lo - pr, 1)
     elif pr > band_hi:
@@ -210,6 +244,8 @@ def benchmark(path: Path = PROXY_PATH):
     # so they are EXCLUDED from the percentile math and surfaced separately as a caveated reference — never
     # mixed into a distribution the report calls "SCT-comparable".
     peers = [p for p in peers_all if p.get("disclosure") == "def14a"]
+    if not peers:
+        raise BenchmarkError("no US SCT (def14a) peers remain — the distribution would be empty")
     foreign = sorted({(p["ticker"], p["company_name"]) for p in peers_all if p.get("disclosure") != "def14a"})
     # a row_caveat beginning "EXCLUDE:" is a documented per-row data-governance decision to drop a
     # NON-REPRESENTATIVE observation from the distribution — e.g. a CFO appointed near fiscal year-end whose

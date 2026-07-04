@@ -29,8 +29,10 @@ The system deliberately keeps three records separate, each authoritative for one
 - **The conversation → the chat surface.** Human-readable, but never the authority for a
   decision — that lives in the ledger.
 
-The agent registry/manifest below is a fourth, narrower record: the source of truth for *which
-agents exist*, not for what they decided.
+In the production pattern, a **fleet registry/manifest** is a fourth, narrower record — the source of
+truth for *which* agents exist, as distinct from the ledger's record of what they decided. This public
+reference repo demonstrates the per-agent primitives below; it does **not** ship a populated multi-agent
+fleet registry (that is a deployment artifact, described here as a design pattern).
 
 ## The seven primitives
 
@@ -46,13 +48,13 @@ immutable section.
 ### 2. Onboarding — the scaffolder
 New agents are never hand-assembled. A scaffolder ([`../scaffold/newagent.sh`](../scaffold/newagent.sh))
 stamps out the required files so every agent in the fleet is structurally identical:
-`SOUL.md`, a `run` entrypoint, a `cost_tracker.json`, and a registry entry.
+`SOUL.md`, a `run` entrypoint, a `cost_tracker.json` (and, in a deployment, a fleet-registry entry).
 
-### 3. Headcount — the registry + manifest
-A single registry file is the source of truth for *which agents exist*, what domain they
-belong to, and who owns them (not for what they decided — that's the ledger). A manifest
-summarizes the whole org. If the filesystem and the manifest disagree, that **drift** is
-surfaced before anything is reconciled.
+### 3. Headcount — the registry + manifest  *(design pattern — not shipped populated here)*
+In a deployment, a single registry file is the source of truth for *which agents exist*, what domain
+they belong to, and who owns them (not for what they decided — that's the ledger); a manifest summarizes
+the whole org, and any **drift** between the filesystem and the manifest is surfaced before reconciliation.
+This public reference repo describes the pattern but does not ship a populated fleet registry/manifest.
 
 ### 4. Performance reviews — the coach
 A dedicated "coach" agent reads frozen performance snapshots on a weekly cadence and

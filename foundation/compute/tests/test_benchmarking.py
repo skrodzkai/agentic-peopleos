@@ -92,11 +92,13 @@ ok("former" not in aaa["title"].lower(), "the incumbent (non-'Former') CEO is ke
 FIELDS = list(B.REQUIRED_COLS)
 
 
-def _row(tk, rb, sal, stk, tot, subj="no", title="", nei=0.0, other=0.0, bonus=0.0, opt=0.0):
+def _row(tk, rb, sal, stk, tot, subj="no", title="", nei=0.0, other=0.0, bonus=0.0, opt=0.0, caveat=""):
     return {"ticker": tk, "company_name": f"{tk} Inc", "role_bucket": rb, "title": title or rb,
             "salary": sal, "bonus": bonus, "stock_awards": stk, "option_awards": opt,
             "non_equity_incentive": nei, "other_comp": other, "total": tot,
-            "fiscal_year": "FY2025", "disclosure": "def14a", "is_subject": subj}
+            "fiscal_year": "FY2025", "disclosure": "def14a", "form": "DEF 14A", "currency": "USD",
+            "source_url": f"https://www.sec.gov/Archives/edgar/data/1/{tk}.htm",
+            "extraction_date": "2026-01-01", "row_caveat": caveat, "is_subject": subj}
 
 
 def _write(d, rows, fields=FIELDS):
@@ -135,6 +137,20 @@ with tempfile.TemporaryDirectory() as dd:
     zero_total[1] = _row("P0", "CEO", 400_000, 2_000_000, 0)   # components > 0 but Total = 0
     raises(BenchmarkError, lambda: load_proxy_comp(_write(dd, zero_total)),
            "positive components with a zero SCT Total fail reconciliation (not skipped)")
+    # ENFORCED provenance on peer rows (governance claims every figure is sourced): blank/non-SEC url,
+    # non-ISO date, and non-USD currency all fail closed
+    for mut, label in (({"source_url": ""}, "a blank source_url"),
+                       ({"source_url": "http://evil.example.com/x"}, "a non-SEC source_url"),
+                       ({"extraction_date": "2026/01/01"}, "a non-ISO extraction_date"),
+                       ({"currency": "EUR"}, "a non-USD currency"),
+                       ({"is_subject": "maybe"}, "an is_subject that is not yes/no")):
+        m = list(good)
+        m[1] = {**good[1], **mut}
+        raises(BenchmarkError, lambda p=m: load_proxy_comp(_write(dd, p)), f"{label} fails closed")
+    # an OVERWIDE row (more values than headers) fails closed — DictReader would stash the surplus + misalign
+    wide = Path(dd) / "wide.csv"
+    wide.write_text(",".join(FIELDS) + "\n" + ",".join(["X"] * len(FIELDS)) + ",EXTRA\n", encoding="utf-8")
+    raises(BenchmarkError, lambda: load_proxy_comp(wide), "an overwide row (extra field) fails closed")
     # a non-numeric salary in the CSV fails closed. NOTE: csv.DictWriter serializes Python True -> "True",
     # so this row exercises the non-numeric-STRING guard, not the bool-type guard (that is proven directly
     # below, so the isinstance(x, bool) check in _money is demonstrably load-bearing).

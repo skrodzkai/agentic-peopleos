@@ -18,7 +18,7 @@ proxy season. Everything here uses only public SEC endpoints (no login, no paid 
 1. Resolve any US-listed company to its SEC filings and find its latest **DEF 14A** (proxy statement).
 2. Read the **Summary Compensation Table (SCT)** to get each Named Executive Officer's pay
    (salary, bonus, non-equity incentive, stock awards, option awards, all-other, total).
-3. Build a **peer group** by a transparent screen (same industry group + 0.5–2.0× revenue and market cap).
+3. Build a **peer group** by a transparent screen (same industry — an exact match on the label you provide — plus revenue and market cap each within 0.5–2.0×).
 4. Position a subject company's exec pay against the peer distribution at target percentiles.
 
 **Guardrails (always apply)**
@@ -103,7 +103,7 @@ GICS/industry) and a candidate list; it applies a transparent screen and ranks b
 python3 scripts/peer_screen.py --demo          # runs a worked example
 ```
 
-The screen (disclosed-market norm): **same industry group** + revenue **and** market cap each within
+The screen (disclosed-market norm): **same industry** (an exact match on the industry label you supply) + revenue **and** market cap each within
 **0.5–2.0×** of the subject; headcount is a soft factor, not a gate. Then rank by revenue-weighted
 size-closeness. Membership is defensible on one line: "same industry, within 0.5–2.0× our size."
 

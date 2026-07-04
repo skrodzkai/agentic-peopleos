@@ -110,7 +110,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full model.
 The **People Analytics & reporting** arm is a set of agents that turn the metric registry into
 governed operating dashboards. They share one design: a **shared compute engine**
 ([`foundation/compute/engine.py`](foundation/compute/engine.py)) is the single source of math over a
-[synthetic data foundation](foundation/data/) (synthetic throughout, except two exec-comp datasets built on **real public companies** — the peer universe ([real-peer-data](governance/real-peer-data.md)) and the real proxy-pay figures ([proxy-comp-data](governance/proxy-comp-data.md)), both role-based with no individual names), a **shared dark renderer**
+[synthetic data foundation](foundation/data/) (synthetic throughout, except two exec-comp datasets built on **real public companies** — the peer universe ([real-peer-data](governance/real-peer-data.md)) and the real proxy-pay figures ([proxy-comp-data](governance/proxy-comp-data.md)), the peer universe is company-level, the proxy-pay figures role-based — no individual names), a **shared dark renderer**
 ([`foundation/render/dashboard.py`](foundation/render/dashboard.py)) plus a deterministic
 [SVG chart toolkit](foundation/render/charts.py) draw every dashboard, and each agent is
 **presentation + governance only** — it does no metric math, cites the registry, shows
@@ -140,6 +140,11 @@ not-yet-instrumented metrics **honestly** as `data_pending`, fails closed, and s
 The **Executive Compensation** arm is built around the parts of Total Rewards that have to mirror
 board-level scrutiny: peer group construction, proxy-backed benchmarking, target percentile policy,
 relative-TSR PSU tracking, and human-owned committee decisions.
+
+> **On the real peer data.** The peer financials and the DEF 14A proxy-pay figures are **public** data,
+> **automated-research-sourced** and presented as an **illustrative, dated snapshot** pending human-expert
+> review — verify each figure against the linked SEC filing before any real use. Only the subject (Acme)
+> is synthetic.
 
 - **[Executive Comp Peer Group Builder](examples/executive-comp-peer-builder/)** — builds a defensible
   peer group the way a compensation committee does, screening a synthetic subject (Acme) against a universe

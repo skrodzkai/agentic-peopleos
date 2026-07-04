@@ -106,9 +106,9 @@ _NUMERIC_POS_FIELDS = ("percentile", "target_lo", "target_hi", "peer_n", "gap",
 
 
 def _check_position(p):
-    """Fail closed on a corrupted engine position before it reaches the renderer — a non-finite / non-numeric
-    percentile/band/peer_n could otherwise inject markup into the HTML/Markdown (the numeric fields are
-    interpolated without escaping, on the assumption they are numbers)."""
+    """Fail closed on a corrupted engine position before it reaches the renderer — NUMERIC TYPE and SEMANTIC
+    invariants. A non-finite/non-numeric field could inject markup (numbers are interpolated unescaped); a
+    broken band / negative gap / out-of-order quartile would render a nonsensical, misleading committee view."""
     for k in _NUMERIC_POS_FIELDS:
         v = p.get(k)
         if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(float(v)):
@@ -117,6 +117,38 @@ def _check_position(p):
         raise ReportError(f"position percentile out of range: {p['percentile']!r}")
     if p.get("status") not in ("below", "within", "above"):
         raise ReportError(f"corrupted position status: {p.get('status')!r}")
+    lo, hi = float(p["target_lo"]), float(p["target_hi"])
+    if not (0 <= lo <= hi <= 100):
+        raise ReportError(f"target band not ordered/in range: P{lo}-P{hi}")
+    if not (float(p["peer_p25"]) <= float(p["peer_median"]) <= float(p["peer_p75"])):
+        raise ReportError(f"peer quartiles out of order: {p['peer_p25']}/{p['peer_median']}/{p['peer_p75']}")
+    if float(p["peer_n"]) <= 0:
+        raise ReportError(f"peer_n must be positive (got {p['peer_n']!r})")
+    if float(p["gap"]) < 0:
+        raise ReportError(f"gap must be >= 0 (got {p['gap']!r})")
+    if p["status"] == "within" and float(p["gap"]) != 0:
+        raise ReportError(f"a within-band position must have gap 0 (got {p['gap']!r})")
+
+
+def _check_result(result, positions):
+    """Aggregate counts must TIE to the positions, and each suppressed-role record must be well-formed —
+    a stale count or a corrupted suppressed row would render a false headline."""
+    if result.get("n_positions") != len(positions):
+        raise ReportError(f"n_positions ({result.get('n_positions')!r}) != actual positions ({len(positions)})")
+    below = sum(1 for p in positions if p["status"] == "below")
+    if result.get("n_below_target") != below:
+        raise ReportError(f"n_below_target ({result.get('n_below_target')!r}) != below-band positions ({below})")
+    npt = result.get("n_peers_total")
+    if isinstance(npt, bool) or not isinstance(npt, int) or npt <= 0:
+        raise ReportError(f"n_peers_total must be a positive int (got {npt!r})")
+    for s in result.get("roles_suppressed", []):
+        if not isinstance(s.get("role"), str) or not s["role"].strip():
+            raise ReportError(f"suppressed role must be a non-empty string (got {s.get('role')!r})")
+        pn = s.get("peer_n")
+        if isinstance(pn, bool) or not isinstance(pn, int) or pn < 0:
+            raise ReportError(f"suppressed peer_n must be a non-negative int (got {pn!r})")
+        if not isinstance(s.get("reason"), str):
+            raise ReportError(f"suppressed reason must be a string (got {s.get('reason')!r})")
 
 
 def build_report(result):
@@ -125,6 +157,7 @@ def build_report(result):
         raise ReportError("benchmarking returned no positions — a pay-positioning view must not ship empty")
     for p in positions:
         _check_position(p)
+    _check_result(result, positions)
 
     roles = result["roles_benchmarked"]
     elements = result["elements"]                        # [{key,label,band:[lo,hi]}...] — the policy, from the engine

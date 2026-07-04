@@ -73,7 +73,7 @@ Use `--section "Summary Compensation Table"` to print a readable text window aro
 name, since modern inline-XBRL proxies bury it deep in the document) so you can read each Named Executive
 Officer's pay — e.g. `python3 ../sec-edgar/scripts/edgar.py PCTY --section "Summary Compensation Table"`.
 
-**3. Build a peer group** — the transparent screen a compensation committee uses (same industry group,
+**3. Build a peer group** — the transparent screen a compensation committee uses (same industry — an exact label match,
 revenue **and** market cap each within 0.5–2.0× of the subject; headcount a soft factor), ranked by
 size-fit:
 
