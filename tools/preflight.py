@@ -35,6 +35,8 @@ REQUIRED_GLOBS = [
     "examples/*/output/*.png", "examples/*/output/*.jsonl",
     "vault/**/*.md", "vault/90-people-analytics/metrics/metrics.registry.json",
     "governance/*.md", "docs/*.md", ".github/workflows/ci.yml", "README.md", "LICENSE",
+    # portable SEC skills — every skill ships its doc + README + runnable scripts (incl. its offline test)
+    "skills/*/SKILL.md", "skills/*/README.md", "skills/*/scripts/*.py",
 ]
 
 

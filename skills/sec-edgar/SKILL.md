@@ -88,6 +88,8 @@ Table")` for exactly this, and WebFetch of the document URL also works.
 
 - **Executive compensation** → the [`sec-comp-research`](../sec-comp-research/) skill (reads the SCT, builds
   a peer group, positions pay at percentiles). It uses these same primitives.
+- **The SCT as structured, reconciled data** → the [`sec-proxy-extractor`](../sec-proxy-extractor/) skill
+  (deterministic table parse + per-row reconciliation + a confidence score).
 - **Insider activity** (Form 4), **activist stakes** (13D/G), **risk factors** (10-K) → read the structured
   document the form's catalog entry points to.
 

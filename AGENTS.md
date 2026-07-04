@@ -64,6 +64,8 @@ python3 foundation/compute/retention.py validate   # re-fits + reproduces coeffi
 # portable SEC skills — offline self-checks (no network)
 python3 skills/sec-edgar/scripts/test_skill.py
 python3 skills/sec-comp-research/scripts/peer_screen.py --demo >/dev/null
+python3 skills/sec-proxy-extractor/scripts/test_skill.py
+python3 skills/sec-proxy-extractor/scripts/extractor.py --demo >/dev/null
 # reference example agents
 (cd examples/ta-reporting && python3 evals/test_report.py)
 (cd examples/comp-reporting && python3 evals/test_comp.py)

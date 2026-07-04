@@ -58,7 +58,10 @@ is disclosed on a **different, non-US basis** (do not treat it as a US SCT).
 
 Fetch the DEF 14A URL and locate the **Summary Compensation Table** — WebFetch the URL, or use the
 foundation's section finder: `python3 ../sec-edgar/scripts/edgar.py AAPL --section "Summary Compensation
-Table"`. It is the canonical exec-pay table; every NEO (usually 5) appears with, for the latest fiscal year:
+Table"`. For a **deterministic, reconciled** parse of the SCT into structured rows with a confidence score
+(instead of a semantic read), hand off to the [`sec-proxy-extractor`](../sec-proxy-extractor/) skill:
+`python3 ../sec-proxy-extractor/scripts/extractor.py AAPL`. It is the canonical exec-pay table; every NEO
+(usually 5) appears with, for the latest fiscal year:
 
 | Column | Maps to |
 |---|---|

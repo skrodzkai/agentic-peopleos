@@ -182,7 +182,7 @@ relative-TSR PSU tracking, and human-owned committee decisions.
 
 ## Portable skills — point your agent at real SEC data
 
-Two **portable, standard-library agent skills** ([`skills/`](skills/)) — copy them into any agent's skills
+Three **portable, standard-library agent skills** ([`skills/`](skills/)) — copy them into any agent's skills
 directory and it can work with **real, public SEC EDGAR data** (no login, no API key, no paid provider):
 
 - **[`sec-edgar`](skills/sec-edgar/)** — the foundation. Resolve any ticker, list a company's filings, and
@@ -192,10 +192,14 @@ directory and it can work with **real, public SEC EDGAR data** (no login, no API
 - **[`sec-comp-research`](skills/sec-comp-research/)** — builds on the foundation for the **proxy-season
   workflow**: find the DEF 14A, read the Summary Compensation Table, screen a size + industry peer group,
   and position pay at target percentiles. The real-data companion to the Executive Compensation arm above.
+- **[`sec-proxy-extractor`](skills/sec-proxy-extractor/)** — the deterministic extraction layer. Turns the
+  messiest, highest-value table in a proxy — the **Summary Compensation Table** — into structured, **reconciled**
+  rows **with a confidence score**, handling the real-world HTML noise (spacer cells, split `$`, glued header
+  words, footnote cells, zero-width filler, dropped names) and refusing to guess when it can't find a real SCT.
 
-The skills are **layered on purpose** — `sec-edgar` is the map (navigation + form intelligence), not a
-table extractor; deterministic proxy-table extraction with confidence scoring is a named next layer, kept
-separate so the foundation stays small and stdlib-only. See [skills/ROADMAP.md](skills/ROADMAP.md).
+The skills are **layered on purpose** — `sec-edgar` is the map (navigation + form intelligence),
+`sec-comp-research` is the analyst workflow, and `sec-proxy-extractor` is the deterministic table parser —
+kept separate so the foundation stays small and stdlib-only. See [skills/ROADMAP.md](skills/ROADMAP.md).
 
 ## Examples (reference patterns)
 

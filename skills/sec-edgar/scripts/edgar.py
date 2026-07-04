@@ -16,6 +16,7 @@ email) or calls are refused before they hit SEC.
 
 As a library:
     from edgar import cik_for_ticker, company_filings, latest_filing, def14a, filing_index, classify_form
+    from edgar import fetch_document, find_section     # raw document (table structure) / a text window by heading
 """
 from __future__ import annotations
 
@@ -201,6 +202,14 @@ def def14a(ticker: str) -> dict:
             "note": "No DEF 14A — likely a foreign private issuer; exec comp is on the 20-F/40-F (annual) or "
                     "furnished via a 6-K circular, on a non-US basis.",
             **(alt or {"url": None, "form": None, "date": None, "accession": None, "primary_doc": None})}
+
+
+def fetch_document(url: str) -> str:
+    """Fetch a filing document (HTML/text) as a string, with the fair-access UA + SEC-host guard + retry
+    that _get enforces. The public entry point a higher layer (e.g. sec-proxy-extractor) uses to get the
+    RAW document when it needs the table STRUCTURE, not the tag-stripped text window that find_section
+    returns. Refuses any non-SEC URL."""
+    return _get(url, want_json=False)
 
 
 def find_section(url: str, heading: str, window: int = 2800) -> str | None:

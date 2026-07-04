@@ -36,14 +36,17 @@ SKIP_PARTS = {"tests", "evals", "__pycache__", ".git", "node_modules"}
 # paths (files) or directory prefixes ending in "/", matched at a path BOUNDARY (not a loose substring) so a
 # look-alike like examples/iss-pay-screen/output/real-peer-data.md is NOT allow-listed.
 # The sec-comp-research SKILL is a portable REAL-SEC-data tool (its whole point is pulling real proxy data
-# for whatever tickers a user supplies), so its docs/scripts legitimately carry real tickers too.
+# for whatever tickers a user supplies), so its docs/scripts legitimately carry real tickers too. The
+# sec-edgar + sec-proxy-extractor skill folders are allow-listed for the same reason: they are real-SEC-data
+# tools and are expected to stay CODE + DOCS only (no committed data/output artifacts), so a real ticker in a
+# usage example is legitimate — not a synthetic-data leak.
 # NOTE: the benchmarking-arm OUTPUT (examples/executive-comp-benchmarking/output/) is deliberately NOT
 # allow-listed — that dashboard renders roles/money/percentiles only, never a ticker or company name, so it
 # must stay under the scanner: a real ticker leaking into that output IS a bug and must be caught.
 REAL_PEER_ALLOW = ("foundation/data/acme/peer_universe.csv", "governance/real-peer-data.md",
                    "foundation/data/acme/proxy_comp.csv", "governance/proxy-comp-data.md",
                    "examples/executive-comp-peer-builder/output/",
-                   "skills/sec-comp-research/", "skills/sec-edgar/")
+                   "skills/sec-comp-research/", "skills/sec-edgar/", "skills/sec-proxy-extractor/")
 
 
 def _allowed_real(path):

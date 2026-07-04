@@ -1,12 +1,11 @@
 # SEC skills — layering & roadmap
 
-The SEC skills are deliberately **layered**, so each stays sharp and the foundation doesn't bloat. This is
-the intended shape; the last layer is planned, not yet built, and is named here so the boundary is honest.
+The SEC skills are deliberately **layered**, so each stays sharp and the foundation doesn't bloat.
 
 ```
 sec-edgar            (built)   navigation + form intelligence — the map
   └─ sec-comp-research (built)   the compensation analyst workflow, on top of the map
-       └─ sec-proxy-extractor (PLANNED)  deterministic proxy-table extraction with confidence scoring
+       └─ sec-proxy-extractor (built — SCT)  deterministic proxy-table extraction with confidence scoring
 ```
 
 ## What each layer is — and is NOT
@@ -23,27 +22,36 @@ Compensation Table, screen a size + industry peer group, and position pay at tar
 SCT is read by the **agent** (WebFetch of the filing, or the foundation's `--section` window) — an honest,
 working *semantic* read, but **not** a deterministic table parser.
 
-### `sec-proxy-extractor` — PLANNED (the next public increment)
-A focused, deterministic extraction layer — the piece that turns "read the table" into structured, audited
-data. Scope:
+### `sec-proxy-extractor` — built (Summary Compensation Table)
+The focused, deterministic extraction layer — the piece that turns "read the table" into structured, audited
+data. **Built and shipping** for the **Summary Compensation Table**:
 
-- **Deterministic-first table parsing** of the proxy comp tables — Summary Compensation Table, Director
-  Compensation, Grants of Plan-Based Awards, Outstanding Equity Awards, Option Exercises & Stock Vested,
-  Pension Benefits, Nonqualified Deferred Compensation, CEO Pay Ratio, Pay-vs-Performance.
-- **Candidate scoring** — enumerate all tables, score by nearby headings + column headers, pick the SCT
-  (not brittle single-XPath scraping).
-- **Cell normalization** — units captions ("in thousands"), parentheses = negative, em-dash/blank = no
-  value, footnote superscripts; preserve the **raw cell text** alongside the normalized number.
-- **Validation** — reconcile components to the reported Total; flag impossible/duplicate/missing values.
-- **Confidence scoring** — every extraction reports **high / medium / low** with the reason, never a bare
-  row set; low-confidence rows are surfaced for review, not silently dropped.
-- **Provenance per row** — accession, document URL, table index, raw cell text, footnote text, **parser
-  method**, and the confidence score.
-- **Labeled fallback** — a deterministic parser runs first; a semantic/LLM fallback runs **only** when
-  parser confidence is low, and the output is labeled as fallback (a different data-handling posture).
-- **Optional dependencies, kept out of the foundation** — real HTML table extraction likely wants `lxml`
-  / `pandas.read_html`; those stay in this extractor skill (with an optional-deps install), so `sec-edgar`
-  and `sec-comp-research` remain **stdlib-only and portable**.
+- **Deterministic table parsing**, standard library only — a structure-preserving `html.parser` table
+  reader (no `lxml`/`pandas` dependency, so the whole stack stays portable).
+- **Candidate scoring** — enumerate all tables, match header cells (camelCase-split, footnote-stripped) to
+  the SEC-mandated SCT columns, and pick the best; a table without the name/year/salary/total anchors is
+  **not** treated as the SCT (not brittle single-XPath scraping).
+- **Cell normalization** — parentheses = negative, em-dash/blank = no value, footnote superscripts + lone
+  footnote cells + zero-width filler dropped, `$`-in-its-own-cell collapsed; the **raw cell text** is kept
+  alongside the parsed number.
+- **Validation** — reconcile each row's components to the reported Total; a row that doesn't reconcile is
+  flagged and named, never silently corrected.
+- **Confidence scoring** — every extraction reports **high / medium / low / none** with the reasons, never a
+  bare row set; a blank-column row is recovered total-anchored only if it still reconciles, and marked
+  `partial`; a short non-reconciling row is counted and skipped, never fabricated.
+- **Offline-testable** — the whole parser/aligner/scorer runs against synthetic fixtures with no network.
+
+**Future scope in this same skill** (not yet built, named so the boundary is honest):
+
+- The **other proxy tables** — Director Compensation, Grants of Plan-Based Awards, Outstanding Equity Awards,
+  Option Exercises & Stock Vested, Pension Benefits, Nonqualified Deferred Compensation, CEO Pay Ratio,
+  Pay-versus-Performance (Item 402(v), Inline-XBRL).
+- **"In thousands" unit captions** and other table-level scale hints.
+- **Per-row provenance** in the output — accession, document URL, table index, footnote text.
+- **Labeled semantic/LLM fallback** — runs **only** when deterministic confidence is low, and is labeled as
+  fallback (a different data-handling posture), so the default path stays fully deterministic.
+- **Multi-document filings** — when a filer puts the proxy statement in a separate document inside the DEF
+  14A filing, walk the filing index to find the document that actually contains the SCT.
 
 ## Design rule that holds across all of it
 
