@@ -90,8 +90,10 @@ result = extract_sct(proxy_html)     # {found, confidence, score, columns, rows,
   majority, returns an honest **medium** (with the reason) on the rest, and **not-found** on the few whose
   proxy statement lives in a *separate document* inside the filing (point `--file` at that document).
 - **Not yet:** Director Compensation, Grants of Plan-Based Awards, Outstanding Equity, Pension Benefits,
-  and Pay-versus-Performance tables; "in thousands" unit captions; a semantic/LLM fallback for low-confidence
-  extractions. These are the roadmap for this skill (see [`../ROADMAP.md`](../ROADMAP.md)).
+  and Pay-versus-Performance tables; a semantic/LLM fallback for low-confidence extractions. A **table-local**
+  "in thousands"/"in millions" scale caption **is** detected today and caps confidence below high with a
+  reason — what's not yet done is *applying* the scale to the numbers, or resolving a caption that sits
+  outside the table. These are the roadmap for this skill (see [`../ROADMAP.md`](../ROADMAP.md)).
 - **Foreign private issuers** disclose comp on a **different basis** (20-F/40-F/6-K), not a US SCT — the tool
   warns and its column model may not fit; treat those separately.
 

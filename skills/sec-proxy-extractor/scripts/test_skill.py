@@ -275,6 +275,29 @@ rhr = X.extract_sct(hidden_row)
 ok(rhr["n_rows"] == 1 and all("Phantom" not in x["name"] for x in rhr["rows"]),
    "a display:none <tr> is dropped — no phantom officer row is extracted")
 
+# [P1] a table hidden by CSS CLASS (a <style> rule OR a conventional utility class) is skipped, not extracted
+class_decoy_styled = ("<style>.secret{display:none}</style>"
+                      f"<div class='secret'><table>{_H}{_row('Styled Ghost, CEO', 2025, '1', '0', '2', '0', '0', '3')}</table></div>"
+                      f"<table>{_H}{_row('Shown CEO', 2025, '650,000', '0', '4,200,000', '975,000', '12,500', '5,837,500')}</table>")
+rcs = X.extract_sct(class_decoy_styled)
+ok(rcs["found"] and rcs["rows"][0]["name"].startswith("Shown") and all("Ghost" not in x["name"] for x in rcs["rows"]),
+   "a table under a class hidden by a <style> display:none rule is skipped")
+for cls in ("sr-only", "visually-hidden", "d-none", "hidden"):
+    conv = (f"<div class='{cls}'><table>{_H}{_row('Util Ghost, CEO', 2025, '1', '0', '2', '0', '0', '3')}</table></div>"
+            f"<table>{_H}{_row('Real CEO', 2025, '650,000', '0', '4,200,000', '975,000', '12,500', '5,837,500')}</table>")
+    rc = X.extract_sct(conv)
+    ok(rc["found"] and all("Ghost" not in x["name"] for x in rc["rows"]),
+       f"a table under a conventional hidden utility class ('{cls}') is skipped")
+
+# [P2] malformed proxy HTML with omitted </td>/</tr> (browser-tolerated) still parses — rows aren't dropped
+malformed = (f"<table><tr><th>Name and Principal Position<th>Year<th>Salary<th>Bonus<th>Stock Awards"
+             f"<th>Non-Equity Incentive Plan Compensation<th>All Other Compensation<th>Total"
+             f"<tr><td>Ragged CEO<td>2025<td>650,000<td>0<td>4,200,000<td>975,000<td>12,500<td>5,837,500"
+             f"</table>")
+rmf = X.extract_sct(malformed)
+ok(rmf["found"] and rmf["n_rows"] == 1 and rmf["rows"][0]["values"]["total"] == 5837500.0,
+   "HTML with omitted </td>/</tr> still extracts the row (open cells/rows are flushed on the next tag)")
+
 # [P2] reconciliation-first selection: a higher-SCORING non-reconciling decoy must not hide a real reconciling SCT
 score_decoy = (f"<table>{_H}"
                + "".join(_row(f"Loud {i}", 2025, "1", "1", "1", "1", "1", "999") for i in range(5))   # 5 rows, none reconcile
@@ -334,6 +357,22 @@ part_neg = (f"<table>{_H}"
 rpn = X.extract_sct(part_neg)
 ok(all(r["year"] != 2024 for r in rpn["rows"]),
    "a short (blank-column) row with a negative component is NOT recovered as 'partial' (negative guard applies)")
+
+# [P2] ticker mode surfaces sec-edgar errors as a clean ExtractError (no raw traceback) — missing SEC_UA is
+# refused by the foundation BEFORE any network call, so this stays offline.
+import os as _os  # noqa: E402
+_saved_ua = _os.environ.pop("SEC_UA", None)
+try:
+    try:
+        X._fetch_proxy_html("AAPL")
+        ok(False, "ticker fetch without SEC_UA should fail")
+    except X.ExtractError:
+        ok(True, "a missing SEC_UA surfaces as a clean ExtractError (not a raw EdgarError/traceback)")
+    except Exception as _e:
+        ok(False, f"ticker fetch raised {_e.__class__.__name__}, not ExtractError")
+finally:
+    if _saved_ua is not None:
+        _os.environ["SEC_UA"] = _saved_ua
 
 print(f"OK — {passed} sec-proxy-extractor checks passed "
       f"({len(X.SCT_COLUMNS)} canonical SCT columns modeled).")

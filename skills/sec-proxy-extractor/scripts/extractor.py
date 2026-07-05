@@ -81,10 +81,11 @@ class _TableParser(HTMLParser):
     cell into N padded columns so alignment survives. A general element stack tracks hidden state across ALL
     ancestors (a table inside <div style='display:none'> is hidden), and a hidden <tr> is dropped."""
 
-    def __init__(self):
+    def __init__(self, hidden_classes=()):
         super().__init__(convert_charrefs=True)
         self.tables = []
         self.hidden = []            # parallel to self.tables: was this <table> visually hidden (self or ancestor)?
+        self._hc = hidden_classes   # class names the document hides (parsed <style> + conventional utilities)
         self._stack = []            # open <table> frames
         self._el = []               # general open-element stack: (tag, hidden_here) for hidden-ancestor tracking
         self._suppress = 0          # inside <sup>/<style>/<script>: ignore text
@@ -93,8 +94,17 @@ class _TableParser(HTMLParser):
     def _anc_hidden(self):
         return any(h for _, h in self._el)
 
+    def _close_open_row(self, frame):
+        """Flush an unclosed cell/row (SEC HTML often omits </td>/</tr>; HTMLParser won't infer them)."""
+        if frame["cell"] is not None:
+            self._flush_cell(frame)
+        if frame["row"] and not frame["row_hidden"]:
+            frame["rows"].append(frame["row"])
+        frame["row"] = None
+        frame["row_hidden"] = False
+
     def handle_starttag(self, tag, attrs):
-        hid = _is_hidden(attrs)
+        hid = _is_hidden(attrs, self._hc)
         anc = self._anc_hidden()                         # ancestors' hidden state BEFORE pushing self
         if tag not in _VOID:
             self._el.append((tag, hid))
@@ -102,13 +112,17 @@ class _TableParser(HTMLParser):
             self._stack.append({"rows": [], "row": None, "cell": None,
                                 "hidden": hid or anc, "row_hidden": False})
         elif tag == "tr" and self._stack:
+            self._close_open_row(self._stack[-1])        # close a previous unclosed <tr> before starting this one
             self._stack[-1]["row"] = []
             self._stack[-1]["row_hidden"] = hid or anc   # a hidden <tr> (or hidden ancestor) -> drop the row
         elif tag in ("td", "th") and self._stack:
-            if self._stack[-1]["row"] is None:
-                self._stack[-1]["row"] = []
-                self._stack[-1]["row_hidden"] = hid or anc
-            self._stack[-1]["cell"] = []
+            frame = self._stack[-1]
+            if frame["cell"] is not None:                # close a previous unclosed <td>/<th> first
+                self._flush_cell(frame)
+            if frame["row"] is None:
+                frame["row"] = []
+                frame["row_hidden"] = hid or anc
+            frame["cell"] = []
             span = dict(attrs).get("colspan", "1")
             try:
                 self._pending_colspan = max(1, min(30, int(str(span).strip())))
@@ -160,21 +174,43 @@ class _TableParser(HTMLParser):
 
 
 _HIDDEN_STYLE_RE = re.compile(r"display\s*:\s*none|visibility\s*:\s*hidden", re.I)
+_STYLE_BLOCK_RE = re.compile(r"<style[^>]*>(.*?)</style>", re.I | re.S)
+_CSS_RULE_RE = re.compile(r"([^{}]+)\{([^}]*)\}", re.S)
+# class names that conventionally mean "visually hidden" (accessibility / framework utilities) — treated as
+# hidden even without a parsed rule, since a decoy could reference them without shipping the stylesheet.
+_CONVENTIONAL_HIDDEN = {"hidden", "hide", "hidden-xs", "sr-only", "visually-hidden", "visuallyhidden",
+                        "screen-reader-only", "screen-reader-text", "screenreader", "d-none", "is-hidden",
+                        "u-hidden", "a11y-hidden", "offscreen", "off-screen", "visually-hidden-focusable"}
 
 
-def _is_hidden(attrs):
-    """Was this <table> authored to be invisible? A decoy SCT is commonly injected as display:none. We do NOT
-    render CSS — this is a cheap heuristic on the element's own style/hidden/aria-hidden attributes."""
+def _hidden_classes(doc):
+    """Class names this document hides, from its OWN <style> rules (any selector whose body sets
+    display:none / visibility:hidden) plus the conventional visually-hidden utility classes. A decoy SCT
+    tucked under <div class='hidden'> must be as invisible to us as one styled inline."""
+    classes = set(_CONVENTIONAL_HIDDEN)
+    for block in _STYLE_BLOCK_RE.findall(doc or ""):
+        for sel, body in _CSS_RULE_RE.findall(block):
+            if _HIDDEN_STYLE_RE.search(body):
+                classes.update(c.lower() for c in re.findall(r"\.([A-Za-z0-9_-]+)", sel))
+    return classes
+
+
+def _is_hidden(attrs, hidden_classes=()):
+    """Was this element authored to be invisible? A decoy SCT is commonly injected hidden. We do NOT render
+    CSS — this is a heuristic on the element's own hidden/aria-hidden/style attributes AND its class against
+    the document's hidden-class set (parsed <style> rules + conventional utility classes)."""
     d = {k.lower(): (v or "") for k, v in attrs}
     if "hidden" in d:
         return True
     if str(d.get("aria-hidden", "")).strip().lower() == "true":
         return True
-    return bool(_HIDDEN_STYLE_RE.search(d.get("style", "")))
+    if _HIDDEN_STYLE_RE.search(d.get("style", "")):
+        return True
+    return any(c.lower() in hidden_classes for c in str(d.get("class", "")).split())
 
 
 def _parse(doc):
-    p = _TableParser()
+    p = _TableParser(_hidden_classes(doc or ""))
     try:
         p.feed(doc or "")
         p.close()
@@ -663,13 +699,18 @@ def _fetch_proxy_html(ticker: str):
     except ImportError as e:                                # pragma: no cover
         raise ExtractError("the sec-edgar foundation skill is required to fetch by ticker "
                            "(expected at ../../sec-edgar/scripts)") from e
-    info = edgar.def14a(ticker)
-    if not info.get("url"):
-        raise ExtractError(f"no proxy/annual filing URL found for {ticker!r} ({info.get('disclosure')})")
-    if info.get("disclosure") != "def14a":
-        sys.stderr.write(f"note: {ticker} has no US DEF 14A ({info.get('disclosure')}); "
-                         f"extracting from {info.get('form')} — SCT columns may differ.\n")
-    return edgar.fetch_document(info["url"]), info
+    # convert sec-edgar's own errors (missing SEC_UA, ticker not found, HTTP/timeout) into a clean ExtractError
+    # so the CLI never leaks a traceback — including in --json mode.
+    try:
+        info = edgar.def14a(ticker)
+        if not info.get("url"):
+            raise ExtractError(f"no proxy/annual filing URL found for {ticker!r} ({info.get('disclosure')})")
+        if info.get("disclosure") != "def14a":
+            sys.stderr.write(f"note: {ticker} has no US DEF 14A ({info.get('disclosure')}); "
+                             f"extracting from {info.get('form')} — SCT columns may differ.\n")
+        return edgar.fetch_document(info["url"]), info
+    except edgar.EdgarError as e:
+        raise ExtractError(str(e)) from e
 
 
 def _main(argv):
@@ -695,7 +736,15 @@ def _main(argv):
             return 2
         info = {"company": path, "ticker": "(file)"}
     elif args:
-        doc, info = _fetch_proxy_html(args[0])
+        try:
+            doc, info = _fetch_proxy_html(args[0])
+        except ExtractError as e:                           # missing SEC_UA / ticker not found / HTTP — clean, no traceback
+            if as_json:
+                import json
+                print(json.dumps({"found": False, "confidence": "none", "error": str(e)}, indent=2))
+            else:
+                print(f"extractor: {e}", file=sys.stderr)
+            return 2
     else:
         print(__doc__)
         return 0

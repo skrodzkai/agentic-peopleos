@@ -168,14 +168,21 @@ _ACCESSION_RE = re.compile(r"^\d{10}-\d{2}-\d{6}$")
 
 
 def _safe_doc_name(name):
-    """A single safe path component for an Archives URL, or None. Decodes percent-encoding FIRST (so
-    %2e%2e / %2f nested-or-encoded traversal can't sneak through), rejects path separators, '..', whitespace
-    and control chars, then re-quotes the component. A SEC primary-doc name is a flat filename like
-    'pcty-20251021.htm' — anything with a slash or traversal is not one."""
+    """A single safe path component for an Archives URL, or None. Decodes percent-encoding REPEATEDLY (so
+    double-encoded traversal like %252e%252e%252f can't sneak through), rejects path separators, '..',
+    whitespace, control chars, and any residual encoded dot/slash/backslash, then re-quotes the component.
+    A SEC primary-doc name is a flat filename like 'pcty-20251021.htm' — anything with a slash is not one."""
     if not name:
         return None
-    raw = urllib.parse.unquote(str(name))
+    raw = str(name)
+    for _ in range(6):                                        # unwrap %25.. layers until the string is stable
+        dec = urllib.parse.unquote(raw)
+        if dec == raw:
+            break
+        raw = dec
     if "/" in raw or "\\" in raw or ".." in raw or any(c.isspace() or ord(c) < 32 for c in raw):
+        return None
+    if re.search(r"%2e|%2f|%5c", raw, re.I):                  # residual encoded dot/slash/backslash -> reject
         return None
     return urllib.parse.quote(raw)
 
@@ -283,6 +290,11 @@ def _main(argv):
     if "--help" in flags or (not args and "--explain" not in flags):
         print(__doc__)
         return 0
+    # validate EVERY value-taking flag up front, before dispatch — so `edgar AAPL --form --def14a` errors that
+    # --form needs a value rather than silently falling through to the --def14a branch.
+    for vf in _VALUE_FLAGS:
+        if vf in flags:
+            _flag_value(argv, vf)
     if "--explain" in flags:
         form = _flag_value(argv, "--explain")
         info = classify_form(form)
