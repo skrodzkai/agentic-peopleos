@@ -198,9 +198,10 @@ try:
     # percent-encoded and nested traversal must be decoded + rejected, valid filenames pass (case preserved)
     ok(edgar._safe_doc_name("pcty-20251021.htm") == "pcty-20251021.htm", "a flat filename passes")
     for bad in ("sub/dir/proxy.htm", "../secret.htm", "%2e%2e%2fboot.htm", "%252e%252e%252fboot.htm",
-                "%252fetc%252fpasswd", "a b.htm", "/abs.htm", "", "x\ty", "back\\slash"):
+                "%25252e%25252e%25252fboot.htm", "%252fetc%252fpasswd", "file%20name.htm",
+                "a b.htm", "/abs.htm", "", "x\ty", "back\\slash"):
         ok(edgar._safe_doc_name(bad) is None,
-           f"_safe_doc_name rejects {bad!r} (nested/encoded/double-encoded/absolute/blank)")
+           f"_safe_doc_name rejects {bad!r} (nested/encoded/multi-encoded/absolute/blank)")
 
     # filing_index: builds per-document URLs from a directory listing, and must DROP any item whose name is
     # not a safe single path component (a listing carrying '..'/absolute/whitespace could build a traversing URL)

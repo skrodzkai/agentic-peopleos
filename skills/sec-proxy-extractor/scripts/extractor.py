@@ -175,7 +175,10 @@ class _TableParser(HTMLParser):
 
 _HIDDEN_STYLE_RE = re.compile(r"display\s*:\s*none|visibility\s*:\s*hidden", re.I)
 _STYLE_BLOCK_RE = re.compile(r"<style[^>]*>(.*?)</style>", re.I | re.S)
-_CSS_RULE_RE = re.compile(r"([^{}]+)\{([^}]*)\}", re.S)
+# match the INNERMOST rule (both selector and body brace-free), so a rule nested inside an at-rule wrapper
+# (@media / @supports / @layer) is still seen: in `@media screen {.foo{display:none}}` this captures
+# selector='.foo', body='display:none' rather than treating '@media screen' as the selector.
+_CSS_RULE_RE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)
 # class names that conventionally mean "visually hidden" (accessibility / framework utilities) — treated as
 # hidden even without a parsed rule, since a decoy could reference them without shipping the stylesheet.
 _CONVENTIONAL_HIDDEN = {"hidden", "hide", "hidden-xs", "sr-only", "visually-hidden", "visuallyhidden",

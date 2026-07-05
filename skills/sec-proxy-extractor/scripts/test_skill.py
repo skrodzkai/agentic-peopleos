@@ -288,6 +288,16 @@ for cls in ("sr-only", "visually-hidden", "d-none", "hidden"):
     rc = X.extract_sct(conv)
     ok(rc["found"] and all("Ghost" not in x["name"] for x in rc["rows"]),
        f"a table under a conventional hidden utility class ('{cls}') is skipped")
+# a class hidden by a rule NESTED in an at-rule (@media / @supports) is still caught (innermost-rule parse)
+_real_tbl = f"<table>{_H}{_row('Real CEO', 2025, '650,000', '0', '4,200,000', '975,000', '12,500', '5,837,500')}</table>"
+for at_rule in ("@media screen {.foo{display:none}}", "@media all {.foo{visibility:hidden}}",
+                "@supports (display:grid) {.foo{display:none}}", "@media screen{.a,.foo{display:none}}"):
+    nested = (f"<style>{at_rule}</style>"
+              f"<div class='foo'><table>{_H}{_row('Nested Ghost, CEO', 2025, '1', '0', '2', '0', '0', '3')}</table></div>"
+              + _real_tbl)
+    rn = X.extract_sct(nested)
+    ok(rn["found"] and all("Ghost" not in x["name"] for x in rn["rows"]),
+       f"a class hidden inside {at_rule[:18]!r}... is caught, not extracted")
 
 # [P2] malformed proxy HTML with omitted </td>/</tr> (browser-tolerated) still parses — rows aren't dropped
 malformed = (f"<table><tr><th>Name and Principal Position<th>Year<th>Salary<th>Bonus<th>Stock Awards"

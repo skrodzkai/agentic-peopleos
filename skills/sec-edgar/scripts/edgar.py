@@ -175,14 +175,15 @@ def _safe_doc_name(name):
     if not name:
         return None
     raw = str(name)
-    for _ in range(6):                                        # unwrap %25.. layers until the string is stable
+    for _ in range(12):                                       # unwrap %25.. layers until the string is STABLE
         dec = urllib.parse.unquote(raw)
         if dec == raw:
             break
         raw = dec
-    if "/" in raw or "\\" in raw or ".." in raw or any(c.isspace() or ord(c) < 32 for c in raw):
-        return None
-    if re.search(r"%2e|%2f|%5c", raw, re.I):                  # residual encoded dot/slash/backslash -> reject
+    else:
+        return None                                          # never stabilized (pathological over-encoding) -> fail closed
+    # a fully-decoded SEC filename has no percent left; any residual '%' means a further-encoded layer -> reject
+    if "%" in raw or "/" in raw or "\\" in raw or ".." in raw or any(c.isspace() or ord(c) < 32 for c in raw):
         return None
     return urllib.parse.quote(raw)
 
