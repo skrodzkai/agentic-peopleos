@@ -75,6 +75,13 @@ def _num(v, ctx, positive=False, allow_zero=True):
     return f
 
 
+def _int_num(v, ctx, positive=False, allow_zero=True):
+    f = _num(v, ctx, positive=positive, allow_zero=allow_zero)
+    if not f.is_integer():
+        raise EquityDataError(f"{ctx}: must be a whole number ({v!r})")
+    return int(f)
+
+
 def _pdate(v, ctx):
     try:
         return datetime.strptime(v, "%Y-%m-%d").date()
@@ -151,7 +158,7 @@ class EquityPlan:
                     raise EquityDataError(f"{gid}: director grant to unknown director {emp!r}")
             elif emp not in self.workers:
                 raise EquityDataError(f"{gid}: grant to unknown emp_id {emp!r}")
-            _num(g["shares_granted"], f"{gid}.shares", positive=True)
+            _int_num(g["shares_granted"], f"{gid}.shares", positive=True)
             price = _num(g["stock_price_at_grant_usd"], f"{gid}.price", positive=True)
             _num(g["grant_date_fv_per_share_usd"], f"{gid}.fv", positive=True)
             vm = _num(g["vest_months_total"], f"{gid}.vest_months", positive=True)
@@ -338,11 +345,14 @@ class EquitySpend:
             term = self.p._term_date(g["emp_id"])
             vf = self.p._vested_fraction(g, at)
             sh = int(float(g["shares_granted"]))
-            if term is not None and term <= at:
-                continue                                      # forfeited unvested returned; vested delivered
             if g["award_type"] == "option":
-                tot += sh                                     # options outstanding until exercise (unmodeled)
+                if term is not None and term <= at:
+                    tot += sh * self.p._vested_fraction(g, term)
+                else:
+                    tot += sh                                 # options outstanding until exercise (unmodeled)
             else:
+                if term is not None and term <= at:
+                    continue                                  # forfeited unvested returned; vested delivered
                 tot += sh * (1.0 - vf)                        # unvested full-value awards
         return tot
 
@@ -442,4 +452,3 @@ def compute(data_dir=_DATA):
         "value_per_fte_by_group": es.value_per_fte_by_group(),
         "epsc": es.epsc_readiness(),
     }
-

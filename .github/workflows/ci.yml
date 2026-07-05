@@ -37,6 +37,7 @@ jobs:
           examples/executive-comp-benchmarking/run.py examples/executive-comp-benchmarking/evals/test_benchmarking_agent.py
           examples/rtsr-psu-valuation/run.py examples/rtsr-psu-valuation/evals/test_rtsr_psu.py
           examples/iss-pay-screen/run.py examples/iss-pay-screen/evals/test_iss_pay_screen.py
+          examples/equity-spend/run.py examples/equity-spend/evals/test_equity_spend_agent.py
           examples/ta-reporting/run.py examples/ta-reporting/evals/test_report.py
           examples/comp-reporting/run.py examples/comp-reporting/evals/test_comp.py
           examples/visible-handoff/run.py examples/visible-handoff/evals/test_handoff.py
@@ -79,6 +80,7 @@ jobs:
           python3 foundation/compute/tests/test_iss_screen.py
           python3 foundation/compute/tests/test_retention.py
           python3 foundation/compute/tests/test_benchmarking.py
+          python3 foundation/compute/tests/test_equity_spend.py
 
       - name: Retention model manifest reproduces (tolerance sync gate — fitted floats aren't byte-diffed)
         run: python3 foundation/compute/retention.py validate   # re-fits + checks coefficients/calibration reproduce within tol (+ panel_data_hash, schema)
@@ -161,6 +163,14 @@ jobs:
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
             || (echo "::error::ISS pay-for-performance screen output is stale — run examples/iss-pay-screen/run.py and commit" && exit 1)
 
+      - name: Executive comp arm — equity-spend board dashboard eval
+        working-directory: examples/equity-spend
+        run: |
+          python3 evals/test_equity_spend_agent.py
+          python3 run.py
+          git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            || (echo "::error::equity-spend output is stale — run examples/equity-spend/run.py and commit" && exit 1)
+
       - name: Operating-review decision ledger validates (registry-backed)
         run: |
           python3 -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
@@ -214,6 +224,7 @@ jobs:
             examples/comp-reporting/output examples/comp-reporting/data \
             examples/rtsr-psu-valuation/output examples/rtsr-psu-valuation/data \
             examples/iss-pay-screen/output \
+            examples/equity-spend/output \
             examples/executive-comp-benchmarking/output \
             examples/visible-handoff/output foundation/data vault
 

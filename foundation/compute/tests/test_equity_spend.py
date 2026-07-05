@@ -5,6 +5,7 @@ import csv
 import shutil
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
@@ -49,6 +50,34 @@ def _rewrite(path, fn):
         w.writerows(rows)
 
 
+def _terminated_option_case():
+    plan = object.__new__(E.EquityPlan)
+    plan.grants = [{
+        "grant_id": "G-REPRO-001", "plan_id": "P-2022", "emp_id": "E-TERM-001",
+        "participant_group": "staff", "grant_type": "annual_refresh", "award_type": "option",
+        "grant_date": "2024-01-01", "shares_granted": "100", "psu_max_multiplier": "1.0",
+        "stock_price_at_grant_usd": "10.00", "strike_price_usd": "10.00",
+        "grant_date_fv_per_share_usd": "4.00", "vest_start_date": "2024-01-01",
+        "vest_months_total": "24", "cliff_months": "0", "vest_frequency": "monthly",
+        "performance_period_end": "",
+    }]
+    plan.plans = {"P-2022": {
+        "plan_id": "P-2022", "plan_name": "2022 Plan", "adoption_date": "2022-01-01",
+        "expiration_date": "2032-12-31", "shareholder_approved": "yes",
+        "initial_pool_shares": "1000", "evergreen": "none", "share_recycling": "strict",
+        "fungible_ratio": "1.0", "min_vesting_months": "12", "permits_repricing": "no",
+        "dividends_on_unvested": "no", "discretionary_acceleration": "no",
+    }}
+    plan.shares = [{
+        "period_end": "2025-12-31", "common_shares_outstanding": "10000",
+        "waso_basic": "10000", "waso_diluted": "10000", "close_price_usd": "10.00",
+        "annualized_volatility": "0.40", "risk_free_rate": "0.04", "dividend_yield": "0.0",
+    }]
+    plan.financials = [{"period_end": "2025-12-31", "revenue_usd": "1000000"}]
+    plan.workers = {"E-TERM-001": {"emp_id": "E-TERM-001", "term_date": "2025-01-01"}}
+    return E.EquitySpend(plan), date(2025, 12, 31)
+
+
 # ---- happy path: the committed data computes a coherent board view -------------------------------------
 r = E.compute()
 ok(abs(r["market_cap"] - r["shares_outstanding"] * r["price"]) < 1.0, "market-cap identity holds (CSO x price)")
@@ -79,6 +108,14 @@ vg = r["value_per_fte_by_group"]
 ok("ceo" in vg and vg["ceo"]["per_fte"] > vg["staff"]["per_fte"] > 0, "CEO grant present + exceeds staff/person")
 ok(vg["staff"]["recipients"] > vg["management"]["recipients"] > 0, "staff is the broadest recipient group")
 
+term_option, term_at = _terminated_option_case()
+ok(abs(term_option._outstanding_shares(term_at) - 50.0) < 1e-9,
+   "terminated holder's vested unexercised options remain outstanding")
+ok(abs(term_option.pool_available(term_at) - 950.0) < 1e-9,
+   "terminated option holder returns only unvested shares to the pool")
+ok(abs(term_option.overhang(term_at) * 100 - 10.0) < 1e-9,
+   "overhang includes terminated vested options plus available pool")
+
 # ---- determinism: two computes are identical ------------------------------------------------------------
 import json  # noqa: E402
 ok(json.dumps(E.compute(), sort_keys=True) == json.dumps(r, sort_keys=True), "compute() is deterministic")
@@ -105,6 +142,8 @@ raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
        lambda rows: rows[0].__setitem__("cliff_months", "999")))), "cliff > vesting period")
 raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
        lambda rows: rows[0].__setitem__("shares_granted", "0")))), "non-positive shares_granted")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda rows: rows[0].__setitem__("shares_granted", "10.9")))), "fractional shares_granted")
 raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
        lambda rows: rows[0].__setitem__("grant_date", "1990-01-01")))), "grant outside the plan active window")
 raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "burn_benchmarks.csv",

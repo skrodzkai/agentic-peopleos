@@ -1,0 +1,24 @@
+# Tools the equity-spend agent is allowed to use.
+# Note what's ABSENT: no grant-recommendation tool, no share-request sizer, no cap-table / issuance writer,
+# no proxy scraper, and no "send"/"publish" tool.
+
+tools:
+  - name: equity_spend_read
+    access: read-only
+    description: >
+      Reads the board equity results (SBC % of revenue, gross/net/VABR/legacy burn, overhang, pool
+      longevity, SBC backlog, value-by-group, EPSC readiness) from the shared engine
+      (foundation/compute/equity_spend.py), itself read-only over the synthetic company-wide grant ledger.
+      The agent performs no math of its own.
+
+  - name: report_writer
+    access: write-local
+    description: >
+      Renders the board dashboard (HTML) and the digest (Markdown) to the local output/ directory.
+      Produces drafts only; distribution requires the human publish gate.
+
+# Intentionally NOT granted:
+#   - any grant-recommendation / pool-sizing tool — the agent renders the view, the committee decides
+#   - cap-table / issuance / vesting writer — no system-of-record mutation, ever
+#   - proxy / ISS / Glass Lewis / EDGAR scraper — benchmarks here are illustrative synthetic constants
+#   - email / Slack / "publish" — the Compensation Committee owns distribution (publish gate)

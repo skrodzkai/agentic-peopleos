@@ -179,6 +179,12 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   the committee's own peer group), and the FPA modifier. It models the proxy-advisor screen a committee
   must navigate, on transparent public methodology over synthetic Acme data — anticipating the board read,
   never deciding pay, and never claiming to be ISS's actual output.
+- **[Equity Spend & Burn](examples/equity-spend/)** — the board equity deliverable a VP of Total Rewards
+  presents each quarter, computed over a **company-wide grant ledger**: SBC as a share of revenue, gross/net
+  burn and the current ISS Equity-Plan-Scorecard **Value-Adjusted Burn Rate** vs an illustrative industry
+  cap, overhang/dilution, **pool longevity** (when the next shareholder share-request lands), the locked-in
+  SBC backlog, and where the equity goes — executives through broad-based staff. Benchmarks and the SVT are
+  illustrative, never claimed as advisor output; the plan-feature tests are scored exactly from the plan.
 
 ## Portable skills — point your agent at real SEC data
 
