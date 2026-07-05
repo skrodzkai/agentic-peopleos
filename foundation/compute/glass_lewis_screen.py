@@ -74,6 +74,9 @@ _GL = {
     "cap_penalty_excess": 1.5,   # CAP-vs-TSR: no penalty at/below median; penalties begin >50% above median
     "qual_cap": 20.0,            # the qualitative downward modifier is capped
 }
+# round ranked measures to this many decimals before percentile-ranking, so a last-ULP float difference
+# across platforms (macOS ARM vs Linux x86 in CI) can't flip a near-tie rank -> byte-identical output.
+_RANK_ROUND = 9
 _TEST_LABELS = {
     "granted_ceo_pay_vs_tsr": "Granted CEO Pay vs TSR",
     "granted_ceo_pay_vs_financial": "Granted CEO Pay vs Financial Performance",
@@ -266,10 +269,12 @@ class GLUniverse:
         return {"members": members, "n": len(members), "scorable": len(members) >= _GL["peer_min_scorable"]}
 
     def _financial_percentile(self, tk, pool, fin):
-        """Average of the disclosed financial metrics' percentiles within the pool (equal-weighted)."""
+        """Average of the disclosed financial metrics' percentiles within the pool (equal-weighted). Values are
+        rounded before ranking so a last-ULP float difference across platforms can't flip a near-tie rank."""
         pcts = []
         for m in _GL["financial_metrics"]:
-            pcts.append(_percentile_rank(fin[tk][m], [fin[o][m] for o in pool]))
+            pcts.append(_percentile_rank(round(fin[tk][m], _RANK_ROUND),
+                                         [round(fin[o][m], _RANK_ROUND) for o in pool]))
         return sum(pcts) / len(pcts)
 
     def screen(self, group=None):
@@ -286,8 +291,8 @@ class GLUniverse:
         fin = {tk: self._financial_metrics(tk) for tk in pool}
         cap_ratio = {tk: self._cap_ratio(tk) for tk in pool}
 
-        def pr(d, tk):
-            return _percentile_rank(d[tk], [d[o] for o in pool])
+        def pr(d, tk):    # round before ranking -> platform-stable (no ARM/x86 last-ULP rank flips near ties)
+            return _percentile_rank(round(d[tk], _RANK_ROUND), [round(d[o], _RANK_ROUND) for o in pool])
 
         pay_pct = pr(ceo_pay, s)
         neo_pay_pct = pr(neo_pay, s)
