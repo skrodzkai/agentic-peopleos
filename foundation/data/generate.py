@@ -508,6 +508,72 @@ def generate():
            ["ticker", "self_peers", "pay_y1", "pay_y2", "pay_y3", "pay_y4", "pay_y5",
             "tsrval_y1", "tsrval_y2", "tsrval_y3", "tsrval_y4", "tsrval_y5", "fin_eva"])
 
+    # ---- gl_financials: the NEO-team pay + STI + CAP + financial panel the Glass Lewis screen needs, keyed to
+    # the SAME synthetic iss_universe tickers (independent rng stream SEED+37 -> every table above stays
+    # byte-identical). A latent "quality" factor correlates the financial metrics with the TSR path (stylized,
+    # documented). It feeds an illustrative reconstruction of Glass Lewis's CURRENT (2026) 5-test scorecard
+    # (granted CEO pay vs TSR / vs financials; STI vs TSR; total NEO pay vs financials; CEO CAP vs TSR).
+    # The SUBJECT (ACMQ) is a DISCIPLINED-pay / lagging-stock company so the two advisors DIVERGE: ISS
+    # (CEO-only vs relative TSR) reads Medium because the granted CEO grant outran a weak 5-yr TSR, but GL's
+    # broader scorecard reads a LOW concern because the financials tests are aligned (lean NEO team + solid
+    # financials), the STI is lean, and the CEO's equity is underwater (CAP below granted) — only the granted-
+    # pay-vs-TSR test flags. Growth bases are strictly positive by design. ----
+    rng_gl = random.Random(SEED + 37)
+    iss_rev = {c["ticker"]: c["revenue_usd"] for c in iss_companies}
+    gl_rows = []
+    for er in exec_rows:
+        tk = er["ticker"]
+        is_subj = tk == "ACMQ"
+        tsr5 = float(er["tsrval_y5"]) / 100.0
+        q = 0.85 if is_subj else max(-1.15, min(1.5, (tsr5 - 1.6) + rng_gl.gauss(0.0, 0.5)))
+        ceo = [float(er[f"pay_y{i}"]) for i in range(1, 6)]
+        tsr_path = [float(er[f"tsrval_y{i}"]) for i in range(1, 6)]                 # $100-base TSR index
+        # DRAW every stochastic knob for EVERY issuer (keeps the rng stream stable), then override the subject.
+        neo_mult = [rng_gl.uniform(1.25, 1.85) for _ in ceo]                        # non-CEO NEO pay multiplier
+        sti_ratio = rng_gl.uniform(0.40, 0.78)                                      # STI as a share of CEO pay
+        cap_draw = [rng_gl.uniform(0.85, 1.35) for _ in ceo]                        # peers' CAP-to-granted factor
+        # subject overrides: a deliberately LEAN, DISCIPLINED program — non-CEO team below the peer floor, a
+        # lean STI, and CAP well below granted (the CEO's equity is underwater on the lagging stock).
+        neo_other = ([int(round(p * 1.22)) for p in ceo] if is_subj
+                     else [int(round(p * m)) for p, m in zip(ceo, neo_mult)])
+        sti = ([max(1, int(round(c * 0.30))) for c in ceo] if is_subj
+               else [max(1, int(round(c * sti_ratio))) for c in ceo])
+        # CAP = granted pay revalued by that year's stock return; weak TSR marks equity DOWN. Peers track their
+        # own return; the subject is pinned to a lean 0.70x (underwater grant).
+        cap = []
+        for i, c in enumerate(ceo):
+            base = tsr_path[i - 1] if i > 0 else 100.0
+            ret = tsr_path[i] / base if base > 0 else 1.0
+            factor = 0.70 if is_subj else max(0.25, min(2.0, cap_draw[i] * (0.6 + 0.4 * ret)))
+            cap.append(max(1, int(round(c * factor))))
+        rev5 = float(iss_rev[tk])
+        g = 0.06 + 0.16 * q                                                        # revenue growth ~ quality
+        revs = [max(1, int(round(rev5 / ((1.0 + g) ** (5 - y))))) for y in range(2, 6)]   # y2..y5 (positive)
+        eps_g = 0.05 + 0.20 * q
+        eps5 = max(0.20, 2.4 * (1.0 + 0.4 * q))
+        eps = [round(max(0.05, eps5 / ((1.0 + eps_g) ** (5 - y))), 2) for y in range(2, 6)]
+        ocf5 = rev5 * max(0.06, 0.15 + 0.10 * q)                                   # OCF margin ~ quality
+        ocf = [max(1, int(round(ocf5 / ((1.0 + g) ** (5 - y))))) for y in range(2, 6)]
+        roe = [round(max(0.01, 0.09 + 0.20 * q + rng_gl.gauss(0.0, 0.03)), 3) for _ in range(3)]   # y3..y5
+        roa = [round(max(0.005, 0.045 + 0.12 * q + rng_gl.gauss(0.0, 0.02)), 3) for _ in range(3)]
+        gl_rows.append({
+            "ticker": tk, "neo_other_pay_y1": neo_other[0], "neo_other_pay_y2": neo_other[1],
+            "neo_other_pay_y3": neo_other[2], "neo_other_pay_y4": neo_other[3], "neo_other_pay_y5": neo_other[4],
+            "sti_payout_y1": sti[0], "sti_payout_y2": sti[1], "sti_payout_y3": sti[2],
+            "sti_payout_y4": sti[3], "sti_payout_y5": sti[4],
+            "cap_y1": cap[0], "cap_y2": cap[1], "cap_y3": cap[2], "cap_y4": cap[3], "cap_y5": cap[4],
+            "eps_y2": eps[0], "eps_y3": eps[1], "eps_y4": eps[2], "eps_y5": eps[3],
+            "rev_y2": revs[0], "rev_y3": revs[1], "rev_y4": revs[2], "rev_y5": revs[3],
+            "ocf_y2": ocf[0], "ocf_y3": ocf[1], "ocf_y4": ocf[2], "ocf_y5": ocf[3],
+            "roe_y3": roe[0], "roe_y4": roe[1], "roe_y5": roe[2],
+            "roa_y3": roa[0], "roa_y4": roa[1], "roa_y5": roa[2]})
+    _write("gl_financials.csv", gl_rows,
+           ["ticker", "neo_other_pay_y1", "neo_other_pay_y2", "neo_other_pay_y3", "neo_other_pay_y4",
+            "neo_other_pay_y5", "sti_payout_y1", "sti_payout_y2", "sti_payout_y3", "sti_payout_y4",
+            "sti_payout_y5", "cap_y1", "cap_y2", "cap_y3", "cap_y4", "cap_y5",
+            "eps_y2", "eps_y3", "eps_y4", "eps_y5", "rev_y2", "rev_y3", "rev_y4", "rev_y5",
+            "ocf_y2", "ocf_y3", "ocf_y4", "ocf_y5", "roe_y3", "roe_y4", "roe_y5", "roa_y3", "roa_y4", "roa_y5"])
+
     # ---- retention panel: a monthly person-period panel for the retention-risk model ----
     # Independent rng stream (SEED+23): appended, so every table above stays byte-identical. A 36-month
     # point-in-time panel over an independent synthetic workforce (R-0001…), with PLANTED discrete-time
@@ -756,6 +822,7 @@ def generate():
         return {"grant_id": f"G-{gid:06d}", "plan_id": plan, "emp_id": emp, "participant_group": grp,
                 "grant_type": gtype, "award_type": atype, "grant_date": _d(gdate),
                 "shares_granted": int(shares), "psu_max_multiplier": (2.0 if atype == "psu" else 1.0),
+                "psu_share_basis": ("target" if atype == "psu" else ""),   # PSU counts are unambiguously TARGET
                 "stock_price_at_grant_usd": round(price, 2),
                 "strike_price_usd": (round(strike, 2) if strike is not None else ""),
                 "grant_date_fv_per_share_usd": round(fv_ps, 4),
@@ -826,6 +893,11 @@ def generate():
                     grants.append(_grant(gid, "P-2022", w["emp_id"], grp, "promotion", "rsu", pdt,
                                          max(1, round(28_000 / _close_at(pdt))), _close_at(pdt),
                                          _close_at(pdt), None, 48, 12, "monthly"))
+    # a departed employee cannot receive a grant dated after their termination — drop any such row so the
+    # ledger the engine ingests is clean (the engine ALSO fail-closes on one). RNG draws are untouched, so the
+    # rest of the grant book stays byte-identical; only the invalid post-term rows disappear.
+    wterm = {w["emp_id"]: w.get("term_date", "") for w in workers}
+    grants = [g for g in grants if not (wterm.get(g["emp_id"]) and g["grant_date"] > wterm[g["emp_id"]])]
     grants.sort(key=lambda g: (g["grant_date"], g["grant_id"]))
 
     # shares outstanding + market inputs, per quarter (CSO grows toward 75.0M; last quarter is the mkt-cap anchor)
@@ -857,9 +929,9 @@ def generate():
             "annualized_volatility", "risk_free_rate", "dividend_yield"])
     _write("equity_grants.csv", grants,
            ["grant_id", "plan_id", "emp_id", "participant_group", "grant_type", "award_type", "grant_date",
-            "shares_granted", "psu_max_multiplier", "stock_price_at_grant_usd", "strike_price_usd",
-            "grant_date_fv_per_share_usd", "vest_start_date", "vest_months_total", "cliff_months",
-            "vest_frequency", "performance_period_end"])
+            "shares_granted", "psu_max_multiplier", "psu_share_basis", "stock_price_at_grant_usd",
+            "strike_price_usd", "grant_date_fv_per_share_usd", "vest_start_date", "vest_months_total",
+            "cliff_months", "vest_frequency", "performance_period_end"])
     _write("burn_benchmarks.csv", burn_benchmarks,
            ["index_group", "gics_code", "gics_label", "fiscal_year", "vabr_benchmark_pct",
             "legacy_adjusted_cap_pct", "epsc_model", "epsc_pass_threshold", "source_note"])

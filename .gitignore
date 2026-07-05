@@ -2,6 +2,6 @@
 __pycache__/
 *.pyc
 
-# Runtime artifacts that must never masquerade as committed output
-**/output/PUBLISHED.txt
+# Runtime artifacts that must never masquerade as committed output (the publish marker + any staled output)
+**/output/PUBLISHED.json
 **/output/*.stale

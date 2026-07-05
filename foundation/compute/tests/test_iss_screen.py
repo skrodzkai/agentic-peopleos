@@ -214,6 +214,8 @@ _expect_closed("real company SPACING variant ('Git Lab Inc.') under a synthetic 
                mutate_co=lambda co: [r.__setitem__("company_name", "Git Lab Inc.") for r in co if r["ticker"] == "S100"])
 _expect_closed("non-positive CEO pay", mutate_ex=lambda ex: ex[1].__setitem__("pay_y1", "0"))
 _expect_closed("non-positive TSR baseline", mutate_ex=lambda ex: ex[1].__setitem__("tsrval_y1", "0"))
+_expect_closed("non-finite TSR value (NaN can't flow into a rendered measure or GL synthesis)",
+               mutate_ex=lambda ex: ex[1].__setitem__("tsrval_y3", "nan"))
 _expect_closed("unknown self-peer ref", mutate_ex=lambda ex: ex[1].__setitem__("self_peers", "ZZZZ"))
 _expect_closed("duplicate exec ticker", mutate_ex=lambda ex: ex.append(dict(ex[1])))
 

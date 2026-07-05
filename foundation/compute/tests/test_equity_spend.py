@@ -86,6 +86,7 @@ ok(0.0 < r["vabr_3yr_pct"] < 5.0, "3-yr VABR in a believable single-digit range"
 gp = r["epsc"]["grant_practices"]
 ok(gp["pass"] is True and gp["headroom_pct"] > 0, "3-yr VABR passes the illustrative EPSC cap with headroom")
 ok(8.0 <= r["overhang_pct"] <= 18.0, "overhang in a believable SaaS range (8-18%)")
+ok(0.0 < r["dilution_pct"] < r["overhang_pct"], "dilution (awards only) is positive and below overhang")
 ok(1.5 <= r["pool_longevity_years"] <= 4.0, "pool longevity is a believable few years")
 ok(r["epsc"]["features_passed"] == r["epsc"]["features_total"] == 6, "all 6 EPSC plan-feature tests pass")
 ok(r["unamortized_sbc"] > 0 and r["unamortized_sbc_years"] > 0, "a positive SBC backlog + horizon")
@@ -134,6 +135,23 @@ def _first_rsu(rows):
     return next(x for x in rows if x["award_type"] == "rsu")
 
 
+def _first_psu(rows):
+    return next(x for x in rows if x["award_type"] == "psu")
+
+
+def _post_term_grant(d):
+    """Retarget a late (P-2022) RSU grant onto an employee who terminated before it — the exact defect the
+    generator filter drops and the engine must reject."""
+    wk = list(csv.DictReader(open(d / "workers.csv")))
+    dead = min((w for w in wk if w["term_date"]), key=lambda w: w["term_date"])
+
+    def fn(rows):
+        g = next(r for r in rows if r["plan_id"] == "P-2022" and r["award_type"] == "rsu"
+                 and r["grant_date"] > dead["term_date"])
+        g["emp_id"], g["participant_group"] = dead["emp_id"], "staff"
+    _rewrite(d / "equity_grants.csv", fn)
+
+
 raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
        lambda rows: _first_rsu(rows).__setitem__("strike_price_usd", "50")))), "strike present on a non-option")
 raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
@@ -154,6 +172,36 @@ raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "shares_outstanding.cs
 raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "shares_outstanding.csv",
        lambda rows: rows[0].__setitem__("waso_basic", str(int(float(rows[0]["common_shares_outstanding"]) * 2)))))),
        "waso_basic > CSO fails closed")
+
+# ---- folded independent-review findings: the fail-closed net must catch each one -----------------------
+raises(lambda: E.compute(_tmp_with(_post_term_grant)), "grant dated after holder's termination fails closed")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "burn_benchmarks.csv",
+       lambda rows: [rw.__setitem__("source_note", "not illustrative — official ISS cap") for rw in rows]))),
+       "benchmark note that NEGATES 'illustrative' is refused (not a bare substring match)")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_plans.csv",
+       lambda rows: next(x for x in rows if x["plan_id"] == "P-2022").__setitem__("initial_pool_shares", "1")))),
+       "an overdrawn equity pool fails closed (not silently clamped to 0)")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "workers.csv",
+       lambda rows: rows.append(dict(rows[0]))))), "duplicate employee_id in workers.csv fails closed")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "burn_benchmarks.csv",
+       lambda rows: rows.append(dict(rows[-1]))))), "duplicate burn_benchmarks fiscal_year fails closed")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_plans.csv",
+       lambda rows: rows.append(dict(rows[-1]))))), "duplicate plan_id fails closed (no silent metric rewrite)")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "burn_benchmarks.csv",
+       lambda rows: rows.remove(max(rows, key=lambda x: x["fiscal_year"]))))),
+       "missing latest-FY benchmark fails closed (clean error, not a raw KeyError)")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "financials.csv",
+       lambda rows: rows[-1].__setitem__("revenue_usd", "0")))), "non-positive revenue fails closed")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "shares_outstanding.csv",
+       lambda rows: rows.reverse()))), "non-monotonic (reversed) period spine fails closed")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda rows: _first_psu(rows).__setitem__("psu_share_basis", "max")))),
+       "PSU with a non-target share basis fails closed")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda rows: _first_rsu(rows).__setitem__("psu_share_basis", "target")))),
+       "psu_share_basis set on a non-PSU award fails closed")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda rows: rows[0].__setitem__("vest_months_total", "10.5")))), "fractional vest_months fails closed")
 
 print(f"OK — {passed} equity-spend engine checks passed "
       f"({len(E.EquityPlan().grants)} grants across the company-wide ledger).")

@@ -8,10 +8,14 @@ amortizing the ledger and applying service-condition forfeitures off `workers.cs
 hand-maintained derived file to drift.
 
 METHODOLOGY-FAITHFUL vs ILLUSTRATIVE (the honesty line, stated like iss_screen.py):
-- Formulas and structures are methodology-faithful: SBC % of revenue; gross/net burn; the CURRENT ISS
-  Equity-Plan-Scorecard **Value-Adjusted Burn Rate (VABR)** — options at Black-Scholes value, full-value
-  awards at price, over WASO×price, 3-yr average; overhang/dilution; pool longevity; the EPSC three-pillar
-  framing (Plan Cost / Plan Features / Grant Practices).
+- STRUCTURES are methodology-faithful: SBC % of revenue; gross/net burn; the CURRENT ISS Equity-Plan-Scorecard
+  **Value-Adjusted Burn Rate (VABR)** structure — options at Black-Scholes value, full-value awards at price,
+  over WASO×price, 3-yr average; overhang/dilution; pool longevity; the EPSC three-pillar framing (Plan Cost /
+  Plan Features / Grant Practices).
+- The VABR here is an ILLUSTRATIVE RECONSTRUCTION, not the exact ISS number: the PRICE INPUT is the
+  grant-date / period-end close, whereas ISS's current convention uses a stock-price hierarchy led by a
+  ~200-day average (QDD). The structure matches; the price input is simplified — so this is a directional
+  reconstruction, not "the ISS VABR."
 - ILLUSTRATIVE (labeled, never claimed as advisor output): the benchmark burn caps + EPSC weights/threshold
   (in `burn_benchmarks.csv`, gated on a `source_note` that must say "illustrative"); the SVT valuation
   (ISS's is a proprietary binomial with company caps — we model award value with the same Black-Scholes
@@ -31,9 +35,10 @@ from pathlib import Path
 _DATA = Path(__file__).resolve().parents[1] / "data" / "acme"
 
 _GRANT_COLS = ("grant_id", "plan_id", "emp_id", "participant_group", "grant_type", "award_type",
-               "grant_date", "shares_granted", "psu_max_multiplier", "stock_price_at_grant_usd",
-               "strike_price_usd", "grant_date_fv_per_share_usd", "vest_start_date", "vest_months_total",
-               "cliff_months", "vest_frequency", "performance_period_end")
+               "grant_date", "shares_granted", "psu_max_multiplier", "psu_share_basis",
+               "stock_price_at_grant_usd", "strike_price_usd", "grant_date_fv_per_share_usd",
+               "vest_start_date", "vest_months_total", "cliff_months", "vest_frequency",
+               "performance_period_end")
 _SHARE_COLS = ("period_end", "common_shares_outstanding", "waso_basic", "waso_diluted", "close_price_usd",
                "annualized_volatility", "risk_free_rate", "dividend_yield")
 _PLAN_COLS = ("plan_id", "plan_name", "adoption_date", "expiration_date", "shareholder_approved",
@@ -101,7 +106,11 @@ class EquityPlan:
     def __init__(self, data_dir=_DATA):
         d = Path(data_dir)
         self.grants = _rows(d / "equity_grants.csv", _GRANT_COLS)
-        self.plans = {p["plan_id"]: p for p in _rows(d / "equity_plans.csv", _PLAN_COLS)}
+        self.plans = {}
+        for p in _rows(d / "equity_plans.csv", _PLAN_COLS):
+            if p["plan_id"] in self.plans:                    # last-row-wins would silently rewrite board metrics
+                raise EquityDataError(f"duplicate plan_id {p['plan_id']} in equity_plans.csv")
+            self.plans[p["plan_id"]] = p
         self.shares = _rows(d / "shares_outstanding.csv", _SHARE_COLS)
         self.financials = _rows(d / "financials.csv", ("period_end", "revenue_usd"))
         self.workers = self._load_workers(d)
@@ -114,8 +123,13 @@ class EquityPlan:
 
     @staticmethod
     def _load_workers(d):
+        out = {}
         with open(d / "workers.csv", newline="", encoding="utf-8") as fh:
-            return {w["emp_id"]: w for w in csv.DictReader(fh)}
+            for w in csv.DictReader(fh):
+                if w["emp_id"] in out:                       # last-row-wins would silently rewrite term math
+                    raise EquityDataError(f"duplicate employee_id {w['emp_id']} in workers.csv")
+                out[w["emp_id"]] = w
+        return out
 
     # -- quarter + fiscal-year spine (fiscal year = calendar year; Acme FY ends Dec 31) --
     def quarters(self):
@@ -123,13 +137,26 @@ class EquityPlan:
 
     def _validate(self):
         qs = self.quarters()
+        if any(qs[i] >= qs[i + 1] for i in range(len(qs) - 1)):
+            raise EquityDataError("shares_outstanding periods must be strictly increasing (spine order)")
         fin_q = [_pdate(f["period_end"], "financials.period_end") for f in self.financials]
         if qs != fin_q:
             raise EquityDataError("shares_outstanding periods != financials periods (spine mismatch)")
-        # benchmark honesty gate — refuse to load a benchmark that doesn't declare itself illustrative
+        for f in self.financials:
+            _num(f["revenue_usd"], f"financials {f['period_end']} revenue", positive=True)
+        # benchmark honesty gate — a note must AFFIRMATIVELY lead with 'illustrative' (a bare substring would
+        # wave through "not illustrative"/"nonillustrative ..."); each fiscal year appears exactly once, with
+        # a positive cap + integer threshold, so the EPSC lookup can never crash or silently pick a dupe.
+        self.bench_by_fy = {}
         for b in self.benchmarks:
-            if "illustrative" not in b["source_note"].lower():
-                raise EquityDataError(f"benchmark FY{b['fiscal_year']} source_note must declare 'illustrative'")
+            if not b["source_note"].strip().lower().startswith("illustrative"):
+                raise EquityDataError(f"benchmark FY{b['fiscal_year']} source_note must lead with 'illustrative'")
+            fy = _int_num(b["fiscal_year"], "benchmark.fiscal_year", positive=True)
+            if fy in self.bench_by_fy:
+                raise EquityDataError(f"duplicate burn_benchmarks row for fiscal_year {fy}")
+            _num(b["vabr_benchmark_pct"], f"benchmark FY{fy} vabr_cap", positive=True)
+            _int_num(b["epsc_pass_threshold"], f"benchmark FY{fy} epsc_threshold", positive=True)
+            self.bench_by_fy[fy] = b
         # shares-outstanding sanity + the market-cap identity on the final quarter
         prev_close = None
         for s in self.shares:
@@ -158,19 +185,24 @@ class EquityPlan:
                     raise EquityDataError(f"{gid}: director grant to unknown director {emp!r}")
             elif emp not in self.workers:
                 raise EquityDataError(f"{gid}: grant to unknown emp_id {emp!r}")
-            _int_num(g["shares_granted"], f"{gid}.shares", positive=True)
-            price = _num(g["stock_price_at_grant_usd"], f"{gid}.price", positive=True)
+            _int_num(g["shares_granted"], f"{gid}.shares", positive=True)   # whole shares in an append-only ledger
+            _num(g["stock_price_at_grant_usd"], f"{gid}.price", positive=True)
             _num(g["grant_date_fv_per_share_usd"], f"{gid}.fv", positive=True)
-            vm = _num(g["vest_months_total"], f"{gid}.vest_months", positive=True)
-            cliff = _num(g["cliff_months"], f"{gid}.cliff")
+            vm = _int_num(g["vest_months_total"], f"{gid}.vest_months", positive=True)
+            cliff = _int_num(g["cliff_months"], f"{gid}.cliff")
             if cliff > vm:
                 raise EquityDataError(f"{gid}: cliff {cliff} > vest_months {vm}")
             mult = _num(g["psu_max_multiplier"], f"{gid}.psu_mult")
             if g["award_type"] == "psu":
                 if mult <= 1.0:
                     raise EquityDataError(f"{gid}: PSU psu_max_multiplier must be > 1")
-            elif mult != 1.0:
-                raise EquityDataError(f"{gid}: non-PSU psu_max_multiplier must be exactly 1.0 (got {mult})")
+                if g["psu_share_basis"] != "target":         # shares_granted must be an unambiguous TARGET count
+                    raise EquityDataError(f"{gid}: PSU psu_share_basis must be 'target' (got {g['psu_share_basis']!r})")
+            else:
+                if mult != 1.0:
+                    raise EquityDataError(f"{gid}: non-PSU psu_max_multiplier must be exactly 1.0 (got {mult})")
+                if g["psu_share_basis"] not in ("", None):
+                    raise EquityDataError(f"{gid}: psu_share_basis set on a non-PSU award")
             # strike present iff option
             if g["award_type"] == "option":
                 _num(g["strike_price_usd"], f"{gid}.strike", positive=True)
@@ -180,6 +212,10 @@ class EquityPlan:
             plan = self.plans[g["plan_id"]]
             if not (_pdate(plan["adoption_date"], "adopt") <= gdate <= _pdate(plan["expiration_date"], "exp")):
                 raise EquityDataError(f"{gid}: grant_date {gdate} outside plan {g['plan_id']} active window")
+            if g["participant_group"] != "director":         # a departed employee cannot receive a new grant
+                term = self.workers[emp].get("term_date")
+                if term and gdate > _pdate(term, f"{gid}.term"):
+                    raise EquityDataError(f"{gid}: grant_date {gdate} after holder term_date {term}")
 
     # ---------------------------------------------------------------- derivation
     def _term_date(self, emp):
@@ -237,6 +273,8 @@ class EquityPlan:
         """(remaining unrecognized SBC $, weighted-avg remaining years) at `at` — the 'locked-in' backlog."""
         rem_total, weighted_months = 0.0, 0.0
         for g in self.grants:
+            if _pdate(g["grant_date"], "gd") > at:
+                continue                                      # not yet granted at `at` — no backlog to book
             term = self._term_date(g["emp_id"])
             if term is not None and term <= at:
                 continue                                      # forfeited/settled: nothing left to recognize
@@ -312,8 +350,9 @@ class EquitySpend:
         return (shares - self._forfeited_shares_fy(fy)) / self.waso_fy(fy)
 
     def vabr_fy(self, fy):
-        """Value-Adjusted Burn Rate — the CURRENT ISS EPSC convention. Options at grant Black-Scholes value,
-        full-value awards at grant-date price, over WASO x price."""
+        """Value-Adjusted Burn Rate — the CURRENT ISS EPSC VABR STRUCTURE (illustrative reconstruction; the
+        price input is grant-date / period-end, not ISS's ~200-day-average QDD hierarchy). Options at grant
+        Black-Scholes value, full-value awards at grant-date price, over WASO x price."""
         num = 0.0
         for g in self._granted_fy(fy):
             sh = int(float(g["shares_granted"]))
@@ -334,6 +373,8 @@ class EquitySpend:
         return num / self.waso_fy(fy)
 
     def _avg3(self, fn):
+        if len(self.fys) < 3:                                 # a "3-year" average must actually have 3 years
+            raise EquityDataError(f"3-year metric needs >= 3 fiscal years, have {len(self.fys)}")
         recent = self.fys[-3:]
         return sum(fn(fy) for fy in recent) / len(recent)
 
@@ -342,6 +383,8 @@ class EquitySpend:
         """Shares granted but not yet delivered/forfeited: unvested RSU/PSU + non-forfeited option shares."""
         tot = 0.0
         for g in self.p.grants:
+            if _pdate(g["grant_date"], "gd") > at:
+                continue                                      # not yet granted at `at` — not outstanding
             term = self.p._term_date(g["emp_id"])
             vf = self.p._vested_fraction(g, at)
             sh = int(float(g["shares_granted"]))
@@ -367,12 +410,23 @@ class EquitySpend:
             term = self.p._term_date(g["emp_id"])
             returned = sh * (1.0 - self.p._vested_fraction(g, term)) if (term is not None and term <= at) else 0.0
             used += sh - returned                             # strict recycling: forfeited unvested come back
-        return max(0.0, initial - used)
+        raw = initial - used
+        if raw < 0:                                           # an overdrawn pool is a real defect, not a clean 0
+            raise EquityDataError(f"{plan_id}: pool overdrawn by {-raw:.0f} shares (grants exceed authorized pool)")
+        return raw
 
     def overhang(self, at=None):
+        """Overhang = (outstanding awards + shares still available to grant) / CSO — the fully-loaded number."""
         at = at or self.as_of
         cso = _num(self._sh_q[at]["common_shares_outstanding"], "cso")
         return (self._outstanding_shares(at) + self.pool_available(at)) / cso
+
+    def dilution_pct(self, at=None):
+        """Dilution = outstanding awards ONLY / CSO — the narrower, standard number (no unallocated pool).
+        Reported distinctly from overhang so the two aren't conflated in a board deck."""
+        at = at or self.as_of
+        cso = _num(self._sh_q[at]["common_shares_outstanding"], "cso")
+        return self._outstanding_shares(at) / cso
 
     def pool_longevity_years(self, at=None):
         at = at or self.as_of
@@ -412,8 +466,11 @@ class EquitySpend:
             ("No evergreen provision", plan["evergreen"] == "none"),
         ]
         vabr3 = self._avg3(self.vabr_fy) * 100
-        bench = {int(b["fiscal_year"]): b for b in self.p.benchmarks}[self.fys[-1]]
-        cap = float(bench["vabr_benchmark_pct"])
+        latest = self.fys[-1]
+        if latest not in self.p.bench_by_fy:                  # fail closed, not a raw KeyError
+            raise EquityDataError(f"burn_benchmarks missing fiscal_year {latest}")
+        bench = self.p.bench_by_fy[latest]
+        cap = _num(bench["vabr_benchmark_pct"], "vabr_cap", positive=True)
         # Plan Cost — directional SVT illustration: value of (outstanding + available pool) / market cap
         px = _num(self._sh_q[self.as_of]["close_price_usd"], "px")
         cso = _num(self._sh_q[self.as_of]["common_shares_outstanding"], "cso")
@@ -446,6 +503,7 @@ def compute(data_dir=_DATA):
         "vabr_3yr_pct": round(es._avg3(es.vabr_fy) * 100, 2),
         "gross_burn_3yr_pct": round(es._avg3(es.gross_burn_fy) * 100, 2),
         "overhang_pct": round(es.overhang() * 100, 2),
+        "dilution_pct": round(es.dilution_pct() * 100, 2),
         "pool_available": round(es.pool_available(es.as_of), 0),
         "pool_longevity_years": round(es.pool_longevity_years(), 2),
         "unamortized_sbc": unamort, "unamortized_sbc_years": unamort_yrs,

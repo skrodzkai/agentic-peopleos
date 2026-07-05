@@ -37,6 +37,7 @@ engine SCREENS and EXPLAINS; a human decides.
 from __future__ import annotations
 
 import csv
+import math
 import re
 from pathlib import Path
 
@@ -103,9 +104,12 @@ def _rows(path, cols):
 
 def _num(v, name):
     try:
-        return float(v)
+        f = float(v)
     except (TypeError, ValueError) as e:
         raise ISSDataError(f"{name} must be numeric (got {v!r})") from e
+    if not math.isfinite(f):     # a NaN/inf must fail closed, not flow into a rendered measure (or GL synthesis)
+        raise ISSDataError(f"{name} must be finite (got {v!r})")
+    return f
 
 
 def _percentile_rank(value, population):
