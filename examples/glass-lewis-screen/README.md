@@ -24,7 +24,7 @@ transparent: Acme is a disciplined-pay,
 lagging-stock company — the granted CEO pay percentile is high against a weak 5-yr TSR, so GL's *Granted CEO
 Pay vs TSR* test scores Severe (exactly what ISS flags); but the NEO team is lean, the STI is lean, the CEO's
 equity is underwater (CAP below granted), and the financials are solid — so the other four tests read
-Negligible/Low and the composite lands Low. The dashboard's **three-pole counterfactual** makes the mechanism
+Negligible/Low and the composite lands Low. The dashboard's **two-pole counterfactual** makes the mechanism
 transparent: a pay-vs-TSR-only read ≈ Severe, financials-only ≈ Negligible, and the blended composite = Low.
 
 **Honesty.** The Glass Lewis model here — the current 2026 five-test scorecard (the legacy A–F grade is

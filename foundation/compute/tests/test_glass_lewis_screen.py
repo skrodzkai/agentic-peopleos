@@ -78,6 +78,44 @@ lo, hi = syn["say_on_pay_support_band_pct"]
 ok(0.0 <= lo < hi <= 100.0, "say-on-pay band is an ordered range within [0,100]")
 ok("NOT a vote forecast" in syn["band_basis"], "SOP band is labeled a directional estimate, not a forecast")
 
+# ---- STI as a % of TARGET (not raw dollars): the disciplined subject pays the LEAST vs target ------------
+ok(0.0 <= gl["sti_pctile"] <= 100.0, "STI percentile in range")
+ok(gl["sti_pctile"] < 25.0, "the subject's STI-payout-vs-target ranks near the bottom (a lean, disciplined program)")
+sti_sub = next(t for t in gl["tests"] if t["key"] == "sti_vs_tsr")
+ok(sti_sub["score"] >= 85.0, "lean STI + lagging TSR -> the STI-vs-TSR test is well aligned (not a flag)")
+
+# ---- say-on-pay RESPONSIVENESS — a RECOMMENDATION-level factor, SEPARATE from the P4P composite -----------
+sop = gl["say_on_pay"]
+ok(sop["engage_threshold_pct"] == 80.0, "the GL say-on-pay engagement threshold (~80%) is surfaced")
+ok(sop["prior_support_pct"] == 93.7 and sop["below_threshold"] is False,
+   "the subject's prior say-on-pay support is strong -> no responsiveness concern")
+ok(sop["recommendation_concern"] == "none", "a clean program carries no say-on-pay recommendation concern")
+ok(gl["qualitative"]["penalty"] == 0.0, "a clean program carries no P4P qualitative downward penalty")
+
+
+def _low_sop(resp):
+    def mut(d):
+        def fn(rows):
+            for r in rows:
+                if r["ticker"] == "ACMQ":
+                    r["prior_say_on_pay_support_pct"] = "62.0"
+                    r["say_on_pay_responsiveness"] = resp
+        _rewrite(d / "gl_financials.csv", fn)
+    return mut
+
+
+_none = G.compute(_tmp_with(_low_sop("none")))["gl"]
+_robust = G.compute(_tmp_with(_low_sop("robust")))["gl"]
+# a below-threshold vote raises the RECOMMENDATION-level concern and scales with responsiveness...
+ok(_none["say_on_pay"]["below_threshold"] is True and _none["say_on_pay"]["recommendation_concern"] == "high",
+   "a prior low say-on-pay vote with NO board response is a HIGH recommendation-level concern")
+ok(_robust["say_on_pay"]["recommendation_concern"] == "low",
+   "a ROBUST board response to the low vote is a LOWER recommendation-level concern than none")
+# ...but say-on-pay responsiveness NEVER moves the quantitative P4P composite (GL applies it separately)
+ok(_none["composite_score"] == gl["composite_score"] == _robust["composite_score"],
+   "say-on-pay responsiveness does NOT alter the P4P composite (it is a recommendation-level factor)")
+ok(_none["qualitative"]["penalty"] == 0.0, "the P4P qualitative penalty is unaffected by say-on-pay responsiveness")
+
 # ---- determinism ----------------------------------------------------------------------------------------
 ok(json.dumps(G.compute(), sort_keys=True, default=str) == json.dumps(r, sort_keys=True, default=str),
    "compute() is deterministic")
@@ -171,6 +209,15 @@ raises(lambda: G.compute(_tmp_with(lambda d: _rewrite(d / "gl_financials.csv",
        lambda rows: rows[0].__setitem__("cap_y1", "-1")))), "negative CAP in y1 fails closed")
 raises(lambda: G.compute(_tmp_with(lambda d: _rewrite(d / "gl_financials.csv",
        lambda rows: rows[0].__setitem__("eps_y5", "0")))), "non-positive terminal-year EPS fails closed")
+# new inputs: STI target is a denominator (>0); say-on-pay support is bounded 0-100; responsiveness is a vocab
+raises(lambda: G.compute(_tmp_with(lambda d: _rewrite(d / "gl_financials.csv",
+       lambda rows: rows[0].__setitem__("sti_target_y3", "0")))), "a non-positive STI target (denominator) fails closed")
+raises(lambda: G.compute(_tmp_with(lambda d: _rewrite(d / "gl_financials.csv",
+       lambda rows: rows[0].__setitem__("prior_say_on_pay_support_pct", "150")))),
+       "a say-on-pay support % above 100 fails closed")
+raises(lambda: G.compute(_tmp_with(lambda d: _rewrite(d / "gl_financials.csv",
+       lambda rows: rows[0].__setitem__("say_on_pay_responsiveness", "maybe")))),
+       "an unknown say-on-pay responsiveness category fails closed")
 
 
 def _cap_overflow(d):

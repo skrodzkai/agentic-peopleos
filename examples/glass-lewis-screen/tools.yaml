@@ -6,8 +6,9 @@ tools:
   - name: two_advisor_read
     access: read-only
     description: >
-      Reads the reconciled two-advisor result (the Glass Lewis grade + pay/performance percentiles, the ISS
-      concern + measures, and the agree/diverge synthesis with its directional say-on-pay band) from the
+      Reads the reconciled two-advisor result (the Glass Lewis concern level + 0–100 composite + pay/performance
+      percentiles, the ISS concern + measures, and the agree/diverge synthesis with its directional say-on-pay
+      band) from the
       shared engine (foundation/compute/glass_lewis_screen.py), itself read-only over the synthetic universe.
       The agent performs no scoring of its own.
 

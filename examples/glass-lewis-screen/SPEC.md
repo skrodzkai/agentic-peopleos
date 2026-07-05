@@ -19,9 +19,11 @@ no external calls.
 ## What it shows
 Reconciliation verdict banner + committee considerations; KPI band (GL concern + composite, ISS concern, verdict,
 say-on-pay support band, GL peer-group size); the two-advisor "war room" cards (each lens' inputs side by
-side); the **Glass Lewis 5-test scorecard** (each test scored 0–100 + banded, weighted to the composite); a
-**three-pole counterfactual** (pay-vs-TSR-only vs the composite vs financials-only) with pay-vs-performance
-percentile strips per lens.
+side); the **Glass Lewis 5-test scorecard** (each test scored 0–100 + banded, weighted to the composite —
+STI measured as payout **relative to target**, not raw dollars) with the **say-on-pay responsiveness** factor
+(a disclosed GL policy: below ~80% prior support invites engagement scrutiny, kept separate from the P4P
+composite); and a **two-pole counterfactual** where a pay-vs-TSR-only read and a financials-only read
+**bracket** the composite, with pay-vs-performance percentile strips per lens.
 
 ## Divergence (the calibrated teaching case)
 The committed data lands **GL = Low concern (composite 70/100)** and **ISS = Medium** → **ISS-ONLY FLAG**. The
@@ -29,7 +31,7 @@ mechanism is honest and structural: Acme is a disciplined-pay, lagging-stock com
 percentile is high against a weak 5-yr TSR, so GL's *Granted CEO Pay vs TSR* test scores Severe (exactly what
 ISS flags Medium on); but the NEO team is lean, the STI is lean, the CEO's equity is underwater (CAP below
 granted), and the financials are solid — so the other four tests read Negligible/Low and the weighted
-composite lands Low. The three-pole counterfactual makes this auditable: pay-vs-TSR-only ≈ Severe,
+composite lands Low. The two-pole counterfactual makes this auditable: pay-vs-TSR-only ≈ Severe,
 financials-only ≈ Negligible, blended composite = Low.
 
 ## Invariants (fail closed on violation)

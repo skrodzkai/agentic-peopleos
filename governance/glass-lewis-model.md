@@ -25,17 +25,21 @@ grade, where "C" was ideal and A/F both signalled misalignment; this arm now ren
 | A 0–100 **scorecard** across five quantitative tests → a **concern level** (Negligible/Low/Medium/High/Severe) | **PUBLIC** | The output shape is publicly known. Our composite + level are a reconstruction. |
 | The **five tests**: Granted CEO Pay vs TSR; Granted CEO Pay vs Financial Performance; CEO STI Payouts vs TSR; Total Granted NEO Pay vs Financial Performance; CEO Compensation-Actually-Paid vs TSR — plus a **qualitative downward modifier** | **PUBLIC** | The test roster is disclosed. |
 | Pay basis is **granted CEO / NEO-team** pay; **TSR is a separate test** from the financial tests; the financial-performance metric set (non-financial sectors) is **revenue growth, EPS growth, OCF growth, ROE, ROA**; a **5-year weighted** window; GL builds its **own peer group** (~15 firms, min ~10 viable) | **PUBLIC-OUTLINE** | Inputs + structure are described publicly; the exact mix is proprietary. |
-| The exact **test weights**, the score-band cutoffs, the qualitative point deductions, and the peer-ranking function | **ILLUSTRATIVE** | Proprietary and revised periodically — Glass Lewis expressly does NOT disclose the weights. Everything in the `_GL` block of `glass_lewis_screen.py` is a defensible neutral reconstruction, labeled as such. |
+| The exact **test weights**, the score-band cutoffs, the qualitative point deductions, and the peer-ranking function | **ILLUSTRATIVE** | Glass Lewis expressly does NOT disclose the **weights**. GL *does* publish overall concern bands + test-specific rating ranges, but this repo intentionally applies **one uniform illustrative band** across all five tests (a labeled simplification, not GL's per-test tables). Everything in the `_GL` block of `glass_lewis_screen.py` is a defensible neutral reconstruction, labeled as such. |
 
 ## The illustrative reconstruction (the `_GL` constants)
 - **Five tests, each 0–100** (higher = better alignment). Four are a pay-percentile-minus-performance-percentile
   alignment score (`85 − 1.6·gap`, clamped): CEO pay vs TSR, CEO pay vs financials, STI vs TSR, NEO-team pay
   vs financials. The fifth (CAP vs TSR) is a ratio test — 5-yr aggregate CEO CAP ÷ reported cumulative TSR,
-  compared to the **peer-group median** ratio. The **"no penalty at/below +50% above median" threshold is a
-  disclosed GL rule**; the specific penalty *slope* below the threshold is an illustrative reconstruction.
-- **STI vs TSR** — GL's public description is STI payout *as a percentage of target* vs TSR. Our synthetic
-  data does not carry STI targets, so we rank the **STI payout magnitude** against the peer group as a labeled
-  **illustrative proxy** and score it against the TSR percentile.
+  compared here to the **synthetic 15-name peer-group median** ratio. GL's public method frames CAP-vs-TSR in a
+  **broader market-cap benchmark context**; using the ~15-name peer median is a labeled **illustrative
+  simplification**. The **"no penalty at/below +50% above median" threshold is a disclosed GL rule**; the
+  specific penalty *slope* below the threshold is an illustrative reconstruction.
+- **STI vs TSR** — GL's public description is STI payout *as a percentage of target* vs TSR. The synthetic data
+  now carries an **STI target** per company-year, so the test ranks **payout ÷ target** (generosity relative to
+  opportunity, size-neutral) and scores it against the TSR percentile — matching GL's description. We rank it
+  **within the ~15-name GL peer pool** as an **illustrative proxy** for GL's broader-market benchmarking, and
+  the target *levels* are illustrative.
 - **Financial-performance percentile** = the equal-weighted average of the five disclosed metric percentiles
   (revenue/EPS/OCF growth, ROE, ROA). **TSR is deliberately NOT blended in** — it is its own test.
 - **Measurement window** — pay, TSR, STI, and CAP use a **5-year weighted** window (matching GL). The
@@ -44,10 +48,18 @@ grade, where "C" was ideal and A/F both signalled misalignment; this arm now ren
 - **Illustrative test weights** (GL does not disclose them): CEO pay vs TSR 0.22, CEO pay vs financials 0.22,
   STI vs TSR 0.14, NEO pay vs financials 0.24, CAP vs TSR 0.18.
 - **Composite → concern**: Severe 0–20, High 21–40, Medium 41–60, Low 61–80, Negligible 81–100.
-- **Qualitative downward modifier**: we compute the one flag derivable from the synthetic data (STI paid above
-  the peer median while TSR lagged) and **document that GL's full checklist** — one-time awards, upward
-  discretion, short LTI vesting, excessive LTIP potential, undisclosed goals — needs plan-design disclosure
-  beyond this dataset. Partial and labeled, not faked.
+- **P4P qualitative downward modifier** (on the composite): the one pay-vs-performance flag derivable from
+  the data — **STI paid above the peer median while TSR lagged** — plus **documentation that GL's full P4P
+  checklist** (one-time awards, upward discretion, short LTI vesting, excessive LTIP potential, undisclosed
+  goals) needs plan-design disclosure beyond this dataset. Partial and labeled, not faked.
+- **Say-on-pay responsiveness** — a *disclosed* GL policy modeled as a **recommendation-level factor, kept
+  SEPARATE from the quantitative P4P composite** (GL applies responsiveness at the say-on-pay recommendation
+  level, not inside the P4P score — so we report it beside the score, never subtracted from it). GL engages a
+  company whose prior say-on-pay support fell below **~80%**, and a weak board response then raises the
+  recommendation concern. The data carries a prior support % and a responsiveness posture (robust / limited /
+  none); the **~80% threshold is public**, the concern mapping (robust → low, limited → elevated, none → high)
+  is illustrative. The committed subject sits at **93.7%** support — above the threshold — so the factor is
+  wired and rendered but flags no concern.
 - **Peer group** — a cap-banded (0.33×–3.0×) co-citation network, target **~15 firms, minimum 10 viable**.
 
 ## How GL differs from ISS (why we run both)

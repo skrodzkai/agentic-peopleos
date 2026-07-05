@@ -44,6 +44,13 @@ for token in ("ISS-ONLY FLAG", "Glass Lewis", "Medium", "Low", "scorecard", "com
 for t in G._TEST_LABELS.values():             # all five test names render in the scorecard
     ok(t in html, f"HTML surfaces the test {t!r}")
 ok("war" in html and "trow" in html, "the war-room cards + the 5-test scorecard render")
+# the say-on-pay RESPONSIVENESS factor + the STI-relative-to-target framing render
+ok("Say-on-pay responsiveness" in html and "engagement threshold" in html,
+   "HTML surfaces the say-on-pay responsiveness factor")
+ok(f"{report['gl']['say_on_pay']['prior_support_pct']:.1f}%" in html,
+   "HTML shows the subject's prior say-on-pay support %")
+ok("relative to target" in html, "HTML notes STI is measured relative to target, not raw dollars")
+ok("responsiveness" in digest.lower(), "digest surfaces the say-on-pay responsiveness factor")
 
 # ---- illustrative / honesty labeling (must never claim to BE the advisors) --------------------------------
 low = html.lower()
@@ -93,6 +100,15 @@ _raises_report_error(lambda b: b["gl"]["counterfactuals"].__setitem__("tsr_only_
                      "a non-finite counterfactual score refused")
 _raises_report_error(lambda b: b["iss"]["measures"]["mom"].__setitem__("value", float("nan")),
                      "a non-finite ISS MOM value (rendered in the card) refused")
+_raises_report_error(lambda b: b["gl"]["say_on_pay"].__setitem__("prior_support_pct", 150.0),
+                     "a say-on-pay support % above 100 (rendered) refused")
+_raises_report_error(lambda b: b["gl"]["say_on_pay"].__setitem__("responsiveness", "maybe"),
+                     "an unknown say-on-pay responsiveness category refused")
+_raises_report_error(lambda b: b["gl"]["say_on_pay"].__setitem__("engage_threshold_pct", float("nan")),
+                     "a non-finite say-on-pay engagement threshold (rendered as ~nan%) refused")
+_raises_report_error(lambda b: b["gl"]["say_on_pay"].__setitem__("below_threshold", True),
+                     "a below_threshold flag inconsistent with the support-vs-threshold numbers refused "
+                     "(would render a false, self-contradicting sentence)")
 
 # the digest must NEUTRALIZE Markdown in the engine's free-text driver (HTML-escaping alone wouldn't)
 _bad = copy.deepcopy(result)

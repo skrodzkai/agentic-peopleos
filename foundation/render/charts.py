@@ -105,15 +105,22 @@ def sparkline(series, color: str = CYAN, w: int = 84, h: int = 28) -> str:
 
 # ============================================================ percentile strip (signature)
 def percentile_strip(value, lo, hi, ticks, target=None, you_label="You",
-                     unit_prefix="$", unit_suffix="K", uid=None) -> str:
+                     unit_prefix="$", unit_suffix="K", ordinal=False, uid=None) -> str:
     """The marquee signature: a market-position instrument. A gradient track from `lo` to `hi`,
     labelled percentile ticks, an optional dashed target marker, and a glowing 'you' needle.
-    ticks: list of (value, label). `uid` namespaces the SVG <defs> ids so two strips can coexist;
-    when omitted it is derived deterministically from the chart's content (collision-safe by default)."""
+    ticks: list of (value, label). `ordinal=True` renders the needle as a proper English ordinal
+    (93rd, 21st, 11th) instead of `{unit_suffix}` — for percentiles, so it never reads '93th'. `uid`
+    namespaces the SVG <defs> ids so two strips can coexist; when omitted it is derived deterministically."""
     w, h = 1000, 96
     x0, x1, ty, bar = 22, 978, 46, 18
     X = _scale(lo, hi, x0, x1)
-    fmt = lambda v: f"{unit_prefix}{int(round(v))}{unit_suffix}"
+
+    def _ordinal(v):
+        n = int(round(v))
+        suf = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+        return f"{unit_prefix}{n}{suf}"
+
+    fmt = _ordinal if ordinal else (lambda v: f"{unit_prefix}{int(round(v))}{unit_suffix}")
     uid = _safe_id(uid) if uid else _auto_uid("ps", value, lo, hi, target, ticks)
     track, glow = f"{uid}_track", f"{uid}_glow"
     b = []

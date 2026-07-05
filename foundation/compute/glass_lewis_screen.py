@@ -16,11 +16,17 @@ THE HONESTY CONTRACT (component-by-component ledger in governance/glass-lewis-mo
   financial-performance metric set (for non-financial sectors) is revenue growth, EPS growth, OCF growth,
   ROE, ROA; pay/TSR/STI/CAP use a 5-year weighted window (the financial-GROWTH tests use a 3-year window here
   — a documented simplification vs GL's 5-year, driven by the synthetic data's history depth); GL builds its
-  own peer group (~15 firms, min ~10 viable) from disclosed peers + a peers-of-peers network. NOTE: the STI
-  test ranks STI payout MAGNITUDE as an illustrative proxy for GL's payout-as-%-of-target; the CAP test's
-  ">50% above the peer median" threshold is a disclosed rule, its penalty slope illustrative.
-- [ILLUSTRATIVE] the exact TEST WEIGHTS, the score-band cutoffs, the qualitative point deductions, and the
-  peer-ranking function are PROPRIETARY (Glass Lewis expressly does NOT disclose the weights). Everything in
+  own peer group (~15 firms, min ~10 viable) from disclosed peers + a peers-of-peers network. The STI test
+  ranks STI payout AS A % OF TARGET (payout ÷ target, size-neutral — matching GL's description), ranked WITHIN
+  the GL peer pool here as an illustrative proxy for GL's broader-market benchmarking. SAY-ON-PAY
+  RESPONSIVENESS (GL engages below ~80% prior support, a disclosed policy) is modeled as a RECOMMENDATION-level
+  factor, SEPARATE from the quantitative P4P composite — reported beside the score, never subtracted from it.
+  NOTE: the CAP test's ">50% above the peer median" threshold is a disclosed rule, its penalty slope
+  illustrative; the say-on-pay concern mapping is illustrative (the ~80% threshold is public).
+- [ILLUSTRATIVE] the exact TEST WEIGHTS, the qualitative point deductions, and the peer-ranking function are
+  PROPRIETARY (Glass Lewis expressly does NOT disclose the WEIGHTS). GL DOES publish test-specific rating
+  ranges + overall concern bands; this repo intentionally applies ONE uniform illustrative band across tests
+  (a labeled simplification, not GL's per-test tables). Everything in
   `_GL` below is a defensible neutral reconstruction, labeled as such — NOT Glass Lewis output, not
   affiliated with Glass, Lewis & Co., and built only from PUBLIC methodology descriptions (no GL proprietary
   reports or materials).
@@ -49,7 +55,10 @@ _GL_COLS = ("ticker", "neo_other_pay_y1", "neo_other_pay_y2", "neo_other_pay_y3"
             "neo_other_pay_y5", "sti_payout_y1", "sti_payout_y2", "sti_payout_y3", "sti_payout_y4",
             "sti_payout_y5", "cap_y1", "cap_y2", "cap_y3", "cap_y4", "cap_y5",
             "eps_y2", "eps_y3", "eps_y4", "eps_y5", "rev_y2", "rev_y3", "rev_y4", "rev_y5",
-            "ocf_y2", "ocf_y3", "ocf_y4", "ocf_y5", "roe_y3", "roe_y4", "roe_y5", "roa_y3", "roa_y4", "roa_y5")
+            "ocf_y2", "ocf_y3", "ocf_y4", "ocf_y5", "roe_y3", "roe_y4", "roe_y5", "roa_y3", "roa_y4", "roa_y5",
+            "sti_target_y1", "sti_target_y2", "sti_target_y3", "sti_target_y4", "sti_target_y5",
+            "prior_say_on_pay_support_pct", "say_on_pay_responsiveness")
+_RESPONSIVENESS = ("robust", "limited", "none", "n/a")   # board response to a prior low say-on-pay vote
 _PEER_COLS = ("ticker", "company_name", "gics_sector", "gics_subindustry", "revenue_usd",
               "market_cap_usd", "employees", "total_assets_usd", "is_subject")
 _EXEC_COLS = ("ticker", "self_peers", "pay_y1", "pay_y2", "pay_y3", "pay_y4", "pay_y5",
@@ -68,11 +77,20 @@ _GL = {
     "year_weights_3": (0.20, 0.30, 0.50),               # 3-yr weights (financial growth — data-history depth)
     # OVERALL concern bands on the 0–100 composite (higher = better alignment = LESS concern)
     "concern_bands": ((20.0, "Severe"), (40.0, "High"), (60.0, "Medium"), (80.0, "Low"), (math.inf, "Negligible")),
-    # per-test score bands (illustrative cutoffs, consistent with GL's disclosed band structure)
+    # per-test score bands — GL publishes test-specific rating ranges, but this repo intentionally applies ONE
+    # uniform illustrative band across all five tests (a labeled simplification, not GL's per-test tables)
     "test_bands": ((34.0, "Severe"), (50.0, "High"), (69.0, "Moderate"), (89.0, "Low"), (math.inf, "Negligible")),
     "peer_cap_lo": 0.33, "peer_cap_hi": 3.0, "peer_target": 15, "peer_min_scorable": 10,  # ~15 firms, min ~10
     "cap_penalty_excess": 1.5,   # CAP-vs-TSR: no penalty at/below median; penalties begin >50% above median
     "qual_cap": 20.0,            # the qualitative downward modifier is capped
+    # say-on-pay RESPONSIVENESS (a disclosed GL policy): GL engages when prior support fell below ~80%; a weak
+    # board response to that low vote deepens the SAY-ON-PAY RECOMMENDATION concern. This is a RECOMMENDATION-
+    # level factor, NOT an input to the quantitative P4P composite (GL applies it separately) — so it is
+    # reported beside the score, never subtracted from it. Threshold is public; the concern mapping is
+    # illustrative.
+    "sop_engage_threshold": 80.0,
+    "sop_response_concern": {"robust": "low", "limited": "elevated", "none": "high", "n/a": "high"},
+    "sti_flag_penalty": 8.0,     # the STI-above-median-while-TSR-lagged P4P alignment flag (a composite modifier)
 }
 # round ranked measures to this many decimals before percentile-ranking, so a last-ULP float difference
 # across platforms (macOS ARM vs Linux x86 in CI) can't flip a near-tie rank -> byte-identical output.
@@ -186,6 +204,7 @@ class GLUniverse:
         # validate EVERY field the scorecard consumes (not just a subset of years). pay/STI/CAP components and
         # growth bases must be strictly positive; ROE/ROA are ratio levels that may be negative -> finite only.
         pos_gl = ([f"neo_other_pay_y{y}" for y in range(1, 6)] + [f"sti_payout_y{y}" for y in range(1, 6)]
+                  + [f"sti_target_y{y}" for y in range(1, 6)]     # STI targets: strictly positive (a denominator)
                   + [f"cap_y{y}" for y in range(1, 6)] + [f"eps_y{y}" for y in range(2, 6)]
                   + [f"rev_y{y}" for y in range(2, 6)] + [f"ocf_y{y}" for y in range(2, 6)])
         fin_gl = [f"roe_y{y}" for y in (3, 4, 5)] + [f"roa_y{y}" for y in (3, 4, 5)]
@@ -201,6 +220,11 @@ class GLUniverse:
                     raise GLDataError(f"{tk}: non-positive {c} (pay component / growth base must be > 0)")
             for c in fin_gl:
                 _num(g[c], f"{tk}.{c}")                          # ROE/ROA: finite (may be negative)
+            sop = _num(g["prior_say_on_pay_support_pct"], f"{tk}.prior_say_on_pay_support_pct")
+            if not (0.0 <= sop <= 100.0):                        # a say-on-pay support % is bounded 0–100
+                raise GLDataError(f"{tk}: say-on-pay support {sop} out of [0,100]")
+            if g["say_on_pay_responsiveness"] not in _RESPONSIVENESS:
+                raise GLDataError(f"{tk}: bad responsiveness {g['say_on_pay_responsiveness']!r}")
 
     # -- per-company measures (each on its own line so the tests are auditable) -----------------------------
     def _ceo_pay(self, tk):
@@ -213,8 +237,13 @@ class GLUniverse:
         return _wavg(team, _GL["year_weights_5"])
 
     def _sti(self, tk):
+        # STI PAYOUT AS A % OF TARGET (not raw dollars): a company that paid ABOVE target while performance
+        # lagged is what the "STI Payouts vs TSR" test is built to surface — normalizing by target strips the
+        # company-size effect so the rank reflects generosity-vs-opportunity, not absolute STI dollars.
         gl = self._by[tk]["gl"]
-        return _wavg([_num(gl[f"sti_payout_y{y}"], "sti") for y in range(1, 6)], _GL["year_weights_5"])
+        ratios = [_num(gl[f"sti_payout_y{y}"], "sti") / _num(gl[f"sti_target_y{y}"], "sti_target", positive=True)
+                  for y in range(1, 6)]
+        return _wavg(ratios, _GL["year_weights_5"])
 
     def _tsr_growth(self, tk):
         ex = self._by[tk]["ex"]
@@ -315,8 +344,12 @@ class GLUniverse:
         }
         w = _GL["test_weights"]
         quant = sum(subs[k] * w[k] for k in subs) / sum(w.values())
-        # qualitative DOWNWARD modifier (partial — the full GL checklist needs plan-design disclosure)
+        # P4P qualitative DOWNWARD modifier on the composite (the STI-vs-TSR alignment flag). Say-on-pay
+        # responsiveness is computed SEPARATELY as a recommendation-level factor — it does NOT touch the score.
+        subj_gl = self._by[s]["gl"]
         qual = self._qualitative(sti_pct, tsr_pct)
+        say_on_pay = self._say_on_pay_factor(_num(subj_gl["prior_say_on_pay_support_pct"], "sop_support"),
+                                             subj_gl["say_on_pay_responsiveness"])
         # round FIRST, then band — so the concern label always matches the DISPLAYED score at a boundary
         composite = round(max(0.0, min(100.0, quant - qual["penalty"])), 1)
         concern = concern_for_score(composite)
@@ -335,24 +368,41 @@ class GLUniverse:
             "pay_pctile": round(pay_pct, 1), "neo_pay_pctile": round(neo_pay_pct, 1),
             "sti_pctile": round(sti_pct, 1), "tsr_pctile": round(tsr_pct, 1), "fin_pctile": round(fin_pct, 1),
             "cap_excess_vs_median": round(excess, 2),
-            "tests": tests, "qualitative": qual,
+            "tests": tests, "qualitative": qual, "say_on_pay": say_on_pay,
             "counterfactuals": {
                 "tsr_only_score": round(tsr_only, 1), "tsr_only_concern": concern_for_score(tsr_only),
                 "financials_only_score": round(fin_only, 1), "financials_only_concern": concern_for_score(fin_only),
             },
-            "responsiveness_threshold_pct": 80,       # GL engages when prior say-on-pay support < ~80% ([PUBLIC])
         }
 
     def _qualitative(self, sti_pct, tsr_pct):
-        """The GL qualitative DOWNWARD modifier. We compute the one flag derivable from the synthetic data;
-        GL's full checklist (one-time awards, upward discretion, short LTI vesting, excessive LTIP potential,
-        undisclosed goals) needs plan-design disclosure beyond this dataset — documented, not faked."""
-        flags = []
+        """The P4P qualitative DOWNWARD modifier on the composite — the pay-vs-performance flag derivable from
+        the synthetic data (STI paid above the peer median while TSR lagged). GL's full P4P checklist (one-time
+        awards, upward discretion, short LTI vesting, excessive LTIP potential, undisclosed goals) needs
+        plan-design disclosure beyond this dataset — documented, not faked. Say-on-pay RESPONSIVENESS is a
+        SEPARATE recommendation-level factor (see _say_on_pay_factor), not part of this composite modifier."""
+        flags, penalty = [], 0.0
         if sti_pct > 60.0 and tsr_pct < 40.0:
             flags.append("STI paid above the peer median while TSR lagged")
-        penalty = min(_GL["qual_cap"], 8.0 * len(flags))
+            penalty += _GL["sti_flag_penalty"]
+        penalty = min(_GL["qual_cap"], penalty)
         return {"flags": flags, "penalty": penalty,
-                "note": "partial — full GL qualitative checklist needs plan-design disclosure not modeled here"}
+                "note": "partial — full GL P4P qualitative checklist needs plan-design disclosure not modeled here"}
+
+    def _say_on_pay_factor(self, prior_support, responsiveness):
+        """Say-on-pay RESPONSIVENESS — a disclosed GL policy applied at the say-on-pay RECOMMENDATION level, NOT
+        as an input to the 0–100 P4P composite: GL engages a company whose prior support fell below ~80%, and a
+        weak board response to that low vote deepens the recommendation concern. Reported beside the score for
+        the committee; it never alters the P4P composite."""
+        # round the prior-support % ONCE so the value compared to the threshold is exactly the value stored +
+        # rendered — the below_threshold flag can never disagree with the number shown beside it
+        prior_support = round(prior_support, 1)
+        thr = _GL["sop_engage_threshold"]
+        below = prior_support < thr
+        concern = _GL["sop_response_concern"].get(responsiveness, "high") if below else "none"
+        return {"prior_support_pct": prior_support, "responsiveness": responsiveness,
+                "engage_threshold_pct": thr, "below_threshold": below, "recommendation_concern": concern,
+                "note": "recommendation-level factor — separate from the quantitative P4P composite"}
 
 
 # ---------------------------------------------------------------- the ISS-vs-GL "war room"

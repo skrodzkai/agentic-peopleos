@@ -567,12 +567,33 @@ def generate():
             "ocf_y2": ocf[0], "ocf_y3": ocf[1], "ocf_y4": ocf[2], "ocf_y5": ocf[3],
             "roe_y3": roe[0], "roe_y4": roe[1], "roe_y5": roe[2],
             "roa_y3": roa[0], "roa_y4": roa[1], "roa_y5": roa[2]})
+    # STI TARGET opportunity (so the STI test reads payout-relative-to-target, not raw dollars) + prior-year
+    # say-on-pay support & the board's responsiveness posture (feeds the GL qualitative responsiveness factor).
+    # Computed in a SECOND pass with an INDEPENDENT rng stream (SEED+41) so every pre-existing gl_financials
+    # column — and therefore the committed GL composite — stays byte-identical (column-level stream discipline).
+    rng_sop = random.Random(SEED + 41)
+    for row in gl_rows:
+        is_subj = row["ticker"] == "ACMQ"
+        sti = [int(row[f"sti_payout_y{y}"]) for y in range(1, 6)]
+        sti_tgt_mult = rng_sop.uniform(0.92, 1.30)                                  # peers pay ~0.92x-1.30x of target
+        sop_support_draw = round(rng_sop.uniform(78.0, 99.0), 1)                    # prior say-on-pay support %
+        sop_resp_draw = rng_sop.choice(("robust", "limited", "none"))              # board responsiveness posture
+        # subject: STI payout well UNDER target (lean, disciplined) + STRONG prior support (no responsiveness
+        # concern) — consistent with the GL-Low read. Peers pay near/over target with a mixed posture.
+        sti_target = ([max(1, int(round(s / 0.72))) for s in sti] if is_subj
+                      else [max(1, int(round(s / sti_tgt_mult))) for s in sti])
+        for y in range(1, 6):
+            row[f"sti_target_y{y}"] = sti_target[y - 1]
+        row["prior_say_on_pay_support_pct"] = 93.7 if is_subj else sop_support_draw
+        row["say_on_pay_responsiveness"] = "n/a" if is_subj else sop_resp_draw
     _write("gl_financials.csv", gl_rows,
            ["ticker", "neo_other_pay_y1", "neo_other_pay_y2", "neo_other_pay_y3", "neo_other_pay_y4",
             "neo_other_pay_y5", "sti_payout_y1", "sti_payout_y2", "sti_payout_y3", "sti_payout_y4",
             "sti_payout_y5", "cap_y1", "cap_y2", "cap_y3", "cap_y4", "cap_y5",
             "eps_y2", "eps_y3", "eps_y4", "eps_y5", "rev_y2", "rev_y3", "rev_y4", "rev_y5",
-            "ocf_y2", "ocf_y3", "ocf_y4", "ocf_y5", "roe_y3", "roe_y4", "roe_y5", "roa_y3", "roa_y4", "roa_y5"])
+            "ocf_y2", "ocf_y3", "ocf_y4", "ocf_y5", "roe_y3", "roe_y4", "roe_y5", "roa_y3", "roa_y4", "roa_y5",
+            "sti_target_y1", "sti_target_y2", "sti_target_y3", "sti_target_y4", "sti_target_y5",
+            "prior_say_on_pay_support_pct", "say_on_pay_responsiveness"])
 
     # ---- retention panel: a monthly person-period panel for the retention-risk model ----
     # Independent rng stream (SEED+23): appended, so every table above stays byte-identical. A 36-month
@@ -759,7 +780,7 @@ def generate():
     # ---- Company-wide EQUITY PLAN (independent rng stream SEED+31, appended so every table above stays
     # byte-identical). An append-only GRANT LEDGER is the single source of truth: SBC expense and the pool
     # roll-forward are DERIVED from it by the engine (no committed derived file to drift). The grant schema
-    # carries grant_type/award_type/participant_group/vesting so a future merit-comp arm appends
+    # carries grant_type/award_type/participant_group/vesting so the merit-comp arm appends
     # refresh/promotion/new_hire rows with zero reshape. ----
     rng_eq = random.Random(SEED + 31)
     CSO_END, PRICE_END, VOL, RFR = 75_000_000, 85.20, 0.42, 0.04     # 75.0M * $85.20 = $6.39B market cap

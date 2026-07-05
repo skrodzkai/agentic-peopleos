@@ -55,10 +55,10 @@ _CONCERN_ORD = {"Negligible": 0, "Low": 0, "Medium": 1, "High": 2, "Severe": 2, 
 # the committee-considerations lookup follows deterministically from the reconciliation verdict (a presentation lookup, not new math)
 _VERDICT = {
     "CLEAN SWEEP": ("both proxy advisors clear the program — typically monitoring, no rebuttal.", ch.GREEN),
-    "ISS-ONLY FLAG": ("an ISS-specific rebuttal — Glass Lewis's broader scorecard reads lower-concern; "
-                      "committees typically engage ISS and add TSR-linked disclosure before the vote.", ch.AMBER),
-    "GL-ONLY FLAG": ("a Glass Lewis-specific rebuttal — ISS reads the program as aligned; committees typically "
-                     "engage GL on the scorecard tests before the vote.", ch.AMBER),
+    "ISS-ONLY FLAG": ("the ISS lens is the one flagging — Glass Lewis's broader scorecard reads lower-concern; "
+                      "reviewing ISS's rationale and TSR-linked disclosure are common considerations here.", ch.AMBER),
+    "GL-ONLY FLAG": ("the Glass Lewis lens is the one flagging — ISS reads the program as aligned; the GL "
+                     "scorecard tests are the common area to review here.", ch.AMBER),
     "DUAL WATCH": ("both advisors caution — typically proactive engagement plus disclosure enhancements ahead "
                    "of the vote.", ch.AMBER),
     "TWO-FRONT FIGHT": ("both advisors adverse — a say-on-pay campaign is common at this posture; typically "
@@ -86,6 +86,13 @@ def _md(v):
 
 def _one_line(t, limit=300):
     return " ".join(str(t).split())[:limit]
+
+
+def _ord(n):
+    """English ordinal for a percentile: 1st / 2nd / 3rd / 21st / 93rd / 11th (not the naive '93th')."""
+    n = int(round(n))
+    suf = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suf}"
 
 
 def _fin(*xs):
@@ -123,7 +130,15 @@ def build_report(result):
         _plain_finite(cf["tsr_only_score"], cf["financials_only_score"]),
         cf["tsr_only_score"] <= gl["composite_score"] <= cf["financials_only_score"] + 1e-9,  # divergence shape
         _plain_finite(qp := gl["qualitative"]["penalty"]) and qp >= 0.0,
-        _fin(lo, hi) and 0.0 <= lo < hi <= 100.0,                       # SOP band is an ordered range
+        # say-on-pay responsiveness factor: bounded prior-support % + engagement threshold, known responsiveness
+        # vocab, and a below_threshold flag that is CONSISTENT with the numbers it is rendered against (an
+        # inconsistent flag would render a false, self-contradicting sentence)
+        _plain_finite(sop := gl["say_on_pay"]["prior_support_pct"]) and 0.0 <= sop <= 100.0,
+        _plain_finite(sopthr := gl["say_on_pay"]["engage_threshold_pct"]) and 0.0 <= sopthr <= 100.0,
+        gl["say_on_pay"]["responsiveness"] in ("robust", "limited", "none", "n/a"),
+        isinstance(gl["say_on_pay"]["below_threshold"], bool)
+        and gl["say_on_pay"]["below_threshold"] == (sop < sopthr),
+        _plain_finite(lo, hi) and 0.0 <= lo < hi <= 100.0,              # SOP band is an ordered range (bool-safe)
         "NOT a vote forecast" in syn["band_basis"],
         isinstance(syn["agree"], bool),
         # rendered contrast values are finite, in range, and EQUAL their source fields
@@ -168,7 +183,7 @@ def _test_row(t):
 
 def _lens_strip(pay_pctile, perf_pctile, pay_label, uid):
     return ch.percentile_strip(pay_pctile, 0, 100, ticks=[(0, "0"), (50, "median"), (100, "100th")],
-                               target=perf_pctile, you_label=pay_label, unit_prefix="", unit_suffix="th", uid=uid)
+                               target=perf_pctile, you_label=pay_label, unit_prefix="", ordinal=True, uid=uid)
 
 
 def render_html(report):
@@ -192,7 +207,7 @@ def render_html(report):
                 f"(<span class='mono'>{gl['composite_score']:.0f}/100</span>) while ISS reads "
                 f"<b style='color:{iss_c}'>{_e(iss['concern'])}</b> concern — "
                 f"<span class='vd' style='color:{vcolor}'>{_e(syn['verdict'])}</span>. "
-                f"<b>Suggested board response:</b> {_e(report['action'])}</p></section>")
+                f"<b>Committee considerations:</b> {_e(report['action'])}</p></section>")
     # KPI band
     body.append("<section class='kpis'>"
                 + _kpi("Glass Lewis concern", gl["concern"], f"composite {gl['composite_score']:.0f}/100 · 5-test scorecard", gl_c)
@@ -211,29 +226,47 @@ def render_html(report):
                 "<div class='war'>"
                 + _advisor_card("ISS", "CEO-only pay vs 5-yr relative TSR (MOM / RDA / PTA cascade)",
                                 iss["concern"] + " concern", iss_c,
-                                [("CEO pay percentile", f"{c['iss_pay_pctile']:.0f}th"),
-                                 ("5-yr TSR percentile", f"{c['iss_tsr_pctile']:.0f}th"),
+                                [("CEO pay percentile", _ord(c['iss_pay_pctile'])),
+                                 ("5-yr TSR percentile", _ord(c['iss_tsr_pctile'])),
                                  ("Multiple of median (MOM)", f"{iss['measures']['mom']['value']:.2f}×"),
                                  ("Rel. degree of alignment", f"{iss['measures']['rda']['value']:+.0f}"),
                                  ("Pay-TSR trend align (PTA)", f"{iss['measures']['pta']['value']:+.1f}")])
                 + _advisor_card("Glass Lewis", "5-test scorecard: granted CEO/NEO pay vs TSR AND vs financials",
                                 gl["concern"] + f" · {gl['composite_score']:.0f}", gl_c,
-                                [("CEO granted pay percentile", f"{gl['pay_pctile']:.0f}th"),
-                                 ("NEO-team pay percentile", f"{gl['neo_pay_pctile']:.0f}th"),
-                                 ("Financial-perf percentile", f"{gl['fin_pctile']:.0f}th"),
-                                 ("5-yr TSR percentile", f"{gl['tsr_pctile']:.0f}th"),
+                                [("CEO granted pay percentile", _ord(gl['pay_pctile'])),
+                                 ("NEO-team pay percentile", _ord(gl['neo_pay_pctile'])),
+                                 ("Financial-perf percentile", _ord(gl['fin_pctile'])),
+                                 ("5-yr TSR percentile", _ord(gl['tsr_pctile'])),
                                  ("CAP vs peer-median ratio", f"{gl['cap_excess_vs_median']:.2f}×")])
                 + "</div>"
                 f"<div class='why'>Why they diverge: {_e(syn['divergence_driver'])}.</div></section>")
     # the 5-test scorecard
     tests = "".join(_test_row(t) for t in gl["tests"])
     qual = gl["qualitative"]
+    sop = gl["say_on_pay"]
+    if sop["below_threshold"]:
+        sop_line = (f"Say-on-pay responsiveness (a <b>recommendation-level</b> factor, separate from the P4P "
+                    f"score above): prior support {sop['prior_support_pct']:.1f}% fell below the "
+                    f"~{sop['engage_threshold_pct']:.0f}% engagement threshold — board responsiveness "
+                    f"<b>{_e(sop['responsiveness'])}</b>, recommendation concern <b>{_e(sop['recommendation_concern'])}</b>.")
+        sop_color = _CONCERN_C.get("Medium", "#f7b955")
+    else:
+        sop_line = (f"Say-on-pay responsiveness (a recommendation-level factor, separate from the P4P score): "
+                    f"prior support <b>{sop['prior_support_pct']:.1f}%</b> — above the "
+                    f"~{sop['engage_threshold_pct']:.0f}% engagement threshold, no responsiveness concern.")
+        sop_color = "#43d477"
     qnote = (f"Qualitative downward modifier: −{qual['penalty']:.0f} ({'; '.join(qual['flags']) if qual['flags'] else 'no flags'})."
              f" {qual['note']}.")
     body.append("<section class='tile'><h3>Glass Lewis scorecard — the five quantitative tests</h3>"
                 "<div class='t-sub'>Each test scores 0–100 (higher = better alignment). The weighted composite "
-                "maps to the concern level. Test weights are illustrative — Glass Lewis does not disclose them.</div>"
+                "maps to the concern level. STI is measured as payout <b>relative to target</b>, not raw dollars. "
+                "Illustrative simplifications: the test <b>weights</b> are undisclosed by Glass Lewis; GL "
+                "publishes test-specific rating ranges, but we intentionally apply <b>one uniform illustrative "
+                "band</b> across tests; the CAP-vs-TSR test is benchmarked to the <b>synthetic 15-name peer "
+                "median</b> (GL uses broader market-cap peer context); and financial-growth tests use a 3-yr "
+                "window here (GL's is 5-yr).</div>"
                 f"<div class='tests'>{tests}</div>"
+                f"<div class='why' style='border-left:3px solid {sop_color};padding-left:9px'>{sop_line}</div>"
                 f"<div class='why'>Composite {gl['composite_score']:.0f}/100 → {_e(gl['concern'])} concern. {_e(qnote)}</div>"
                 "</section>")
     # counterfactual: pure-TSR vs financials-only
@@ -271,17 +304,25 @@ def render_digest(report):
     cf = gl["counterfactuals"]
     return "\n".join([
         f"# {COMPANY} — ISS vs Glass Lewis (say-on-pay digest, {AS_OF})", "",
-        f"**{syn['verdict']}** — suggested board response: {report['action']}", "",
+        f"**{syn['verdict']}** — committee considerations: {report['action']}", "",
         f"- **Glass Lewis (2026 scorecard):** **{gl['concern']}** concern (composite {gl['composite_score']:.0f}/100 "
-        f"across 5 tests; CEO pay {gl['pay_pctile']:.0f}th vs financials {gl['fin_pctile']:.0f}th vs TSR {gl['tsr_pctile']:.0f}th)",
-        f"- **ISS:** **{iss['concern']}** concern (CEO pay {c['iss_pay_pctile']:.0f}th vs 5-yr TSR "
-        f"{c['iss_tsr_pctile']:.0f}th; MOM {iss['measures']['mom']['value']:.2f}×, "
+        f"across 5 tests; CEO pay {_ord(gl['pay_pctile'])} vs financials {_ord(gl['fin_pctile'])} vs TSR {_ord(gl['tsr_pctile'])})",
+        f"- **ISS:** **{iss['concern']}** concern (CEO pay {_ord(c['iss_pay_pctile'])} vs 5-yr TSR "
+        f"{_ord(c['iss_tsr_pctile'])}; MOM {iss['measures']['mom']['value']:.2f}×, "
         f"RDA {iss['measures']['rda']['value']:+.0f}, PTA {iss['measures']['pta']['value']:+.1f})",
         f"- **Why they {'agree' if syn['agree'] else 'diverge'}:** {_md(syn['divergence_driver'])} — a pay-vs-TSR-only "
         f"read scores {cf['tsr_only_score']:.0f} ({cf['tsr_only_concern']}); financials-only {cf['financials_only_score']:.0f} "
         f"({cf['financials_only_concern']}); the blended composite is {gl['composite_score']:.0f} ({gl['concern']})",
         f"- **Say-on-pay support band:** {report['band'][0]:.0f}–{report['band'][1]:.0f}% "
         "(directional practitioner range for this posture — **not a vote forecast**)",
+        (f"- **Say-on-pay responsiveness:** prior support {gl['say_on_pay']['prior_support_pct']:.1f}% "
+         + ("above the ~{:.0f}% engagement threshold — no responsiveness concern".format(
+             gl['say_on_pay']['engage_threshold_pct'])
+            if not gl['say_on_pay']['below_threshold']
+            else "below the ~{:.0f}% threshold; board responsiveness {} — a recommendation-level concern, "
+                 "separate from the P4P composite".format(
+             gl['say_on_pay']['engage_threshold_pct'],
+             _md(gl['say_on_pay']['responsiveness'])))),
         f"- **GL peer group:** {gl['peer_group']['n']} names (cap-banded co-citation network)",
         "", "_Synthetic universe. Glass Lewis (current 2026 concern-level scorecard; the legacy A–F grade is "
         "retired) and ISS are illustrative reconstructions — NOT the advisors' output, not affiliated with "
@@ -396,7 +437,7 @@ def main(argv=None):
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
         if args.publish:
-            _atomic_write(pub, json.dumps({"approved_by": approver, "scope": SCOPE, "as_of": AS_OF,
+            _atomic_write(pub, json.dumps({"approved_by": approver, "marker_type": "local_publish_marker", "registry_backed": False, "scope": SCOPE, "as_of": AS_OF,
                                            "verdict": report["syn"]["verdict"]}, indent=2) + "\n")
     except OSError as exc:
         return _fail_closed(f"could not write output: {exc}")
