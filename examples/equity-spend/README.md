@@ -2,8 +2,11 @@
 
 The Executive-Compensation arm's **board equity deliverable**: the quarterly view a VP of Total Rewards
 takes to the CFO/CEO/board. It renders — from a company-wide grant ledger — **SBC as a share of revenue**,
-gross/net burn and the current ISS Equity-Plan-Scorecard **Value-Adjusted Burn Rate** vs an illustrative
-industry cap, **overhang / dilution**, **pool longevity** (when the next shareholder share-request lands),
+gross/net burn and an **illustrative reconstruction of the current ISS Equity-Plan-Scorecard Value-Adjusted
+Burn Rate** (VABR structure faithful; the price input is simplified — grant-date/period-end, not ISS's
+~200-day-average QDD hierarchy) vs an illustrative industry cap, **overhang and dilution** (reported
+distinctly), **pool longevity** (when the next shareholder
+share-request lands),
 the locked-in **SBC backlog**, and **where the equity goes** — executives through broad-based staff.
 
 ```bash

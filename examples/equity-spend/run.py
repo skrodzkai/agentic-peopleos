@@ -2,7 +2,7 @@
 """Equity-Spend / Burn-Rate board agent — the VP-Total-Rewards board deliverable, rendered.
 
 A dark board dashboard over the company-wide equity plan: SBC as % of revenue, gross/net burn and the current
-ISS Equity-Plan-Scorecard Value-Adjusted Burn Rate vs an illustrative industry cap, overhang/dilution, pool
+ISS Equity-Plan-Scorecard Value-Adjusted Burn Rate vs an illustrative industry cap, overhang and dilution, pool
 longevity (when the next shareholder share-request lands), the locked-in SBC backlog, and where the shares go
 (exec vs management vs staff). Every number comes from foundation/compute/equity_spend.py — the agent renders
 and governs; it does no math and it recommends no grants.
@@ -55,6 +55,15 @@ def _one_line(t, limit=300):
     return " ".join(str(t).split())[:limit]
 
 
+def _md(v):
+    """Neutralize Markdown-active characters in interpolated free-text for the digest (HTML-escaping alone
+    doesn't stop **bold** / [link](url) / `code` from being interpreted)."""
+    s = str(v)
+    for ch_ in "\\`*_[]()~|<>":
+        s = s.replace(ch_, "\\" + ch_)
+    return s
+
+
 def _m(v):        # $ millions
     return f"${v / 1e6:,.1f}M"
 
@@ -67,6 +76,12 @@ def _fin(*xs):
     return all(isinstance(x, (int, float)) and math.isfinite(x) for x in xs)
 
 
+def _plain_finite(*xs):
+    """Stricter than _fin for values interpolated into the report: a PLAIN int/float (no exotic subclass with a
+    hostile __format__) that is finite (no inf from a divide-by-zero engine edge, no NaN)."""
+    return all(type(x) in (int, float) and math.isfinite(x) for x in xs)
+
+
 # ---------------------------------------------------------------- build + validate
 def build_report(result):
     """Validate the engine output (fail closed) and shape it for rendering. No math is done here."""
@@ -75,21 +90,41 @@ def build_report(result):
     checks = [
         _fin(r["market_cap"], r["shares_outstanding"], r["price"]),
         abs(r["market_cap"] - r["shares_outstanding"] * r["price"]) < 1.0,
-        _fin(r["vabr_3yr_pct"], r["overhang_pct"], r["pool_longevity_years"], r["unamortized_sbc"]),
-        r["vabr_3yr_pct"] > 0 and 0 < r["overhang_pct"] < 100 and r["pool_longevity_years"] > 0,
+        _fin(r["vabr_3yr_pct"], r["overhang_pct"], r["dilution_pct"], r["pool_longevity_years"],
+             r["unamortized_sbc"]),
+        r["vabr_3yr_pct"] > 0 and 0 < r["dilution_pct"] < r["overhang_pct"] < 100 and r["pool_longevity_years"] > 0,
         isinstance(gp["pass"], bool) and _fin(gp["vabr_3yr_pct"], gp["benchmark_cap_pct"]),
         abs(gp["vabr_3yr_pct"] - r["vabr_3yr_pct"]) < 0.011,     # the headline VABR matches the EPSC pillar
         0 <= r["epsc"]["features_passed"] <= r["epsc"]["features_total"] == 6,
-        "illustrative" in gp["source_note"].lower(),             # defense-in-depth: benchmark must be illustrative
+        # the features_passed COUNT must reconcile to the rendered plan-feature ticks (no "6/6" over a red row)
+        r["epsc"]["features_passed"] == sum(1 for f in r["epsc"]["plan_features"] if f["pass"]),
+        gp["source_note"].strip().lower().startswith("illustrative"),   # defense-in-depth: benchmark illustrative
         r["fiscal_years"] == sorted(r["fiscal_years"]) and len(r["fiscal_years"]) >= 3,
         "ceo" in r["value_per_fte_by_group"],
+        # EVERY rendered numeric is a plain, finite number (no inf/NaN, no hostile subclass reaching an f-string)
+        _plain_finite(r["sbc_pct_revenue"]["ttm_pct"], r["overhang_pct"], r["dilution_pct"],
+                      r["pool_longevity_years"], r["unamortized_sbc"], r["unamortized_sbc_years"]),
+        _plain_finite(gp["headroom_pct"], r["epsc"]["plan_cost_svt_pct"]),   # headroom + SVT are rendered too
+        all(_plain_finite(v["value"], v["per_fte"]) for v in r["value_per_fte_by_group"].values()),  # allocation
+        all(_plain_finite(b["gross_pct"], b["net_pct"], b["vabr_pct"], b["legacy_adjusted_pct"]) for b in r["burn"]),
+        all(_plain_finite(x["sbc"], x["revenue"], x["pct"]) for x in r["sbc_pct_revenue"]["quarterly"]),
+        # the overhang/dilution split must reconcile to the unallocated pool WITHIN reporting precision (a
+        # consistency check on the rounded figures — the engine, not the agent, owns the absolute award levels).
+        # tolerance = the 2-dp rounding of overhang+dilution (0.01) + the 0-dp rounding of pool over CSO.
+        _plain_finite(r["pool_available"], r["shares_outstanding"]) and r["pool_available"] >= 0
+        and r["shares_outstanding"] > 0,
+        abs((r["overhang_pct"] - r["dilution_pct"]) - r["pool_available"] / r["shares_outstanding"] * 100)
+        < 0.011 + 50.0 / r["shares_outstanding"],
+        # burn rows ARE the fiscal years, as plain ints — nothing else reaches the rendered FY column
+        [b["fy"] for b in r["burn"]] == r["fiscal_years"] and all(type(b["fy"]) is int for b in r["burn"]),
     ]
     if not all(checks):
         raise ReportError(f"equity-spend result failed validation (check #{checks.index(False)})")
 
     # the honest board verdict — a presentation of engine facts, not a new computation
     feats_ok = r["epsc"]["features_passed"] == r["epsc"]["features_total"]
-    verdict = ("DEFENSIBLE — file a refresh with confidence" if gp["pass"] and feats_ok
+    verdict = ("DEFENSIBLE — clean on the illustrative EPSC screen (3-yr burn under the illustrative cap; all "
+               "plan-feature tests pass)" if gp["pass"] and feats_ok
                else "WATCH — burn or plan features need attention before a share request")
     q = r["sbc_pct_revenue"]["quarterly"]
     changed = [("SBC % of revenue (TTM)", f"{r['sbc_pct_revenue']['ttm_pct']:.1f}%",
@@ -140,7 +175,8 @@ def render_html(report):
                        "stock-based comp / revenue", sbc_series)
                 + _kpi("3-yr Value-Adjusted Burn", f"{r['vabr_3yr_pct']:.2f}%",
                        f"cap {gp['benchmark_cap_pct']:.2f}% (illustrative)", vabr_series, gp["pass"])
-                + _kpi("Overhang / dilution", f"{r['overhang_pct']:.1f}%", "outstanding + pool / shares out")
+                + _kpi("Overhang", f"{r['overhang_pct']:.1f}%", "outstanding awards + pool / shares out")
+                + _kpi("Dilution", f"{r['dilution_pct']:.1f}%", "outstanding awards only / shares out")
                 + _kpi("Pool longevity", f"{r['pool_longevity_years']:.1f} yrs",
                        f"refresh ask ~{report['refresh_year']}")
                 + _kpi("SBC backlog (locked-in)", _m(r["unamortized_sbc"]),
@@ -176,13 +212,15 @@ def render_html(report):
                 f"<div class='ep-note'>value of outstanding + pool ÷ market cap · illustrative, not an ISS score</div></div>"
                 "</div></section>")
     # burn table
-    rows = "".join(f"<tr><td>FY{b['fy']}</td><td class='mono r'>{b['gross_pct']:.2f}%</td>"
+    rows = "".join(f"<tr><td>FY{_e(b['fy'])}</td><td class='mono r'>{b['gross_pct']:.2f}%</td>"
                    f"<td class='mono r'>{b['net_pct']:.2f}%</td><td class='mono r hi'>{b['vabr_pct']:.2f}%</td>"
                    f"<td class='mono r mut'>{b['legacy_adjusted_pct']:.2f}%</td></tr>" for b in r["burn"])
     body.append("<section class='tile'><h3>Burn rate by fiscal year</h3>"
                 "<table class='bt'><tr><th>FY</th><th class='r'>Gross</th><th class='r'>Net</th>"
-                "<th class='r'>VABR (current ISS)</th><th class='r'>Legacy adj. (retired 2023)</th></tr>"
-                + rows + "</table><div class='t-sub'>VABR is the current ISS convention; the legacy "
+                "<th class='r'>VABR (illustrative ISS-EPSC)</th><th class='r'>Legacy adj. (retired 2023)</th></tr>"
+                + rows + "</table><div class='t-sub'>VABR is an <b>illustrative reconstruction</b> of the current "
+                "ISS EPSC convention — the structure is faithful, but the price input is simplified "
+                "(grant-date / period-end, not ISS's ~200-day-average QDD hierarchy). The legacy "
                 "volatility-multiplier column is shown only because older board decks still quote it.</div></section>")
     # allocation — where the shares go
     vg = r["value_per_fte_by_group"]
@@ -208,11 +246,12 @@ def render_digest(report):
     r, gp = report["r"], report["gp"]
     return "\n".join([
         f"# {COMPANY} — Equity Spend & Burn (board digest, {AS_OF})", "",
-        f"**{report['verdict']}**", "",
+        f"**{_md(report['verdict'])}**", "",
         f"- **SBC % of revenue (TTM):** {r['sbc_pct_revenue']['ttm_pct']:.1f}%",
-        f"- **3-yr Value-Adjusted Burn (current ISS EPSC):** {r['vabr_3yr_pct']:.2f}% vs an illustrative "
+        f"- **3-yr Value-Adjusted Burn (illustrative ISS-EPSC reconstruction):** {r['vabr_3yr_pct']:.2f}% vs an illustrative "
         f"{gp['benchmark_cap_pct']:.2f}% cap — {'passes with ' + format(gp['headroom_pct'], '.2f') + 'pt headroom' if gp['pass'] else 'over the cap'}",
-        f"- **Overhang / dilution:** {r['overhang_pct']:.1f}%",
+        f"- **Overhang:** {r['overhang_pct']:.1f}% (outstanding awards + unallocated pool) · "
+        f"**Dilution:** {r['dilution_pct']:.1f}% (outstanding awards only)",
         f"- **Pool longevity:** {r['pool_longevity_years']:.1f} yrs → a shareholder share-request around "
         f"the {report['refresh_year']} annual meeting",
         f"- **SBC backlog (locked in):** {_m(r['unamortized_sbc'])} over {r['unamortized_sbc_years']:.1f} yrs "
@@ -256,6 +295,19 @@ def _page(body):
 
 
 # ---------------------------------------------------------------- fail-closed + entrypoint
+def _stale_published():
+    """Rename a prior PUBLISHED.json to .stale (a refused/failed run must not leave an approval marker live)."""
+    pub = OUT / "PUBLISHED.json"
+    if pub.exists():
+        try:
+            pub.rename(pub.with_name("PUBLISHED.json.stale"))
+        except OSError:
+            try:
+                pub.unlink()
+            except OSError:
+                pass
+
+
 def _fail_closed(message):
     for p in (REPORT, DIGEST, OUT / "PUBLISHED.json"):
         if p.exists():
@@ -285,6 +337,7 @@ def main(argv=None):
     raw = args.approved_by or ""
     approver = raw.strip()
     if args.publish and (any(ord(c) < 32 for c in raw) or not APPROVER_RE.fullmatch(approver)):
+        _stale_published()      # a refused publish must not leave a prior approval marker standing (SPEC)
         print("PUBLISH GATE: refused. Distribution requires a named committee approver.\n"
               "  Re-run with:  --publish --approved-by \"Your Name\"", file=sys.stderr)
         return 2

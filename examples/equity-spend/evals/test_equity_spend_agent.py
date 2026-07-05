@@ -51,6 +51,17 @@ for mut, why in [
      "a benchmark note that drops 'illustrative'"),
     (lambda r: r["value_per_fte_by_group"].pop("ceo", None), "the CEO grant group missing"),
     (lambda r: r["epsc"].update(features_total=7), "an impossible EPSC feature count"),
+    (lambda r: r.update(dilution_pct=r["dilution_pct"] + 1.0),
+     "an overhang/dilution split that doesn't reconcile to the unallocated pool"),
+    (lambda r: r["burn"][0].update(fy="2023</td><script>alert(1)</script>"),
+     "a non-integer fiscal-year that would inject into the burn table"),
+    (lambda r: r["sbc_pct_revenue"].update(ttm_pct=float("nan")), "a NaN SBC-%-of-revenue that would render 'nan%'"),
+    (lambda r: r["burn"][0].update(vabr_pct=float("inf")), "a non-finite burn value that would render 'inf%'"),
+    (lambda r: r["epsc"].update(features_passed=5), "an EPSC pass count that doesn't reconcile to the feature ticks"),
+    (lambda r: r["epsc"]["grant_practices"].update(headroom_pct=float("nan")), "a NaN EPSC headroom that would render"),
+    (lambda r: r["epsc"].update(plan_cost_svt_pct=float("inf")), "a non-finite SVT that would render 'inf%'"),
+    (lambda r: next(iter(r["value_per_fte_by_group"].values())).update(per_fte=float("nan")),
+     "a NaN allocation value that would render"),
 ]:
     bad = copy.deepcopy(result)
     mut(bad)
@@ -64,6 +75,14 @@ for mut, why in [
 ok(run.main(["--publish"]) == 2, "publish without an approver is refused (rc 2)")
 ok(run.main(["--publish", "--approved-by", "x\n7"]) == 2, "a control-char approver is refused")
 ok(run.main([]) == 0, "a plain draft run succeeds (rc 0)")
+# a refused publish must stale a prior approval marker (a rejected re-publish can't leave "approved" standing)
+_pub = run.OUT / "PUBLISHED.json"
+run.main(["--publish", "--approved-by", "Compensation Committee Chair"])
+ok(_pub.exists(), "a valid publish writes PUBLISHED.json")
+ok(run.main(["--publish"]) == 2 and not _pub.exists()
+   and _pub.with_name("PUBLISHED.json.stale").exists(), "a refused re-publish stales the prior PUBLISHED.json")
+run.main([])                          # draft run clears the .stale marker + restores the committed sample drafts
+_pub.unlink(missing_ok=True)
 
 print(f"OK — {passed} equity-spend agent checks passed "
       f"(verdict: {report['verdict'].split(' —')[0]}).")

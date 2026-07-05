@@ -181,10 +181,22 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   never deciding pay, and never claiming to be ISS's actual output.
 - **[Equity Spend & Burn](examples/equity-spend/)** — the board equity deliverable a VP of Total Rewards
   presents each quarter, computed over a **company-wide grant ledger**: SBC as a share of revenue, gross/net
-  burn and the current ISS Equity-Plan-Scorecard **Value-Adjusted Burn Rate** vs an illustrative industry
-  cap, overhang/dilution, **pool longevity** (when the next shareholder share-request lands), the locked-in
-  SBC backlog, and where the equity goes — executives through broad-based staff. Benchmarks and the SVT are
-  illustrative, never claimed as advisor output; the plan-feature tests are scored exactly from the plan.
+  burn and an **illustrative reconstruction of the current ISS Equity-Plan-Scorecard Value-Adjusted Burn
+  Rate** (structure faithful; the price input is simplified vs ISS's ~200-day-average QDD hierarchy) vs an
+  illustrative industry cap, overhang/dilution, **pool longevity** (when the next shareholder share-request
+  lands), the locked-in SBC backlog, and where the equity goes — executives through broad-based staff.
+  Benchmarks, the SVT, and the VABR price input are illustrative, never claimed as advisor output; the
+  plan-feature tests are scored exactly from the plan.
+- **[ISS vs Glass Lewis — Say-on-Pay War Room](examples/glass-lewis-screen/)** — the two-proxy-advisor view a
+  committee needs before the vote: an illustrative reconstruction of **Glass Lewis's current (2026)
+  pay-for-performance scorecard** — a 0–100 composite across five quantitative tests (granted CEO/NEO pay vs
+  TSR *and* vs financials, STI vs TSR, CAP vs TSR) mapping to a **concern level** (the legacy A–F grade is
+  retired) — beside the illustrative **ISS** concern level, scoring the *same* facts, then the reconciliation:
+  **agree or diverge**, *why*, the committee considerations, and a directional say-on-pay support band. The committed case
+  is a genuine divergence (**GL Low / ISS Medium → ISS-ONLY FLAG**) with a three-pole counterfactual
+  (pay-vs-TSR-only ≈ Severe, financials-only ≈ Negligible, blended = Low) that makes the mechanism transparent
+  (a deliberately-constructed teaching case). Both models are illustrative reconstructions, not affiliated with either firm, built from
+  public methodology, and the band is never a vote forecast.
 
 ## Portable skills — point your agent at real SEC data
 

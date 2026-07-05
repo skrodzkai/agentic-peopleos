@@ -23,9 +23,9 @@ jobs:
           python3 -m py_compile
           core/*.py core/tests/*.py tools/*.py
           foundation/data/generate.py
-          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py foundation/compute/retention.py foundation/compute/benchmarking.py
+          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py foundation/compute/retention.py foundation/compute/benchmarking.py foundation/compute/equity_spend.py foundation/compute/glass_lewis_screen.py
           foundation/compute/tests/test_engine.py foundation/compute/tests/test_regression.py
-          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py foundation/compute/tests/test_retention.py foundation/compute/tests/test_benchmarking.py
+          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py foundation/compute/tests/test_retention.py foundation/compute/tests/test_benchmarking.py foundation/compute/tests/test_equity_spend.py foundation/compute/tests/test_glass_lewis_screen.py
           foundation/render/dashboard.py foundation/render/charts.py
           foundation/render/tests/test_dashboard.py foundation/render/tests/test_charts.py
           examples/headcount-reporting/run.py examples/headcount-reporting/evals/test_headcount.py
@@ -38,6 +38,7 @@ jobs:
           examples/rtsr-psu-valuation/run.py examples/rtsr-psu-valuation/evals/test_rtsr_psu.py
           examples/iss-pay-screen/run.py examples/iss-pay-screen/evals/test_iss_pay_screen.py
           examples/equity-spend/run.py examples/equity-spend/evals/test_equity_spend_agent.py
+          examples/glass-lewis-screen/run.py examples/glass-lewis-screen/evals/test_glass_lewis_agent.py
           examples/ta-reporting/run.py examples/ta-reporting/evals/test_report.py
           examples/comp-reporting/run.py examples/comp-reporting/evals/test_comp.py
           examples/visible-handoff/run.py examples/visible-handoff/evals/test_handoff.py
@@ -81,6 +82,7 @@ jobs:
           python3 foundation/compute/tests/test_retention.py
           python3 foundation/compute/tests/test_benchmarking.py
           python3 foundation/compute/tests/test_equity_spend.py
+          python3 foundation/compute/tests/test_glass_lewis_screen.py
 
       - name: Retention model manifest reproduces (tolerance sync gate — fitted floats aren't byte-diffed)
         run: python3 foundation/compute/retention.py validate   # re-fits + checks coefficients/calibration reproduce within tol (+ panel_data_hash, schema)
@@ -171,6 +173,14 @@ jobs:
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
             || (echo "::error::equity-spend output is stale — run examples/equity-spend/run.py and commit" && exit 1)
 
+      - name: Executive comp arm — ISS vs Glass Lewis say-on-pay war room eval
+        working-directory: examples/glass-lewis-screen
+        run: |
+          python3 evals/test_glass_lewis_agent.py
+          python3 run.py
+          git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            || (echo "::error::glass-lewis-screen output is stale — run examples/glass-lewis-screen/run.py and commit" && exit 1)
+
       - name: Operating-review decision ledger validates (registry-backed)
         run: |
           python3 -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
@@ -225,6 +235,7 @@ jobs:
             examples/rtsr-psu-valuation/output examples/rtsr-psu-valuation/data \
             examples/iss-pay-screen/output \
             examples/equity-spend/output \
+            examples/glass-lewis-screen/output \
             examples/executive-comp-benchmarking/output \
             examples/visible-handoff/output foundation/data vault
 
