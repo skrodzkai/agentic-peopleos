@@ -7,7 +7,7 @@ longevity (when the next shareholder share-request lands), the locked-in SBC bac
 (exec vs management vs staff). Every number comes from foundation/compute/equity_spend.py — the agent renders
 and governs; it does no math and it recommends no grants.
 
-IMPORTANT (on the dashboard and here): benchmark caps, EPSC weights, and the SVT valuation are ILLUSTRATIVE —
+IMPORTANT (on the dashboard and here): benchmark caps, EPSC weights, and the Plan Cost overhang proxy are ILLUSTRATIVE —
 representative of published software-industry practice, NOT ISS output. The plan-feature tests are scored
 exactly from the plan facts.
 
@@ -104,7 +104,13 @@ def build_report(result):
         # EVERY rendered numeric is a plain, finite number (no inf/NaN, no hostile subclass reaching an f-string)
         _plain_finite(r["sbc_pct_revenue"]["ttm_pct"], r["overhang_pct"], r["dilution_pct"],
                       r["pool_longevity_years"], r["unamortized_sbc"], r["unamortized_sbc_years"]),
-        _plain_finite(gp["headroom_pct"], r["epsc"]["plan_cost_svt_pct"]),   # headroom + SVT are rendered too
+        _plain_finite(gp["headroom_pct"], r["epsc"]["plan_cost_overhang_pct"]),   # headroom + Plan Cost overhang are rendered too
+        # the Plan-Cost OVERHANG proxy is (outstanding + pool)/shares — the SAME quantity as overhang_pct; it
+        # must reconcile to the displayed overhang and sit in a sane 0–100 band, so a corrupted 99.0 / -5.0
+        # can't render a "DEFENSIBLE" report. tolerance = the max gap between a 1-dp and a 2-dp rounding of the
+        # same value (<=0.055), tightened from a looser bound so a ~0.1 drift no longer slips through.
+        0.0 <= r["epsc"]["plan_cost_overhang_pct"] <= 100.0
+        and abs(r["epsc"]["plan_cost_overhang_pct"] - r["overhang_pct"]) <= 0.06,
         all(_plain_finite(v["value"], v["per_fte"]) for v in r["value_per_fte_by_group"].values()),  # allocation
         all(_plain_finite(b["gross_pct"], b["net_pct"], b["vabr_pct"], b["legacy_adjusted_pct"]) for b in r["burn"]),
         all(_plain_finite(x["sbc"], x["revenue"], x["pct"]) for x in r["sbc_pct_revenue"]["quarterly"]),
@@ -201,15 +207,15 @@ def render_html(report):
                     for f in r["epsc"]["plan_features"])
     body.append("<section class='tile wide'><h3>ISS Equity-Plan-Scorecard readiness</h3>"
                 "<div class='t-sub'>If we filed a pool refresh today, would the plan pass proxy-advisor review? "
-                "Plan Features are scored exactly from the plan; the burn cap and SVT are illustrative.</div>"
+                "Plan Features are scored exactly from the plan; the burn cap and Plan Cost overhang proxy are illustrative.</div>"
                 "<div class='epsc'>"
                 f"<div class='ep-col'><div class='ep-h'>Grant Practices — 3-yr burn vs cap</div>{strip}"
                 f"<div class='ep-note'>VABR {r['vabr_3yr_pct']:.2f}% vs {cap:.2f}% cap · "
                 f"{'PASS +' + format(gp['headroom_pct'], '.2f') + 'pt' if gp['pass'] else 'OVER by ' + format(-gp['headroom_pct'], '.2f') + 'pt'}</div></div>"
                 f"<div class='ep-col'><div class='ep-h'>Plan Features — {r['epsc']['features_passed']}/6 pass</div>{feats}</div>"
-                f"<div class='ep-col'><div class='ep-h'>Plan Cost (directional SVT)</div>"
-                f"<div class='ep-svt mono'>{r['epsc']['plan_cost_svt_pct']:.1f}%</div>"
-                f"<div class='ep-note'>value of outstanding + pool ÷ market cap · illustrative, not an ISS score</div></div>"
+                f"<div class='ep-col'><div class='ep-h'>Plan Cost (overhang proxy)</div>"
+                f"<div class='ep-plancost mono'>{r['epsc']['plan_cost_overhang_pct']:.1f}%</div>"
+                f"<div class='ep-note'>(outstanding + pool) ÷ shares — an overhang gauge, NOT a value-adjusted ISS SVT</div></div>"
                 "</div></section>")
     # burn table
     rows = "".join(f"<tr><td>FY{_e(b['fy'])}</td><td class='mono r'>{b['gross_pct']:.2f}%</td>"
@@ -237,7 +243,7 @@ def render_html(report):
                 + "</div></section>")
     body.append("<footer class='foot'>Built by the <b>equity-spend</b> agent · it renders the board equity view; "
                 "the <b>Compensation Committee</b> approves plan design and share requests. "
-                "Benchmark caps, EPSC weights, and SVT are <b>illustrative</b> — representative of published "
+                "Benchmark caps, EPSC weights, and the Plan Cost overhang proxy are <b>illustrative</b> — representative of published "
                 "software practice, not Glass Lewis or ISS output. Synthetic company-wide data.</footer>")
     return _page("".join(body))
 
@@ -257,7 +263,7 @@ def render_digest(report):
         f"- **SBC backlog (locked in):** {_m(r['unamortized_sbc'])} over {r['unamortized_sbc_years']:.1f} yrs "
         "even at zero new grants",
         f"- **EPSC plan features:** {r['epsc']['features_passed']}/{r['epsc']['features_total']} scoreable tests pass",
-        "", "_Company-wide synthetic equity plan. Benchmark caps / EPSC weights / SVT are illustrative — "
+        "", "_Company-wide synthetic equity plan. Benchmark caps / EPSC weights / Plan Cost overhang proxy are illustrative — "
         "representative of published software practice, NOT ISS or Glass Lewis output. Draft; the Compensation "
         "Committee approves plan design and share requests._"])
 
@@ -278,7 +284,7 @@ _STYLE = """
 .tile h3{margin:0 0 2px;font-size:14px}.t-sub{color:#6d8ba0;font-size:12px;margin-bottom:10px}
 .epsc{display:grid;grid-template-columns:1.3fr 1.1fr .8fr;gap:16px}.ep-h{font-weight:600;font-size:12px;margin-bottom:8px;color:#b9d0e0}
 .ep-note{color:#6d8ba0;font-size:11px;margin-top:6px}.feat{font-size:12px;padding:2px 0}.tick{font-weight:800;margin-right:7px}
-.ep-svt{font-size:26px;font-weight:700;color:#1ba7ff}
+.ep-plancost{font-size:26px;font-weight:700;color:#1ba7ff}
 .bt{width:100%;border-collapse:collapse;font-size:13px}.bt th,.bt td{padding:6px 8px;border-bottom:1px solid #12303f;text-align:left}
 .bt th.r,.bt td.r{text-align:right}.hi{color:#1ba7ff;font-weight:700}.mut{color:#6d8ba0}
 .alloc{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}.ag{background:#08283a;border:1px solid #14364a;border-radius:4px;padding:3px 8px;font-size:11px;color:#b9d0e0}
@@ -360,7 +366,7 @@ def main(argv=None):
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
         if args.publish:
-            _atomic_write(pub, json.dumps({"approved_by": approver, "scope": SCOPE, "as_of": AS_OF,
+            _atomic_write(pub, json.dumps({"approved_by": approver, "marker_type": "local_publish_marker", "registry_backed": False, "scope": SCOPE, "as_of": AS_OF,
                                            "verdict": report["verdict"]}, indent=2) + "\n")
     except OSError as exc:
         return _fail_closed(f"could not write output: {exc}")

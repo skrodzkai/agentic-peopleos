@@ -19,10 +19,10 @@ python3 ../../foundation/compute/tests/test_equity_spend.py # engine tests
 **Why it matters.** This is the artifact where Total Rewards meets the board's language: is the equity spend
 sustainable (SBC % of revenue, trend), and is the plan defensible to proxy advisors (3-yr burn vs the EPSC
 cap, plan features, overhang) before we ask shareholders for more shares. The company-wide grant ledger is
-also the contract a future merit-comp arm writes its annual refresh/promotion/new-hire grants into — so the
-board metrics update for free.
+also the contract the merit-comp arm writes its annual refresh/promotion/new-hire grants into — as
+append-valid rows in this schema that, being future-dated, carry into the next period's board metrics.
 
-**Honesty.** Benchmark caps, EPSC weights, and the SVT valuation are **illustrative** — representative of
+**Honesty.** Benchmark caps, EPSC weights, and the Plan-Cost overhang proxy are **illustrative** — representative of
 published software practice, **not** ISS or Glass Lewis output. Plan-feature tests are scored exactly from
 the plan facts. The pre-2023 volatility-multiplier burn is shown only as a labeled diagnostic (ISS retired
 it for the Value-Adjusted Burn Rate in 2023). Synthetic company-wide data; presentation + governance only —

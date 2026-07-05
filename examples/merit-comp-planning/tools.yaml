@@ -1,0 +1,27 @@
+# Tools the merit-comp-planning agent is allowed to use.
+# Note what's ABSENT: no increase/bonus/promotion writer, no pay-authorization tool, no band-placement
+# editor, no individual-employee writer, and no "send"/"publish" tool.
+
+tools:
+  - name: cycle_plan_read
+    access: read-only
+    description: >
+      Reads the annual compensation-cycle plan (merit budget + spend through the rating × compa-ratio matrix,
+      the bonus pool, promotion increases, the equity refreshers in the equity-ledger schema, and the
+      compa-ratio shift) from the shared engine (foundation/compute/merit_comp.py), itself read-only over the
+      synthetic company-wide workforce + comp bands. The agent performs no allocation of its own.
+
+  - name: report_writer
+    access: write-local
+    description: >
+      Renders the committee dashboard (HTML) and the cycle digest (Markdown) to the local output/ directory.
+      Produces drafts only; distribution requires the human publish gate (a named Compensation Committee
+      approver).
+
+# Intentionally NOT granted:
+#   - any increase / bonus / promotion generator — the agent renders the engine's plan, it sets no pay
+#   - any individual-employee writer or band-placement editor — the plan is company-wide and synthetic-keyed
+#   - a matrix / budget calibrator — the matrix, targets, and budget are illustrative placeholders, not policy
+#   - the equity-grant ledger writer — the refreshers are emitted into the equity arm's schema; that arm owns
+#     the ledger append at cycle close
+#   - email / Slack / "publish" — the Compensation Committee owns distribution (publish gate)

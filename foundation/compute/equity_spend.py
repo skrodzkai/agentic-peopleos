@@ -17,9 +17,9 @@ METHODOLOGY-FAITHFUL vs ILLUSTRATIVE (the honesty line, stated like iss_screen.p
   ~200-day average (QDD). The structure matches; the price input is simplified — so this is a directional
   reconstruction, not "the ISS VABR."
 - ILLUSTRATIVE (labeled, never claimed as advisor output): the benchmark burn caps + EPSC weights/threshold
-  (in `burn_benchmarks.csv`, gated on a `source_note` that must say "illustrative"); the SVT valuation
-  (ISS's is a proprietary binomial with company caps — we model award value with the same Black-Scholes
-  machinery and label it a directional illustration). The legacy volatility-multiplier burn is the
+  (in `burn_benchmarks.csv`, gated on a `source_note` that must say "illustrative"); the EPSC "Plan Cost"
+  figure is an OVERHANG proxy ((outstanding + pool) ÷ shares), NOT ISS's proprietary value-adjusted SVT —
+  labeled as an overhang gauge. The legacy volatility-multiplier burn is the
   pre-2023 ISS convention, RETIRED in the 2023 policy year — retained only as a diagnostic because older
   board decks still quote it.
 
@@ -46,6 +46,7 @@ _PLAN_COLS = ("plan_id", "plan_name", "adoption_date", "expiration_date", "share
               "permits_repricing", "dividends_on_unvested", "discretionary_acceleration")
 _GROUPS = ("ceo", "section16", "management", "staff", "director")
 _AWARDS = ("rsu", "option", "psu")
+_GRANT_TYPES = ("new_hire", "annual_refresh", "exec_annual", "director_annual", "promotion")
 
 
 class EquityDataError(ValueError):
@@ -177,6 +178,8 @@ class EquityPlan:
                 raise EquityDataError(f"{gid}: bad participant_group {g['participant_group']!r}")
             if g["award_type"] not in _AWARDS:
                 raise EquityDataError(f"{gid}: bad award_type {g['award_type']!r}")
+            if g["grant_type"] not in _GRANT_TYPES:
+                raise EquityDataError(f"{gid}: bad grant_type {g['grant_type']!r}")
             if g["plan_id"] not in self.plans:
                 raise EquityDataError(f"{gid}: unknown plan_id {g['plan_id']!r}")
             emp = g["emp_id"]
@@ -455,7 +458,8 @@ class EquitySpend:
 
     def epsc_readiness(self):
         """The ISS Equity-Plan-Scorecard three-pillar framing. Plan Features scored EXACTLY from plan facts;
-        Grant Practices = 3-yr VABR vs an ILLUSTRATIVE benchmark cap; Plan Cost = a directional SVT gauge."""
+        Grant Practices = 3-yr VABR vs an ILLUSTRATIVE benchmark cap; Plan Cost = a directional OVERHANG proxy
+        (NOT a value-adjusted SVT)."""
         plan = self.p.plans["P-2022"]
         features = [
             ("Minimum vesting >= 1 year", int(float(plan["min_vesting_months"])) >= 12),
@@ -471,17 +475,18 @@ class EquitySpend:
             raise EquityDataError(f"burn_benchmarks missing fiscal_year {latest}")
         bench = self.p.bench_by_fy[latest]
         cap = _num(bench["vabr_benchmark_pct"], "vabr_cap", positive=True)
-        # Plan Cost — directional SVT illustration: value of (outstanding + available pool) / market cap
-        px = _num(self._sh_q[self.as_of]["close_price_usd"], "px")
+        # Plan Cost — a directional OVERHANG proxy, NOT a value-adjusted SVT: (outstanding awards + available
+        # pool) / common shares outstanding. ISS's real SVT is a proprietary binomial valuation with
+        # company-specific caps we do not model, so this is labeled an overhang gauge, not an SVT.
         cso = _num(self._sh_q[self.as_of]["common_shares_outstanding"], "cso")
-        svt = (self._outstanding_shares(self.as_of) + self.pool_available(self.as_of)) * px / (cso * px)
+        overhang = (self._outstanding_shares(self.as_of) + self.pool_available(self.as_of)) / cso
         return {
             "plan_features": [{"test": t, "pass": bool(ok)} for t, ok in features],
             "features_passed": sum(1 for _, ok in features if ok), "features_total": len(features),
             "grant_practices": {"vabr_3yr_pct": round(vabr3, 2), "benchmark_cap_pct": cap,
                                 "pass": vabr3 <= cap, "headroom_pct": round(cap - vabr3, 2),
                                 "source_note": bench["source_note"]},
-            "plan_cost_svt_pct": round(svt * 100, 1), "epsc_pass_threshold": int(float(bench["epsc_pass_threshold"])),
+            "plan_cost_overhang_pct": round(overhang * 100, 1), "epsc_pass_threshold": int(float(bench["epsc_pass_threshold"])),
         }
 
 

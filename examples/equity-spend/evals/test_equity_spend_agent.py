@@ -33,7 +33,7 @@ ok("equity-spend" in digest.lower() or "Equity Spend" in digest, "the digest nam
 
 # -- honest labeling: illustrative, never claimed as advisor output; no real advisor named as the SOURCE --
 low = html.lower()
-ok("illustrative" in low, "the dashboard labels benchmark/EPSC/SVT as illustrative")
+ok("illustrative" in low, "the dashboard labels benchmark/EPSC/Plan-Cost as illustrative")
 ok("not iss" in low or "not glass lewis or iss" in low or "not iss output" in low or "not glass lewis" in low,
    "the dashboard states the figures are NOT ISS/Glass Lewis output")
 ok("illustrative" in digest.lower(), "the digest carries the illustrative disclaimer")
@@ -59,7 +59,7 @@ for mut, why in [
     (lambda r: r["burn"][0].update(vabr_pct=float("inf")), "a non-finite burn value that would render 'inf%'"),
     (lambda r: r["epsc"].update(features_passed=5), "an EPSC pass count that doesn't reconcile to the feature ticks"),
     (lambda r: r["epsc"]["grant_practices"].update(headroom_pct=float("nan")), "a NaN EPSC headroom that would render"),
-    (lambda r: r["epsc"].update(plan_cost_svt_pct=float("inf")), "a non-finite SVT that would render 'inf%'"),
+    (lambda r: r["epsc"].update(plan_cost_overhang_pct=float("inf")), "a non-finite Plan-Cost overhang that would render 'inf%'"),
     (lambda r: next(iter(r["value_per_fte_by_group"].values())).update(per_fte=float("nan")),
      "a NaN allocation value that would render"),
 ]:

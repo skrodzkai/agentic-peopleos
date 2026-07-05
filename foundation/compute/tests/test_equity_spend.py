@@ -129,6 +129,8 @@ raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
        lambda rows: rows[0].__setitem__("plan_id", "P-XXXX")))), "grant referencing an unknown plan")
 raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
        lambda rows: rows[0].__setitem__("participant_group", "intern")))), "bad participant_group")
+raises(lambda: E.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda rows: rows[0].__setitem__("grant_type", "spot_bonus")))), "bad grant_type (vocabulary enforced)")
 
 
 def _first_rsu(rows):

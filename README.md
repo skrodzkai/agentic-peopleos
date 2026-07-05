@@ -185,7 +185,7 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   Rate** (structure faithful; the price input is simplified vs ISS's ~200-day-average QDD hierarchy) vs an
   illustrative industry cap, overhang/dilution, **pool longevity** (when the next shareholder share-request
   lands), the locked-in SBC backlog, and where the equity goes — executives through broad-based staff.
-  Benchmarks, the SVT, and the VABR price input are illustrative, never claimed as advisor output; the
+  Benchmarks, the Plan-Cost overhang proxy, and the VABR price input are illustrative, never claimed as advisor output; the
   plan-feature tests are scored exactly from the plan.
 - **[ISS vs Glass Lewis — Say-on-Pay War Room](examples/glass-lewis-screen/)** — the two-proxy-advisor view a
   committee needs before the vote: an illustrative reconstruction of **Glass Lewis's current (2026)
@@ -193,10 +193,30 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   TSR *and* vs financials, STI vs TSR, CAP vs TSR) mapping to a **concern level** (the legacy A–F grade is
   retired) — beside the illustrative **ISS** concern level, scoring the *same* facts, then the reconciliation:
   **agree or diverge**, *why*, the committee considerations, and a directional say-on-pay support band. The committed case
-  is a genuine divergence (**GL Low / ISS Medium → ISS-ONLY FLAG**) with a three-pole counterfactual
+  is a genuine divergence (**GL Low / ISS Medium → ISS-ONLY FLAG**) with a two-pole counterfactual
   (pay-vs-TSR-only ≈ Severe, financials-only ≈ Negligible, blended = Low) that makes the mechanism transparent
   (a deliberately-constructed teaching case). Both models are illustrative reconstructions, not affiliated with either firm, built from
   public methodology, and the band is never a vote forecast.
+
+## The Total Rewards arm — the comp cycle
+
+Where the Executive Compensation arm faces the board, the **Total Rewards** arm faces the workforce: the
+annual comp cycle a VP of Total Rewards runs across everyone. It's the same discipline — a budget, a policy,
+and a human gate — applied to merit, bonus, promotion, and equity refreshers company-wide.
+
+- **[Merit & Comp-Cycle Planning](examples/merit-comp-planning/)** — the annual-cycle deliverable a VP of
+  Total Rewards takes into the planning committee, rendered from the company-wide workforce + comp bands: the
+  **merit-increase budget** allocated through a performance × compa-ratio **matrix** (higher performers below
+  market get the most; a low performer already above market gets 0%), the **bonus pool** (target × company
+  attainment × individual factor), **promotion** increases, and **equity refreshers**. It surfaces the
+  guardrails a committee argues over — budget conformance, spend *differentiation* across ratings, and who
+  lands above band-max after merit — and it **closes the loop with the equity arm**: the refreshers are
+  emitted as **append-valid grant rows in the equity ledger's schema** (preserving each holder's participant
+  group — a CEO's refresher stays `ceo`, not `management`), written to a real appendable CSV; as FY2026 grants
+  they carry into the **next** period's board burn / SBC / overhang (the engine test appends them to a copy of
+  the live ledger and re-runs the equity engine to prove it). The matrix, bonus targets, attainment, and merit
+  budget are **illustrative** placeholders a real cycle calibrates; the workforce is synthetic; the agent
+  renders and governs — it does no allocation math and authorizes no pay.
 
 ## Portable skills — point your agent at real SEC data
 

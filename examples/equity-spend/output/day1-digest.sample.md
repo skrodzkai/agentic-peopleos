@@ -9,4 +9,4 @@
 - **SBC backlog (locked in):** $179.8M over 2.4 yrs even at zero new grants
 - **EPSC plan features:** 6/6 scoreable tests pass
 
-_Company-wide synthetic equity plan. Benchmark caps / EPSC weights / SVT are illustrative — representative of published software practice, NOT ISS or Glass Lewis output. Draft; the Compensation Committee approves plan design and share requests._
+_Company-wide synthetic equity plan. Benchmark caps / EPSC weights / Plan Cost overhang proxy are illustrative — representative of published software practice, NOT ISS or Glass Lewis output. Draft; the Compensation Committee approves plan design and share requests._

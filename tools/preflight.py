@@ -43,15 +43,19 @@ REQUIRED_GLOBS = [
 # EXPLICIT committed artifacts that must ship — enumerated, NOT glob-derived, so a DELETED output can't
 # silently shrink the required set and pass. Every example agent commits its rendered dashboard + digest +
 # screenshot; the governance/ledger examples commit their ledgers.
+# NB: the .png screenshots are manually-rendered illustrative snapshots (Chrome-headless is not in CI) — they
+# are EXISTENCE-checked here + linked from the READMEs, but not byte-regenerated/diffed in CI like the
+# deterministic .html/.md/.csv artifacts are. That split is intentional.
 _STD_OUTPUTS = ("output/report.sample.html", "output/report.sample.png", "output/day1-digest.sample.md")
 REQUIRED_OUTPUTS = [
     f"examples/{ex}/{a}"
     for ex in ("headcount-reporting", "attrition-reporting", "people-ops-reporting", "operating-review",
                "people-intelligence", "executive-comp-peer-builder", "executive-comp-benchmarking",
                "rtsr-psu-valuation", "iss-pay-screen", "equity-spend", "glass-lewis-screen",
-               "ta-reporting", "comp-reporting")
+               "merit-comp-planning", "ta-reporting", "comp-reporting")
     for a in _STD_OUTPUTS
 ] + [
+    "examples/merit-comp-planning/output/equity_refresh_grants.sample.csv",   # the equity-handoff artifact
     "examples/operating-review/output/decision.sample.events.jsonl",
     "examples/visible-handoff/output/ledger.sample.html",
     "examples/visible-handoff/output/ledger.sample.png",

@@ -17,8 +17,9 @@ worker or benchmark row, or a non-chronological reporting spine — so a board f
   termination dates (unvested cost reverses on termination). There is no hand-maintained derived file that
   could drift out of sync.
 - **Forward-compatible with merit-comp.** The grant schema already carries grant_type / award_type /
-  participant_group / vesting, so a future merit-comp arm's annual cycle appends refresh / promotion /
-  new-hire rows and every board metric updates for free — the ledger is the contract.
+  participant_group / vesting, so the merit-comp arm's annual cycle appends **append-valid** refresh /
+  promotion / new-hire rows in this schema; being future-dated (FY2026) grants, they carry into the **next**
+  period's board metrics, not the current close — the ledger schema is the contract.
 
 ## Methodology-faithful (formulas + structures)
 - **SBC % of revenue** — GAAP stock-based-comp expense ÷ revenue, quarterly and TTM.
@@ -35,14 +36,16 @@ worker or benchmark row, or a non-chronological reporting spine — so a board f
   standard number. The two are reported **distinctly** so a deck can't conflate the larger overhang for the
   smaller dilution.
 - **Pool longevity** — shares available ÷ 3-year average net annual grants.
-- **EPSC three pillars** — Plan Cost (SVT), Plan Features, Grant Practices (3-yr burn vs a cap).
+- **EPSC three pillars** — Plan Cost (an **overhang proxy**, not a value-adjusted SVT), Plan Features, Grant
+  Practices (3-yr burn vs a cap).
 
 ## Illustrative (labeled; NEVER claimed as ISS or Glass Lewis output)
 - **Benchmark burn caps + EPSC pass threshold** (`burn_benchmarks.csv`) — representative of published
   software-industry practice. The engine **refuses to load** any benchmark whose `source_note` does not
   declare itself illustrative (a structural honesty guard).
-- **SVT (shareholder value transfer)** — ISS's is a proprietary binomial with company-specific caps; we
-  model award value with the same Black-Scholes machinery and render it a **directional** gauge only.
+- **SVT (shareholder value transfer)** — ISS's is a proprietary binomial with company-specific caps; we do
+  NOT model it. The dashboard's "Plan Cost" is an **overhang proxy** ((outstanding + pool) ÷ shares), rendered
+  as a directional gauge and labeled as such — not a value-adjusted SVT.
 - **The legacy volatility-multiplier burn** — the pre-2023 ISS convention, **retired in the 2023 policy
   year**. Shown only as a diagnostic (labeled "retired 2023") because older board decks still quote it; the
   current metric is the VABR above.

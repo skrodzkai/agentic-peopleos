@@ -18,7 +18,7 @@ illustrative benchmark file. No other input; no external calls.
 ## What it shows
 Board headline + verdict; KPI band (SBC % rev TTM, 3-yr VABR, overhang, pool longevity, SBC backlog);
 SBC $ vs % dual-axis trend; ISS-EPSC readiness (Grant-Practices burn-vs-cap, Plan-Features exact ticks,
-Plan-Cost directional SVT); burn table by FY (gross / net / VABR / retired-legacy diagnostic); grant value
+Plan-Cost overhang proxy, NOT a value-adjusted SVT); burn table by FY (gross / net / VABR / retired-legacy diagnostic); grant value
 by participant group (CEO → broad-based staff).
 
 ## Invariants (fail closed on violation)
