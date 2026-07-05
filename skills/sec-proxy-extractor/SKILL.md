@@ -80,7 +80,11 @@ result = extract_sct(proxy_html)     # {found, confidence, score, columns, rows,
 - **A row that doesn't reconcile** is flagged, kept, and named in the reasons — never silently "fixed".
 - **A short row that does not reconcile** is counted as `unaligned` and skipped — never fabricated.
 - **A hidden decoy or an ambiguous second SCT-like table** → the decoy is skipped; genuine ambiguity is
-  `found = false` (reason: ambiguous), never a confident guess.
+  `found = false` (reason: ambiguous), never a confident guess. Hidden-ness is detected by a **heuristic**,
+  not a full browser CSS engine: inline `display:none`/`visibility:hidden`, the `hidden`/`aria-hidden`
+  attributes, and class names hidden by the document's own `<style>` rules (including inside `@media`/
+  `@supports`) or the conventional utility classes (`sr-only`, `d-none`, …). An externally-stylesheet-hidden
+  table it can't see would just be *extracted* — reconciliation and the confidence band still apply.
 - **No SCT in the document** → `found = false`, `confidence = "none"`, with a reason.
 
 ## Scope + limits (stated plainly)

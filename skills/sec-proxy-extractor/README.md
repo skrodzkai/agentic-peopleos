@@ -78,7 +78,9 @@ confidence with a named reason. A row that doesn't reconcile is flagged, never s
 row (one or more blank interior columns) is recovered only if it *still* reconciles and is marked `partial`
 because a blank column can't be attributed to a specific field. And the selection is fail-closed: a hidden
 (`display:none`) decoy table is never chosen over the real one, and two tables that both look like the SCT
-and reconcile are reported `none` (ambiguous) rather than guessed.
+and reconcile are reported `none` (ambiguous) rather than guessed. Hidden-ness is a **heuristic** (inline
+styles, `hidden`/`aria-hidden`, and classes hidden by the document's own `<style>` rules or conventional
+utilities) — not a full browser CSS engine.
 
 Extracted **name/text fields are untrusted input** decoded from the filing — any consumer that renders them
 into HTML must escape them.
