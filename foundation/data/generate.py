@@ -690,7 +690,182 @@ def generate():
             "post_vest_window_flag", "equity_moneyness", "comp_mix_equity_heavy", "decoy_noise_a",
             "decoy_noise_b", "decoy_noise_c", "audit_group", "event_next"])
 
+    # ---- Company-wide EQUITY PLAN (independent rng stream SEED+31, appended so every table above stays
+    # byte-identical). An append-only GRANT LEDGER is the single source of truth: SBC expense and the pool
+    # roll-forward are DERIVED from it by the engine (no committed derived file to drift). The grant schema
+    # carries grant_type/award_type/participant_group/vesting so a future merit-comp arm appends
+    # refresh/promotion/new_hire rows with zero reshape. ----
+    rng_eq = random.Random(SEED + 31)
+    CSO_END, PRICE_END, VOL, RFR = 75_000_000, 85.20, 0.42, 0.04     # 75.0M * $85.20 = $6.39B market cap
+
+    # quarterly close-price path: smooth rise ~$50 -> $85.20 (last quarter EXACT for the market-cap identity)
+    q_close = []
+    for i, q in enumerate(quarters):
+        frac = i / (len(quarters) - 1)
+        q_close.append(round(50.0 + (PRICE_END - 50.0) * (frac ** 0.9), 2))
+    q_close[-1] = PRICE_END
+    q_price = dict(zip(quarters, q_close))
+
+    def _close_at(dt):                                  # close price of the quarter containing dt (step function)
+        for qq, px in q_price.items():
+            if dt <= qq:
+                return px
+        return q_close[-1]
+
+    def _bs_call(S, K, T=6.0):                          # Black-Scholes call FV, no dividend; stdlib normal CDF
+        if S <= 0 or K <= 0:
+            return 0.0
+        srt = VOL * math.sqrt(T)
+        d1 = (math.log(S / K) + (RFR + VOL * VOL / 2.0) * T) / srt
+        d2 = d1 - srt
+        n = lambda x: 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+        return S * n(d1) - K * math.exp(-RFR * T) * n(d2)
+
+    directors = [{"director_id": f"D-{i:02d}", "independent": ("no" if i == 1 else "yes"),
+                  "committee": ["Compensation", "Audit", "Nominating", "Compensation;Audit"][i % 4]}
+                 for i in range(1, 9)]
+
+    equity_plans = [
+        {"plan_id": "P-2019", "plan_name": "2019 Equity Incentive Plan", "adoption_date": "2019-05-15",
+         "expiration_date": "2022-05-14", "shareholder_approved": "yes", "initial_pool_shares": 6_000_000,
+         "evergreen": "none", "share_recycling": "strict", "fungible_ratio": 1.0, "min_vesting_months": 12,
+         "permits_repricing": "no", "dividends_on_unvested": "no", "discretionary_acceleration": "no"},
+        {"plan_id": "P-2022", "plan_name": "2022 Omnibus Incentive Plan", "adoption_date": "2022-05-18",
+         "expiration_date": "2032-05-17", "shareholder_approved": "yes", "initial_pool_shares": 12_000_000,
+         "evergreen": "none", "share_recycling": "strict", "fungible_ratio": 1.0, "min_vesting_months": 12,
+         "permits_repricing": "no", "dividends_on_unvested": "no", "discretionary_acceleration": "no"},
+    ]
+
+    # CEO + Section 16 = active, full-tenure L7 employees (stable across all grant years, so exec equity shows)
+    l7 = sorted([w for w in workers if w["level"] == "L7" and w["worker_type"] == "employee"
+                 and w["status"] != "terminated" and w["hire_date"] < "2023-01-01"], key=lambda w: w["emp_id"])
+    ceo_id = l7[0]["emp_id"]
+    sec16 = {w["emp_id"] for w in l7[1:12]}             # ~11 other Section 16 officers
+
+    def _pgroup(w):
+        if w["emp_id"] == ceo_id:
+            return "ceo"
+        if w["emp_id"] in sec16:
+            return "section16"
+        if w["is_people_manager"] == "yes" and w["level"] in ("L5", "L6", "L7"):
+            return "management"
+        return "staff"
+
+    def _grant(gid, plan, emp, grp, gtype, atype, gdate, shares, price, fv_ps, strike,
+               vmonths, cliff, freq, perf_end=""):
+        return {"grant_id": f"G-{gid:06d}", "plan_id": plan, "emp_id": emp, "participant_group": grp,
+                "grant_type": gtype, "award_type": atype, "grant_date": _d(gdate),
+                "shares_granted": int(shares), "psu_max_multiplier": (2.0 if atype == "psu" else 1.0),
+                "stock_price_at_grant_usd": round(price, 2),
+                "strike_price_usd": (round(strike, 2) if strike is not None else ""),
+                "grant_date_fv_per_share_usd": round(fv_ps, 4),
+                "vest_start_date": _d(gdate), "vest_months_total": vmonths, "cliff_months": cliff,
+                "vest_frequency": freq, "performance_period_end": (_d(perf_end) if perf_end else "")}
+
+    def _add_exec(gid, plan_id, emp, grp, gdate, px, total_value):
+        # exec grant = a mix of RSU / PSU (target) / options, by value
+        rows = []
+        rsu_v, psu_v, opt_v = total_value * 0.40, total_value * 0.30, total_value * 0.30
+        bs = _bs_call(px, px)
+        pend = date(gdate.year + 3, gdate.month, 28)
+        rows.append(_grant(gid + 1, plan_id, emp, grp, "exec_annual", "rsu", gdate,
+                           round(rsu_v / px), px, px, None, 48, 12, "monthly"))
+        rows.append(_grant(gid + 2, plan_id, emp, grp, "exec_annual", "psu", gdate,
+                           round(psu_v / px), px, px, None, 36, 36, "cliff", pend))
+        rows.append(_grant(gid + 3, plan_id, emp, grp, "exec_annual", "option", gdate,
+                           round(opt_v / bs), px, bs, px, 48, 12, "monthly"))
+        return rows
+
+    # 2021-2022 grants (the mature book entering the reporting window) are under the legacy 2019 plan; the
+    # 2022 omnibus plan is the source of 2023-onward grants. This gives 2023 a realistic amortization tail
+    # (so SBC % of revenue can decline, not just ramp) and populates the legacy option book.
+    grants, gid = [], 0
+    PRE_PX = {2021: 38.0, 2022: 46.0}
+    for Y in (2021, 2022, 2023, 2024, 2025):
+        plan_id = "P-2019" if Y < 2023 else "P-2022"
+        adate = date(Y, 2, 15)
+        px = PRE_PX.get(Y) or _close_at(adate)
+        env = {2021: 1.35, 2022: 1.20, 2023: 1.15, 2024: 1.02, 2025: 0.90}[Y]   # declining grant envelope
+        for d in directors:                              # director annual RSU (~$200k)
+            gid += 1
+            grants.append(_grant(gid, plan_id, d["director_id"], "director", "director_annual", "rsu",
+                                 adate, max(1, round(200_000 / px)), px, px, None, 12, 12, "annual"))
+        for w in workers:
+            hire = datetime.strptime(w["hire_date"], "%Y-%m-%d").date()
+            if hire > adate:
+                continue                                 # not yet hired at the annual grant
+            grp = _pgroup(w)
+            if grp == "ceo":
+                grants.extend(_add_exec(gid, plan_id, w["emp_id"], grp, adate, px, 9_500_000 * env)); gid += 3
+            elif grp == "section16":
+                grants.extend(_add_exec(gid, plan_id, w["emp_id"], grp, adate, px, 2_200_000 * env)); gid += 3
+            elif grp == "management":
+                val = {"L7": 520_000, "L6": 235_000, "L5": 120_000}[w["level"]] * env
+                if rng_eq.random() < 0.92:
+                    gid += 1
+                    grants.append(_grant(gid, plan_id, w["emp_id"], grp, "annual_refresh", "rsu", adate,
+                                         max(1, round(val * rng_eq.uniform(0.8, 1.2) / px)), px, px, None,
+                                         48, 12, "monthly"))
+            else:                                        # staff
+                if hire.year == Y:                        # new-hire grant (priced at the year level for simplicity)
+                    val = {"L3": 45_000, "L4": 80_000, "L5": 130_000}.get(w["level"], 45_000) * env
+                    ndate = min(max(hire, date(Y, 1, 1)), date(Y, 12, 1))
+                    gid += 1
+                    grants.append(_grant(gid, plan_id, w["emp_id"], grp, "new_hire", "rsu", ndate,
+                                         max(1, round(val * rng_eq.uniform(0.85, 1.15) / px)), px, px, None,
+                                         48, 12, "monthly"))
+                elif rng_eq.random() < 0.60:              # annual refresh (partial coverage)
+                    val = {"L3": 32_000, "L4": 50_000, "L5": 80_000}.get(w["level"], 32_000) * env
+                    gid += 1
+                    grants.append(_grant(gid, plan_id, w["emp_id"], grp, "annual_refresh", "rsu", adate,
+                                         max(1, round(val * rng_eq.uniform(0.8, 1.2) / px)), px, px, None,
+                                         48, 12, "monthly"))
+                if w["promoted_this_period"] == "yes" and Y == 2025 and rng_eq.random() < 0.8:
+                    gid += 1
+                    pdt = date(Y, 8, 15)
+                    grants.append(_grant(gid, "P-2022", w["emp_id"], grp, "promotion", "rsu", pdt,
+                                         max(1, round(28_000 / _close_at(pdt))), _close_at(pdt),
+                                         _close_at(pdt), None, 48, 12, "monthly"))
+    grants.sort(key=lambda g: (g["grant_date"], g["grant_id"]))
+
+    # shares outstanding + market inputs, per quarter (CSO grows toward 75.0M; last quarter is the mkt-cap anchor)
+    shares_rows = []
+    for i, q in enumerate(quarters):
+        cso = int(round(72_000_000 + (CSO_END - 72_000_000) * (i / (len(quarters) - 1))))
+        if i == len(quarters) - 1:
+            cso = CSO_END
+        shares_rows.append({"period_end": _d(q), "common_shares_outstanding": cso,
+                            "waso_basic": int(round(cso * 0.995)), "waso_diluted": int(round(cso * 1.03)),
+                            "close_price_usd": q_price[q], "annualized_volatility": VOL,
+                            "risk_free_rate": RFR, "dividend_yield": 0.0})
+
+    burn_benchmarks = [
+        {"index_group": "Russell 3000", "gics_code": "451020", "gics_label": "Software",
+         "fiscal_year": Y, "vabr_benchmark_pct": v, "legacy_adjusted_cap_pct": lg,
+         "epsc_model": "S&P 500 / Russell 3000 (illustrative)", "epsc_pass_threshold": 53,
+         "source_note": "illustrative benchmark — not ISS data; representative of published software-industry caps"}
+        for Y, v, lg in ((2023, 3.00, 6.75), (2024, 2.85, 6.50), (2025, 2.75, 6.25))
+    ]
+
+    _write("directors.csv", directors, ["director_id", "independent", "committee"])
+    _write("equity_plans.csv", equity_plans,
+           ["plan_id", "plan_name", "adoption_date", "expiration_date", "shareholder_approved",
+            "initial_pool_shares", "evergreen", "share_recycling", "fungible_ratio", "min_vesting_months",
+            "permits_repricing", "dividends_on_unvested", "discretionary_acceleration"])
+    _write("shares_outstanding.csv", shares_rows,
+           ["period_end", "common_shares_outstanding", "waso_basic", "waso_diluted", "close_price_usd",
+            "annualized_volatility", "risk_free_rate", "dividend_yield"])
+    _write("equity_grants.csv", grants,
+           ["grant_id", "plan_id", "emp_id", "participant_group", "grant_type", "award_type", "grant_date",
+            "shares_granted", "psu_max_multiplier", "stock_price_at_grant_usd", "strike_price_usd",
+            "grant_date_fv_per_share_usd", "vest_start_date", "vest_months_total", "cliff_months",
+            "vest_frequency", "performance_period_end"])
+    _write("burn_benchmarks.csv", burn_benchmarks,
+           ["index_group", "gics_code", "gics_label", "fiscal_year", "vabr_benchmark_pct",
+            "legacy_adjusted_cap_pct", "epsc_model", "epsc_pass_threshold", "source_note"])
+
     print(f"generated Acme dataset -> {OUT}")
+    print(f"  equity_grants.csv: {len(grants)} grants ({len(directors)} directors, 2 plans; company-wide ledger)")
     print(f"  workers.csv: {len(workers)} ({len(employees)} employees, {len(workers) - len(employees)} contractors)")
     print(f"  comp_bands.csv: {len(bands)} | benefits_enrollment.csv: {len(enroll)} | cases.csv: {len(cases)}")
     print(f"  financials.csv: {len(fin)} quarters ({fin[0]['period_end']} -> {fin[-1]['period_end']})")

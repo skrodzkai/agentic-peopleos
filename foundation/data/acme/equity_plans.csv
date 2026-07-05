@@ -1,0 +1,3 @@
+plan_id,plan_name,adoption_date,expiration_date,shareholder_approved,initial_pool_shares,evergreen,share_recycling,fungible_ratio,min_vesting_months,permits_repricing,dividends_on_unvested,discretionary_acceleration
+P-2019,2019 Equity Incentive Plan,2019-05-15,2022-05-14,yes,6000000,none,strict,1.0,12,no,no,no
+P-2022,2022 Omnibus Incentive Plan,2022-05-18,2032-05-17,yes,12000000,none,strict,1.0,12,no,no,no

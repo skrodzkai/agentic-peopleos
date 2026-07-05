@@ -1,0 +1,4 @@
+index_group,gics_code,gics_label,fiscal_year,vabr_benchmark_pct,legacy_adjusted_cap_pct,epsc_model,epsc_pass_threshold,source_note
+Russell 3000,451020,Software,2023,3.0,6.75,S&P 500 / Russell 3000 (illustrative),53,illustrative benchmark — not ISS data; representative of published software-industry caps
+Russell 3000,451020,Software,2024,2.85,6.5,S&P 500 / Russell 3000 (illustrative),53,illustrative benchmark — not ISS data; representative of published software-industry caps
+Russell 3000,451020,Software,2025,2.75,6.25,S&P 500 / Russell 3000 (illustrative),53,illustrative benchmark — not ISS data; representative of published software-industry caps

@@ -1,0 +1,9 @@
+director_id,independent,committee
+D-01,no,Audit
+D-02,yes,Nominating
+D-03,yes,Compensation;Audit
+D-04,yes,Compensation
+D-05,yes,Audit
+D-06,yes,Nominating
+D-07,yes,Compensation;Audit
+D-08,yes,Compensation
