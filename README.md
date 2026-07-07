@@ -206,6 +206,17 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   (pay-vs-TSR-only ≈ Severe, financials-only ≈ Negligible, blended = Low) that makes the mechanism transparent
   (a deliberately-constructed teaching case). Both models are illustrative reconstructions, not affiliated with either firm, built from
   public methodology, and the band is never a vote forecast.
+- **[Pay versus Performance — Compensation Actually Paid](examples/pay-versus-performance/)** — the mandatory
+  SEC **Item 402(v)** disclosure every public filer must publish, reconstructed end to end: the five-year table
+  of **Compensation Actually Paid** vs Total Shareholder Return, peer TSR, net income, and a company-selected
+  measure, led by the **SCT-Total-to-CAP reconciliation bridge**. CAP is the proxy's hardest, most error-prone
+  figure — a per-executive equity fair-value roll-forward (Reg. S-K 402(v)(2)(iii)) most filers outsource to a
+  valuation firm — so the arm **re-measures** every fair value (restricted stock at price, options by
+  Black-Scholes, relative-TSR PSUs by the same Monte Carlo estimator the rTSR arm ships) and **self-checks the
+  bridge to the cent** or fails closed. One committed synthetic price path drives *both* the executives' equity
+  fair values and the company TSR column, and the shipped case is genuinely **pay-for-performance aligned** (PEO
+  CAP $6.5M→$12.0M as a $100 investment grows to $156). An illustrative reconstruction of the disclosure
+  methodology, never a filed 402(v) disclosure or an auditor-approved ASC 718 valuation.
 
 ## The Total Rewards arm — the comp cycle
 

@@ -1,0 +1,25 @@
+agent: pay-versus-performance
+scope: executive-compensation
+tools:
+  - name: local_json_inputs
+    mode: read
+    paths:
+      - data/awards.sample.json
+      - data/pvp_financials.sample.json
+  - name: pvp_compute_engine
+    mode: read
+    path: ../../foundation/compute/pvp.py
+  - name: rtsr_monte_carlo
+    mode: read
+    path: ../../foundation/compute/rtsr.py
+  - name: local_artifacts
+    mode: write
+    paths:
+      - output/report.sample.html
+      - output/day1-digest.sample.md
+      - output/PUBLISHED.json
+guards:
+  publish_requires_human_approval: true
+  network_access: false
+  real_market_data: false
+  real_company_data: false

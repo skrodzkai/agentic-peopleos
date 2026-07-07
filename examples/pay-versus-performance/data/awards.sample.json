@@ -1,0 +1,642 @@
+{
+  "subject": {
+    "ticker": "ACMQ",
+    "name": "Acme Corp"
+  },
+  "fiscal_years": [
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "fiscal_year_end": "12-31",
+  "price_by_date": {
+    "2021-12-31": 62.0,
+    "2022-02-15": 60.0,
+    "2022-12-31": 48.5,
+    "2023-02-15": 51.0,
+    "2023-12-31": 66.0,
+    "2024-02-15": 70.0,
+    "2024-12-31": 91.0,
+    "2025-02-15": 93.0,
+    "2025-12-31": 80.0,
+    "2026-02-15": 82.0,
+    "2026-12-31": 96.5
+  },
+  "market": {
+    "volatility": 0.42,
+    "risk_free_rate": 0.041,
+    "dividend_yield": 0.0,
+    "rtsr": {
+      "peer_tickers": [
+        "BEXQ",
+        "CYRQ",
+        "DHLQ",
+        "FRSQ",
+        "HALQ"
+      ],
+      "peer_spots": {
+        "BEXQ": 70.0,
+        "CYRQ": 55.0,
+        "DHLQ": 120.0,
+        "FRSQ": 44.0,
+        "HALQ": 88.0
+      },
+      "volatility": 0.42,
+      "risk_free_rate": 0.041,
+      "dividend_yield": 0.0,
+      "correlation": {
+        "diagonal": 1.0,
+        "off_diagonal": 0.45
+      },
+      "seed": 30414,
+      "paths": 2000,
+      "payout_curve": [
+        {
+          "percentile": 25,
+          "payout_percent": 50
+        },
+        {
+          "percentile": 50,
+          "payout_percent": 100
+        },
+        {
+          "percentile": 75,
+          "payout_percent": 200
+        }
+      ]
+    }
+  },
+  "neos": [
+    {
+      "id": "ceo",
+      "role": "Chief Executive Officer",
+      "is_peo": true,
+      "sct": {
+        "2022": {
+          "total": 11897797,
+          "stock_awards": 4680054,
+          "option_awards": 4717743
+        },
+        "2023": {
+          "total": 6338808,
+          "stock_awards": 3838808,
+          "option_awards": 0
+        },
+        "2024": {
+          "total": 7684552,
+          "stock_awards": 5084552,
+          "option_awards": 0
+        },
+        "2025": {
+          "total": 9218839,
+          "stock_awards": 6518839,
+          "option_awards": 0
+        },
+        "2026": {
+          "total": 8346596,
+          "stock_awards": 5546596,
+          "option_awards": 0
+        }
+      },
+      "tranches": [
+        {
+          "id": "ceo-rsu-2019",
+          "type": "rsu",
+          "grant_fy": 2019,
+          "grant_date": "2019-02-15",
+          "shares": 46000,
+          "vest_date": "2022-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-psu-2019",
+          "type": "psu_rtsr",
+          "grant_fy": 2019,
+          "grant_date": "2019-02-15",
+          "target_shares": 40000,
+          "vest_date": "2022-02-15",
+          "performance_end": "2022-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-rsu-2020",
+          "type": "rsu",
+          "grant_fy": 2020,
+          "grant_date": "2020-02-15",
+          "shares": 44390,
+          "vest_date": "2023-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-psu-2020",
+          "type": "psu_rtsr",
+          "grant_fy": 2020,
+          "grant_date": "2020-02-15",
+          "target_shares": 38600,
+          "vest_date": "2023-02-15",
+          "performance_end": "2023-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-rsu-2021",
+          "type": "rsu",
+          "grant_fy": 2021,
+          "grant_date": "2021-02-15",
+          "shares": 42836,
+          "vest_date": "2024-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-psu-2021",
+          "type": "psu_rtsr",
+          "grant_fy": 2021,
+          "grant_date": "2021-02-15",
+          "target_shares": 37249,
+          "vest_date": "2024-02-15",
+          "performance_end": "2024-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-rsu-2022",
+          "type": "rsu",
+          "grant_fy": 2022,
+          "grant_date": "2022-02-15",
+          "shares": 41337,
+          "vest_date": "2025-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-psu-2022",
+          "type": "psu_rtsr",
+          "grant_fy": 2022,
+          "grant_date": "2022-02-15",
+          "target_shares": 35945,
+          "vest_date": "2025-02-15",
+          "performance_end": "2025-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-rsu-2023",
+          "type": "rsu",
+          "grant_fy": 2023,
+          "grant_date": "2023-02-15",
+          "shares": 39890,
+          "vest_date": "2026-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-psu-2023",
+          "type": "psu_rtsr",
+          "grant_fy": 2023,
+          "grant_date": "2023-02-15",
+          "target_shares": 34687,
+          "vest_date": "2026-02-15",
+          "performance_end": "2026-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-rsu-2024",
+          "type": "rsu",
+          "grant_fy": 2024,
+          "grant_date": "2024-02-15",
+          "shares": 38494,
+          "vest_date": "2027-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-psu-2024",
+          "type": "psu_rtsr",
+          "grant_fy": 2024,
+          "grant_date": "2024-02-15",
+          "target_shares": 33473,
+          "vest_date": "2027-02-15",
+          "performance_end": "2027-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-rsu-2025",
+          "type": "rsu",
+          "grant_fy": 2025,
+          "grant_date": "2025-02-15",
+          "shares": 37147,
+          "vest_date": "2028-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-psu-2025",
+          "type": "psu_rtsr",
+          "grant_fy": 2025,
+          "grant_date": "2025-02-15",
+          "target_shares": 32302,
+          "vest_date": "2028-02-15",
+          "performance_end": "2028-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-rsu-2026",
+          "type": "rsu",
+          "grant_fy": 2026,
+          "grant_date": "2026-02-15",
+          "shares": 35847,
+          "vest_date": "2029-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-psu-2026",
+          "type": "psu_rtsr",
+          "grant_fy": 2026,
+          "grant_date": "2026-02-15",
+          "target_shares": 31171,
+          "vest_date": "2029-02-15",
+          "performance_end": "2029-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "ceo-opt-2022",
+          "type": "option",
+          "grant_fy": 2022,
+          "grant_date": "2022-02-15",
+          "shares": 150000,
+          "strike": 60.0,
+          "vest_date": "2025-02-15",
+          "expiry": "2029-02-15",
+          "forfeited": false
+        }
+      ]
+    },
+    {
+      "id": "cfo",
+      "role": "Chief Financial Officer",
+      "is_peo": false,
+      "sct": {
+        "2022": {
+          "total": 3552842,
+          "stock_awards": 2152842,
+          "option_awards": 0
+        },
+        "2023": {
+          "total": 3165881,
+          "stock_awards": 1765881,
+          "option_awards": 0
+        },
+        "2024": {
+          "total": 3788907,
+          "stock_awards": 2338907,
+          "option_awards": 0
+        },
+        "2025": {
+          "total": 4498709,
+          "stock_awards": 2998709,
+          "option_awards": 0
+        },
+        "2026": {
+          "total": 4101412,
+          "stock_awards": 2551412,
+          "option_awards": 0
+        }
+      },
+      "tranches": [
+        {
+          "id": "cfo-rsu-2019",
+          "type": "rsu",
+          "grant_fy": 2019,
+          "grant_date": "2019-02-15",
+          "shares": 21160,
+          "vest_date": "2022-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-psu-2019",
+          "type": "psu_rtsr",
+          "grant_fy": 2019,
+          "grant_date": "2019-02-15",
+          "target_shares": 18400,
+          "vest_date": "2022-02-15",
+          "performance_end": "2022-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-rsu-2020",
+          "type": "rsu",
+          "grant_fy": 2020,
+          "grant_date": "2020-02-15",
+          "shares": 20419,
+          "vest_date": "2023-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-psu-2020",
+          "type": "psu_rtsr",
+          "grant_fy": 2020,
+          "grant_date": "2020-02-15",
+          "target_shares": 17756,
+          "vest_date": "2023-02-15",
+          "performance_end": "2023-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-rsu-2021",
+          "type": "rsu",
+          "grant_fy": 2021,
+          "grant_date": "2021-02-15",
+          "shares": 19705,
+          "vest_date": "2024-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-psu-2021",
+          "type": "psu_rtsr",
+          "grant_fy": 2021,
+          "grant_date": "2021-02-15",
+          "target_shares": 17135,
+          "vest_date": "2024-02-15",
+          "performance_end": "2024-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-rsu-2022",
+          "type": "rsu",
+          "grant_fy": 2022,
+          "grant_date": "2022-02-15",
+          "shares": 19015,
+          "vest_date": "2025-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-psu-2022",
+          "type": "psu_rtsr",
+          "grant_fy": 2022,
+          "grant_date": "2022-02-15",
+          "target_shares": 16535,
+          "vest_date": "2025-02-15",
+          "performance_end": "2025-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-rsu-2023",
+          "type": "rsu",
+          "grant_fy": 2023,
+          "grant_date": "2023-02-15",
+          "shares": 18350,
+          "vest_date": "2026-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-psu-2023",
+          "type": "psu_rtsr",
+          "grant_fy": 2023,
+          "grant_date": "2023-02-15",
+          "target_shares": 15956,
+          "vest_date": "2026-02-15",
+          "performance_end": "2026-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-rsu-2024",
+          "type": "rsu",
+          "grant_fy": 2024,
+          "grant_date": "2024-02-15",
+          "shares": 17707,
+          "vest_date": "2027-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-psu-2024",
+          "type": "psu_rtsr",
+          "grant_fy": 2024,
+          "grant_date": "2024-02-15",
+          "target_shares": 15398,
+          "vest_date": "2027-02-15",
+          "performance_end": "2027-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-rsu-2025",
+          "type": "rsu",
+          "grant_fy": 2025,
+          "grant_date": "2025-02-15",
+          "shares": 17088,
+          "vest_date": "2028-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-psu-2025",
+          "type": "psu_rtsr",
+          "grant_fy": 2025,
+          "grant_date": "2025-02-15",
+          "target_shares": 14859,
+          "vest_date": "2028-02-15",
+          "performance_end": "2028-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-rsu-2026",
+          "type": "rsu",
+          "grant_fy": 2026,
+          "grant_date": "2026-02-15",
+          "shares": 16489,
+          "vest_date": "2029-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "cfo-psu-2026",
+          "type": "psu_rtsr",
+          "grant_fy": 2026,
+          "grant_date": "2026-02-15",
+          "target_shares": 14339,
+          "vest_date": "2029-02-15",
+          "performance_end": "2029-02-15",
+          "forfeited": false
+        }
+      ]
+    },
+    {
+      "id": "coo",
+      "role": "Chief Operating Officer",
+      "is_peo": false,
+      "sct": {
+        "2022": {
+          "total": 3315656,
+          "stock_awards": 1965656,
+          "option_awards": 0
+        },
+        "2023": {
+          "total": 2962333,
+          "stock_awards": 1612333,
+          "option_awards": 0
+        },
+        "2024": {
+          "total": 3535573,
+          "stock_awards": 2135573,
+          "option_awards": 0
+        },
+        "2025": {
+          "total": 4187952,
+          "stock_awards": 2737952,
+          "option_awards": 0
+        },
+        "2026": {
+          "total": 3829607,
+          "stock_awards": 2329607,
+          "option_awards": 0
+        }
+      },
+      "tranches": [
+        {
+          "id": "coo-rsu-2019",
+          "type": "rsu",
+          "grant_fy": 2019,
+          "grant_date": "2019-02-15",
+          "shares": 19320,
+          "vest_date": "2022-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-psu-2019",
+          "type": "psu_rtsr",
+          "grant_fy": 2019,
+          "grant_date": "2019-02-15",
+          "target_shares": 16800,
+          "vest_date": "2022-02-15",
+          "performance_end": "2022-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-rsu-2020",
+          "type": "rsu",
+          "grant_fy": 2020,
+          "grant_date": "2020-02-15",
+          "shares": 18644,
+          "vest_date": "2023-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-psu-2020",
+          "type": "psu_rtsr",
+          "grant_fy": 2020,
+          "grant_date": "2020-02-15",
+          "target_shares": 16212,
+          "vest_date": "2023-02-15",
+          "performance_end": "2023-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-rsu-2021",
+          "type": "rsu",
+          "grant_fy": 2021,
+          "grant_date": "2021-02-15",
+          "shares": 17991,
+          "vest_date": "2024-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-psu-2021",
+          "type": "psu_rtsr",
+          "grant_fy": 2021,
+          "grant_date": "2021-02-15",
+          "target_shares": 15645,
+          "vest_date": "2024-02-15",
+          "performance_end": "2024-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-rsu-2022",
+          "type": "rsu",
+          "grant_fy": 2022,
+          "grant_date": "2022-02-15",
+          "shares": 17362,
+          "vest_date": "2025-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-psu-2022",
+          "type": "psu_rtsr",
+          "grant_fy": 2022,
+          "grant_date": "2022-02-15",
+          "target_shares": 15097,
+          "vest_date": "2025-02-15",
+          "performance_end": "2025-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-rsu-2023",
+          "type": "rsu",
+          "grant_fy": 2023,
+          "grant_date": "2023-02-15",
+          "shares": 16754,
+          "vest_date": "2026-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-psu-2023",
+          "type": "psu_rtsr",
+          "grant_fy": 2023,
+          "grant_date": "2023-02-15",
+          "target_shares": 14569,
+          "vest_date": "2026-02-15",
+          "performance_end": "2026-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-rsu-2024",
+          "type": "rsu",
+          "grant_fy": 2024,
+          "grant_date": "2024-02-15",
+          "shares": 16168,
+          "vest_date": "2027-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-psu-2024",
+          "type": "psu_rtsr",
+          "grant_fy": 2024,
+          "grant_date": "2024-02-15",
+          "target_shares": 14059,
+          "vest_date": "2027-02-15",
+          "performance_end": "2027-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-rsu-2025",
+          "type": "rsu",
+          "grant_fy": 2025,
+          "grant_date": "2025-02-15",
+          "shares": 15602,
+          "vest_date": "2028-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-psu-2025",
+          "type": "psu_rtsr",
+          "grant_fy": 2025,
+          "grant_date": "2025-02-15",
+          "target_shares": 13567,
+          "vest_date": "2028-02-15",
+          "performance_end": "2028-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-rsu-2026",
+          "type": "rsu",
+          "grant_fy": 2026,
+          "grant_date": "2026-02-15",
+          "shares": 15056,
+          "vest_date": "2029-02-15",
+          "forfeited": false
+        },
+        {
+          "id": "coo-psu-2026",
+          "type": "psu_rtsr",
+          "grant_fy": 2026,
+          "grant_date": "2026-02-15",
+          "target_shares": 13092,
+          "vest_date": "2029-02-15",
+          "performance_end": "2029-02-15",
+          "forfeited": false
+        }
+      ]
+    }
+  ]
+}

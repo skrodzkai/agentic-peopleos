@@ -1,0 +1,36 @@
+{
+  "base_date": "2021-12-31",
+  "csm_label": "Non-GAAP Operating Income",
+  "years": [
+    {
+      "fy": 2022,
+      "peer_tsr_value": 84.0,
+      "net_income_usd": -18000000,
+      "csm_usd": 95000000
+    },
+    {
+      "fy": 2023,
+      "peer_tsr_value": 101.0,
+      "net_income_usd": 12000000,
+      "csm_usd": 140000000
+    },
+    {
+      "fy": 2024,
+      "peer_tsr_value": 120.0,
+      "net_income_usd": 61000000,
+      "csm_usd": 210000000
+    },
+    {
+      "fy": 2025,
+      "peer_tsr_value": 112.0,
+      "net_income_usd": 44000000,
+      "csm_usd": 190000000
+    },
+    {
+      "fy": 2026,
+      "peer_tsr_value": 138.0,
+      "net_income_usd": 88000000,
+      "csm_usd": 265000000
+    }
+  ]
+}
