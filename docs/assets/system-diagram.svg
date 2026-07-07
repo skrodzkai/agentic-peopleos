@@ -29,10 +29,10 @@
 <rect x="48" y="240" width="300" height="96" rx="10" fill="url(#gCard)" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.38"/>
 <text x='64' y='267' font-family="-apple-system,'Segoe UI',sans-serif" font-size='14' fill='#dbe7f0' font-weight='600'>Executive Comp</text>
 <rect x='272' y='253' width='62' height='18' rx='9.0' fill='#0f2a3e' stroke='#1ba7ff' stroke-width='1' stroke-opacity='0.5'/>
-<text x='303.0' y='265.2' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#1ba7ff' text-anchor='middle' letter-spacing='0.5'>6 AGENTS</text>
+<text x='303.0' y='265.2' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#1ba7ff' text-anchor='middle' letter-spacing='0.5'>7 AGENTS</text>
 <text x='64' y='289' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>peer builder · benchmarking ·</text>
 <text x='64' y='305' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>rTSR PSU · ISS screen ·</text>
-<text x='64' y='321' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>equity spend · ISS vs GL</text>
+<text x='64' y='321' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>equity spend · ISS vs GL · CAP</text>
 <rect x="48" y="352" width="300" height="96" rx="10" fill="url(#gCard)" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.38"/>
 <text x='64' y='379' font-family="-apple-system,'Segoe UI',sans-serif" font-size='14' fill='#dbe7f0' font-weight='600'>Total Rewards</text>
 <rect x='272' y='365' width='62' height='18' rx='9.0' fill='#0f2a3e' stroke='#1ba7ff' stroke-width='1' stroke-opacity='0.5'/>

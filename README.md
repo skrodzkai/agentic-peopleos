@@ -7,7 +7,7 @@
 Most of an HR back office is judgment applied to repeatable process — sourcing, screening, onboarding,
 comp analysis, performance paperwork, compliance. A well-governed fleet of AI agents can do that work;
 the hard part is running the fleet **safely and auditably**. Agentic PeopleOS is that operating layer: a
-working system for an agent-run People function — **fifteen dashboard-rendering reference agents** across
+working system for an agent-run People function — **sixteen dashboard-rendering reference agents** across
 People Analytics, Executive Compensation, Total Rewards, and retention-risk ML, every one built on the same governance
 spine — a **hash-chained decision ledger**, **role-scoped human approvals**, **injection-safe content**,
 and a **fail-closed compute engine**. The agents are the easy part. The spine is the point.
