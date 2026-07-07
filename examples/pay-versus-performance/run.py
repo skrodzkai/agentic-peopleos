@@ -73,10 +73,14 @@ def build_report(inputs):
     align = alignment(table)
     last_fy = pvp.fiscal_years[-1]
     peo_bridge = cap_for_neo_year(pvp, pvp.peo, last_fy)
-    # reconciliation self-check: the itemized bridge MUST tie to the reported CAP to the cent
+    # reconciliation self-checks: the itemized bridge MUST tie to the reported CAP to the cent, AND
+    # the bridge's CAP must equal the table's own PEO CAP for the same year (two independent paths
+    # to the same number — a mismatch means the report is internally inconsistent, so fail closed)
     bridged = round(sum(v for _l, v, k in peo_bridge["bridge"] if k != "total"), 2) + peo_bridge["bridge"][0][1]
     if abs(bridged - peo_bridge["cap"]) > 0.01:
         raise ReportError("CAP reconciliation bridge does not tie to reported CAP")
+    if abs(peo_bridge["cap"] - table["rows"][-1]["peo_cap"]) > 0.01:
+        raise ReportError("bridge CAP does not equal the table's PEO CAP for the last covered year")
     return {
         "company_name": pvp.company_name,
         "peo_role": pvp.peo["role"],
@@ -169,13 +173,57 @@ def _pvp_table_html(table):
     return f"<table><thead>{head}</thead><tbody>{''.join(body)}</tbody></table>"
 
 
-def _relationship_svg(series, right_key, right_label, right_fmt, chart_id):
+def _relationship_svg(series, right_key, right_fmt, chart_id):
+    """One 402(v) relationship view: BOTH CAP columns the rule requires — PEO CAP (filled cyan) and
+    average non-PEO CAP (green) — on a shared left axis in $M, against the performance measure on the
+    right axis (dashed indigo). Bespoke three-series chart in the shared toolkit's geometry idiom."""
     labels = [f"FY{y}" for y in series["years"]]
-    left = [round(v / 1e6) for v in series["peo_cap"]]                 # PEO CAP in $M
-    right = [round(v) for v in series[right_key]]
-    svg = ch.dual_axis_line(labels, left, right,
-                            left_fmt=lambda v: f"${v}M",
-                            right_fmt=right_fmt)
+    peo = [v / 1e6 for v in series["peo_cap"]]
+    avg = [v / 1e6 for v in series["avg_nonpeo_cap"]]
+    right = [float(v) for v in series[right_key]]
+    if not (len(labels) == len(peo) == len(avg) == len(right)):
+        raise ReportError("relationship series lengths do not match")
+    w, h = 560, 250
+    mL, mR, mT, mB = 46, 48, 26, 32
+    plotH = h - mT - mB
+    X = lambda i: mL + i * (w - mL - mR - 0) / (len(labels) - 1)
+    llo, lhi = min(peo + avg), max(peo + avg)
+    lpad = (lhi - llo) * 0.22 or 1.0
+    rlo, rhi = min(right), max(right)
+    rpad = (rhi - rlo) * 0.22 or 1.0
+    Yl = lambda v: mT + plotH - (v - (llo - lpad)) / ((lhi + lpad) - (llo - lpad)) * plotH
+    Yr = lambda v: mT + plotH - (v - (rlo - rpad)) / ((rhi + rpad) - (rlo - rpad)) * plotH
+    uid = f"{chart_id.replace('-', '')}a"
+    b = [f"<defs><linearGradient id='{uid}' x1='0' y1='0' x2='0' y2='1'>"
+         f"<stop offset='0' stop-color='{ch.CYAN}' stop-opacity='.24'/>"
+         f"<stop offset='1' stop-color='{ch.CYAN}' stop-opacity='0'/></linearGradient></defs>"]
+    for t in range(5):
+        v = (llo - lpad) + ((lhi + lpad) - (llo - lpad)) * t / 4
+        b.append(f"<line x1='{mL}' y1='{Yl(v):.1f}' x2='{w - mR}' y2='{Yl(v):.1f}' stroke='{ch.GRID}'/>")
+        b.append(f"<text x='{mL - 6}' y='{Yl(v) + 3:.1f}' text-anchor='end' "
+                 f"font-family=\"{ch.MONO}\" font-size='9' fill='{ch.SOFT}'>${v:,.0f}M</text>")
+    for t in range(4):
+        v = (rlo - rpad) + ((rhi + rpad) - (rlo - rpad)) * t / 3
+        b.append(f"<text x='{w - mR + 6}' y='{Yr(v) + 3:.1f}' "
+                 f"font-family=\"{ch.MONO}\" font-size='9' fill='{ch.INDIGO}'>{_e(right_fmt(v))}</text>")
+    dr = "M" + " L".join(f"{X(i):.1f} {Yr(v):.1f}" for i, v in enumerate(right))
+    b.append(f"<path d='{dr}' fill='none' stroke='{ch.INDIGO}' stroke-width='2' stroke-dasharray='5 4' opacity='.85'/>")
+    dp = "M" + " L".join(f"{X(i):.1f} {Yl(v):.1f}" for i, v in enumerate(peo))
+    b.append(f"<path d='{dp} L {X(len(peo)-1):.1f} {mT + plotH} L {X(0):.1f} {mT + plotH} Z' fill='url(#{uid})'/>")
+    b.append(f"<path d='{dp}' fill='none' stroke='{ch.CYAN}' stroke-width='2.4' stroke-linecap='round'/>")
+    da = "M" + " L".join(f"{X(i):.1f} {Yl(v):.1f}" for i, v in enumerate(avg))
+    b.append(f"<path d='{da}' fill='none' stroke='{ch.GREEN}' stroke-width='1.8' stroke-linecap='round' opacity='.9'/>")
+    for i in range(len(labels)):
+        b.append(f"<circle cx='{X(i):.1f}' cy='{Yl(peo[i]):.1f}' r='3' fill='{ch.BG}' stroke='{ch.CYAN}' stroke-width='2'/>")
+        b.append(f"<circle cx='{X(i):.1f}' cy='{Yl(avg[i]):.1f}' r='2.4' fill='{ch.BG}' stroke='{ch.GREEN}' stroke-width='1.8'/>")
+        if i % 2 == 0 or i == len(labels) - 1:
+            b.append(f"<text x='{X(i):.1f}' y='{h - 16}' text-anchor='middle' "
+                     f"font-family=\"{ch.MONO}\" font-size='9' fill='{ch.MUTED}'>{_e(labels[i])}</text>")
+    b.append(f"<text x='{mL}' y='{mT - 12}' font-family=\"{ch.MONO}\" font-size='9' font-weight='700' "
+             f"fill='{ch.CYAN2}'>PEO CAP</text>")
+    b.append(f"<text x='{mL + 62}' y='{mT - 12}' font-family=\"{ch.MONO}\" font-size='9' font-weight='700' "
+             f"fill='{ch.GREEN}'>AVG NON-PEO CAP</text>")
+    svg = ch._svg(w, h, "".join(b))
     return svg.replace("<svg ", f"<svg data-chart='{chart_id}' ", 1)
 
 
@@ -217,16 +265,18 @@ def render_html(report):
                       f"Five covered years · PEO + average of {report['n_nonpeo']} non-PEO NEOs · "
                       "TSR indexed to a fixed $100",
                       _pvp_table_html(table), "402(v)(1)", wide=True))
-    body.append(_tile("CAP vs company TSR", "PEO CAP ($M, filled) against the $100 TSR index (dashed)",
-                      _relationship_svg(series, "company_tsr_value", "TSR",
-                                        lambda v: f"${v}", "cap-vs-tsr"), "Relationship"))
-    body.append(_tile("CAP vs net income", "PEO CAP ($M, filled) against net income ($M, dashed)",
-                      _relationship_svg(series, "net_income_usd", "Net income",
-                                        lambda v: f"${round(v / 1e6)}M", "cap-vs-ni"), "Relationship"))
+    body.append(_tile("CAP vs company TSR",
+                      "PEO CAP (cyan) + average non-PEO CAP (green), $M, against the $100 TSR index (dashed)",
+                      _relationship_svg(series, "company_tsr_value",
+                                        lambda v: f"${v:,.0f}", "cap-vs-tsr"), "Relationship"))
+    body.append(_tile("CAP vs net income",
+                      "PEO CAP (cyan) + average non-PEO CAP (green), $M, against net income ($M, dashed)",
+                      _relationship_svg(series, "net_income_usd",
+                                        lambda v: f"${v / 1e6:,.0f}M", "cap-vs-ni"), "Relationship"))
     body.append(_tile(f"CAP vs {series['csm_label']}",
-                      f"PEO CAP ($M, filled) against the company-selected measure ($M, dashed)",
-                      _relationship_svg(series, "csm_usd", series["csm_label"],
-                                        lambda v: f"${round(v / 1e6)}M", "cap-vs-csm"), "Relationship"))
+                      "PEO CAP (cyan) + average non-PEO CAP (green), $M, against the company-selected measure ($M, dashed)",
+                      _relationship_svg(series, "csm_usd",
+                                        lambda v: f"${v / 1e6:,.0f}M", "cap-vs-csm"), "Relationship"))
     body.append(_tile("Company-selected measure", "The financial measure the committee names most linked to CAP",
                       f"<div class='dist'><div><span>Measure</span><b class='mono'>{_e(series['csm_label'])}</b></div>"
                       f"<div><span>FY{first['fy']}</span><b class='mono'>{_m(first['csm_usd'])}</b></div>"
@@ -241,18 +291,29 @@ def render_html(report):
                 "awards, the change in fair value of prior-year unvested awards, the vesting-date value of "
                 "awards that vested, the change in fair value to the vesting date for prior-year awards, "
                 "and subtract the prior-year-end value of awards forfeited.</li>"
-                "<li>Fair values are re-measured, not assumed: restricted stock at the share price, options "
-                "by Black-Scholes, and relative-TSR market-condition PSUs by the same deterministic Monte "
-                "Carlo estimator the rTSR PSU arm ships (remaining-period re-measurement).</li>"
+                "<li>Fair values are re-measured, not assumed: restricted stock at the share price; options "
+                "by Black-Scholes over the <b>contractual remaining term</b> (an expected-term/exercise-"
+                "behavior model is a disclosed simplification); relative-TSR market-condition PSUs by the "
+                "same deterministic Monte Carlo estimator the rTSR PSU arm ships, re-run for the remaining "
+                "performance period. Once a PSU's performance period has closed, the engine <b>requires the "
+                "committee-certified earned payout percent</b> — it refuses to assume a 100%-of-target "
+                "payout.</li>"
+                "<li>Dividends on unvested awards are year-specific inputs added once, in the covered year "
+                "they were paid — never a tranche-level scalar repeated across years.</li>"
                 "<li>One committed synthetic stock-price path drives both the executives' equity fair values "
                 "and the company Total Shareholder Return column, so the pay side and the performance side "
                 "tie to a single price series.</li>"
                 "<li>The reconciliation bridge is self-checked: the itemized steps must tie to the reported "
                 "CAP to the cent, or the build fails closed.</li>"
                 "<li>This is an illustrative reconstruction of the disclosure methodology on synthetic Acme "
-                "data. Pension adjustments are not applicable to this issuer (no defined-benefit plan). A "
-                "filer's award fair values are produced by its valuation provider under audited assumptions; "
-                "the peer-group TSR, net income, and company-selected measure here are synthetic.</li>"
+                "data, for a registrant fully subject to Item 402(v) (emerging growth companies are exempt; "
+                "smaller reporting companies show three years). The sample models one continuous PEO — the "
+                "rule requires separate columns for each person who served as PEO in a covered year, and the "
+                "engine refuses a multi-PEO input rather than mis-render it. Pension adjustments (service "
+                "cost + prior service cost − change in actuarial present value) are supported but not "
+                "applicable to this issuer (no defined-benefit plan). A filer's award fair values are "
+                "produced by its valuation provider under audited assumptions; the peer-group TSR, net "
+                "income, and company-selected measure here are synthetic.</li>"
                 "<li>Public-safety boundary: no real issuer, ticker, stock price, proxy, award, employee, or "
                 "employer data is included. Synthetic tickers carry an obvious marker.</li>"
                 "<li>This is decision-support math, not accounting, legal, tax, or investment advice, and not "

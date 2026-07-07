@@ -118,7 +118,8 @@
           "target_shares": 40000,
           "vest_date": "2022-02-15",
           "performance_end": "2022-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 50
         },
         {
           "id": "ceo-rsu-2020",
@@ -137,7 +138,8 @@
           "target_shares": 38600,
           "vest_date": "2023-02-15",
           "performance_end": "2023-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 75
         },
         {
           "id": "ceo-rsu-2021",
@@ -156,7 +158,8 @@
           "target_shares": 37249,
           "vest_date": "2024-02-15",
           "performance_end": "2024-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 125
         },
         {
           "id": "ceo-rsu-2022",
@@ -175,7 +178,8 @@
           "target_shares": 35945,
           "vest_date": "2025-02-15",
           "performance_end": "2025-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 150
         },
         {
           "id": "ceo-rsu-2023",
@@ -194,7 +198,8 @@
           "target_shares": 34687,
           "vest_date": "2026-02-15",
           "performance_end": "2026-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 125
         },
         {
           "id": "ceo-rsu-2024",
@@ -315,7 +320,8 @@
           "target_shares": 18400,
           "vest_date": "2022-02-15",
           "performance_end": "2022-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 50
         },
         {
           "id": "cfo-rsu-2020",
@@ -334,7 +340,8 @@
           "target_shares": 17756,
           "vest_date": "2023-02-15",
           "performance_end": "2023-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 75
         },
         {
           "id": "cfo-rsu-2021",
@@ -353,7 +360,8 @@
           "target_shares": 17135,
           "vest_date": "2024-02-15",
           "performance_end": "2024-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 125
         },
         {
           "id": "cfo-rsu-2022",
@@ -372,7 +380,8 @@
           "target_shares": 16535,
           "vest_date": "2025-02-15",
           "performance_end": "2025-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 150
         },
         {
           "id": "cfo-rsu-2023",
@@ -391,7 +400,8 @@
           "target_shares": 15956,
           "vest_date": "2026-02-15",
           "performance_end": "2026-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 125
         },
         {
           "id": "cfo-rsu-2024",
@@ -501,7 +511,8 @@
           "target_shares": 16800,
           "vest_date": "2022-02-15",
           "performance_end": "2022-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 50
         },
         {
           "id": "coo-rsu-2020",
@@ -520,7 +531,8 @@
           "target_shares": 16212,
           "vest_date": "2023-02-15",
           "performance_end": "2023-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 75
         },
         {
           "id": "coo-rsu-2021",
@@ -539,7 +551,8 @@
           "target_shares": 15645,
           "vest_date": "2024-02-15",
           "performance_end": "2024-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 125
         },
         {
           "id": "coo-rsu-2022",
@@ -558,7 +571,8 @@
           "target_shares": 15097,
           "vest_date": "2025-02-15",
           "performance_end": "2025-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 150
         },
         {
           "id": "coo-rsu-2023",
@@ -577,7 +591,8 @@
           "target_shares": 14569,
           "vest_date": "2026-02-15",
           "performance_end": "2026-02-15",
-          "forfeited": false
+          "forfeited": false,
+          "earned_payout_pct": 125
         },
         {
           "id": "coo-rsu-2024",

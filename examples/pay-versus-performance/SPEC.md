@@ -7,9 +7,11 @@ deterministic math, transparent assumptions, and a human approval gate: the five
 Compensation Actually Paid (CAP) versus Total Shareholder Return, peer-group TSR, net income, and a
 company-selected measure — anchored by the Summary-Compensation-Table-to-CAP reconciliation bridge.
 
-Every US public filer must publish this table. CAP is not a number a company can look up; it is a
-per-executive equity fair-value roll-forward, which is why it is usually outsourced to a valuation
-provider. This example shows the reconstruction working end to end on synthetic data.
+Registrants subject to Item 402(v) must publish this table (emerging growth companies are exempt;
+smaller reporting companies show three covered years, other filers five after transition). CAP is not
+a number a company can look up; it is a per-executive equity fair-value roll-forward, which is why it
+is usually outsourced to a valuation provider. This example shows the reconstruction working end to
+end on synthetic data.
 
 ## What CAP Is (Reg. S-K 402(v)(2)(iii))
 
@@ -34,18 +36,32 @@ indexed investment), peer-group TSR, net income, and the company-selected measur
 trusting supplied figures, so the reconciliation is legible:
 
 - Restricted stock units at the subject share price on the measurement date.
-- Stock options by Black-Scholes-Merton (`bs_call`), re-struck to the remaining term at each date.
+- Stock options by Black-Scholes-Merton (`bs_call`) over the **contractual remaining term** at each
+  measurement date — an expected-term/exercise-behavior model (the GAAP-typical refinement) is a
+  disclosed simplification, not silently implied.
 - Relative-TSR market-condition PSUs by the same deterministic Monte Carlo estimator the rTSR PSU arm
   ships (`foundation.compute.rtsr.monte_carlo_valuation`), re-run for the remaining performance period.
+  **Once the performance period has closed, the engine requires the committee-certified
+  `earned_payout_pct`** and values the award at price × target shares × earned percent — it fails
+  closed rather than silently assume a 100%-of-target payout.
+
+Dividends on unvested awards are **year-specific** inputs (`dividends_paid_unvested_by_fy`): each
+amount is added exactly once, in the covered year it was paid — including the year an award forfeits,
+for dividends paid before the forfeiture. A tranche-level scalar is refused at load.
 
 One committed synthetic stock-price path drives both the executives' equity fair values and the company
 TSR column, so the pay side and the performance side of the table reconcile to a single price series.
 
 Important approximation: a real filer's award fair values are produced by its valuation provider under
-audited assumptions (full daily-path averaging, settlement timing, plan-specific dividend equivalents,
-performance-to-date locking). The Monte Carlo PSU re-measurement here values the remaining performance
-period from the current share price; it is an illustrative reconstruction of the methodology, not the
-filed figure.
+audited assumptions (expected-term option models, full daily-path averaging, settlement timing,
+plan-specific dividend equivalents, performance-to-date locking in the PSU model). The Monte Carlo PSU
+re-measurement here values the remaining performance period from the current share price; it is an
+illustrative reconstruction of the methodology, not the filed figure.
+
+Scope limitations, enforced rather than fudged: the engine models **one continuous PEO** and refuses a
+multi-PEO input (the rule requires separate columns for each person who served as PEO in a covered
+year); pension adjustments take the rule's three buckets (service cost, prior service cost, change in
+actuarial present value — never a pre-netted number) and are not applicable to this synthetic issuer.
 
 ## Inputs
 

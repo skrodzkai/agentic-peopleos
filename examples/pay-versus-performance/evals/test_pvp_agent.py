@@ -73,6 +73,10 @@ for needle in [
 for marker in ("data-chart='cap-bridge'", "data-chart='cap-vs-tsr'",
                "data-chart='cap-vs-ni'", "data-chart='cap-vs-csm'"):
     ok(marker in page, f"report has stable chart marker {marker}")
+ok(page.count("AVG NON-PEO CAP") >= 3,
+   "every relationship view plots average non-PEO CAP alongside PEO CAP (402(v) requires both)")
+ok("earned payout percent" in page, "report discloses the closed-PSU earned-payout requirement")
+ok("contractual remaining term" in page, "report discloses contractual-term Black-Scholes")
 for overclaim in ("auditor-approved valuation", "official 402", "the company's filed 402(v)"):
     # the methodology explicitly DISCLAIMS being the filed/approved disclosure; it must never assert it IS one
     ok(f"is {overclaim}" not in page.lower() and f"this {overclaim}" not in page.lower(),

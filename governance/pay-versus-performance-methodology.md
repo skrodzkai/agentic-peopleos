@@ -14,9 +14,9 @@ audited figures.
 ## The rule (public)
 
 SEC Reg. S-K Item 402(v), effective for proxy statements covering fiscal years ending on or after
-December 16, 2022, requires every registrant (other than emerging growth companies) to publish a
-**Pay-versus-Performance table**. A smaller reporting company shows three covered years; other filers
-phase in to **five**. The columns are: the Principal Executive Officer's Summary Compensation Table (SCT)
+December 16, 2022, requires registrants subject to the item — emerging growth companies are exempt —
+to publish a **Pay-versus-Performance table**. A smaller reporting company shows three covered years;
+other filers phase in to **five**. The columns are: the Principal Executive Officer's Summary Compensation Table (SCT)
 total and **Compensation Actually Paid (CAP)**; the average SCT total and average CAP of the remaining
 named executive officers; the value of a fixed **$100 invested measured by Total Shareholder Return**;
 the same for a **peer-group TSR**; **net income**; and a **company-selected measure** (the financial
@@ -51,10 +51,12 @@ implementation is not its own oracle).
 
 | Component | Status | What that means |
 |---|---|---|
-| The **table columns**, the **CAP roll-forward** line items, the three **relationship** disclosures, and the **$100-indexed TSR** convention | **PUBLIC** | These are the regulation. The reconstruction follows the rule's structure line for line. |
-| **Award fair values** at each measurement date | **ILLUSTRATIVE** | A filer obtains these from its valuation provider under audited assumptions. This engine **re-measures** them from transparent inputs: RSUs at the share price; options by Black-Scholes-Merton re-struck to the remaining term; relative-TSR market-condition PSUs by the shared Monte Carlo estimator, valued over the **remaining performance period from the current share price**. That PSU approach does not lock in path-to-date relative performance the way a full valuation model would — a labeled simplification, not the filed figure. |
-| The subject **stock-price path**, **peer-group TSR**, **net income**, and **company-selected measure** | **ILLUSTRATIVE / SYNTHETIC** | All synthetic. The subject price path is committed and drives **both** the executives' equity fair values and the company TSR column, so the pay and performance sides reconcile to one price series. |
-| **Pension adjustments** | **NOT APPLICABLE** | The synthetic issuer has no defined-benefit plan, so the pension term is zero. The engine supports a per-NEO pension adjustment for completeness. |
+| The **table columns**, the **CAP roll-forward** line items, the three **relationship** disclosures (each showing **both** PEO CAP and average non-PEO CAP, as the rule requires), and the **$100-indexed TSR** convention | **PUBLIC** | These are the regulation. The reconstruction follows the rule's structure line for line. |
+| **Award fair values** at each measurement date | **ILLUSTRATIVE** | A filer obtains these from its valuation provider under audited assumptions. This engine **re-measures** them from transparent inputs: RSUs at the share price; options by Black-Scholes-Merton over the **contractual remaining term** (an expected-term/exercise-behavior model is the GAAP-typical refinement — a labeled simplification here); relative-TSR market-condition PSUs by the shared Monte Carlo estimator over the **remaining performance period from the current share price** (does not lock in path-to-date relative performance). A PSU measured **at or after its performance-period end requires the committee-certified `earned_payout_pct`** — the engine fails closed rather than assume a 100%-of-target payout. |
+| **Dividends on unvested awards** | **PUBLIC (mechanics) / SYNTHETIC (amounts)** | Year-specific inputs (`dividends_paid_unvested_by_fy`), added exactly once in the covered year paid — including the forfeiture year, for dividends paid before the forfeiture. A tranche-level scalar (which would repeat across years) is refused at load. |
+| The subject **stock-price path**, **peer-group TSR**, **net income**, **company-selected measure**, and the **earned PSU payout percents** | **ILLUSTRATIVE / SYNTHETIC** | All synthetic. The subject price path is committed and drives **both** the executives' equity fair values and the company TSR column, so the pay and performance sides reconcile to one price series; the earned payout percents are the committee-certified facts of this synthetic history, consistent with that path. |
+| **Pension adjustments** | **NOT APPLICABLE** | The synthetic issuer has no defined-benefit plan. The engine supports the rule's three buckets per NEO-year (service cost, prior service cost, change in actuarial present value) and refuses a pre-netted scalar. |
+| **Multi-PEO transition years** | **UNSUPPORTED (enforced)** | The rule requires separate columns for each person who served as PEO during a covered year. This reference engine models one continuous PEO and **refuses** a multi-PEO input rather than mis-render it. |
 | The **directional "pay-for-performance aligned" read** | **ILLUSTRATIVE** | A legibility signal comparing the first-to-last direction of PEO CAP and company TSR. It is **never** a say-on-pay vote forecast or a proxy-advisor concern level. |
 
 ## Why this matters as a control

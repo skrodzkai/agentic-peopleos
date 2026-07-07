@@ -30,7 +30,7 @@ engine re-derives comparable figures from transparent inputs to make the reconci
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 import math
 
 from foundation.compute.rtsr import PayoutCurve, monte_carlo_valuation
@@ -86,8 +86,11 @@ def _norm_cdf(x):
 
 
 def bs_call(spot, strike, years, rate, vol, div_yield=0.0):
-    """Black-Scholes-Merton European call value per share. At/after expiry (years<=0) the value is the
-    intrinsic max(spot-strike, 0); a zero-vol option is its discounted intrinsic. Deterministic."""
+    """Black-Scholes-Merton European call value per share, over the CONTRACTUAL remaining term supplied
+    by the caller (an expected-term model is a documented simplification — see the methodology note).
+    At/after expiry (years<=0) the value is the intrinsic max(spot-strike, 0); a zero-vol option is its
+    discounted intrinsic. Inputs are bounds-checked and every math-domain failure re-raises as a clean
+    PVPError, so an extreme-but-finite input can never escape as a raw OverflowError. Deterministic."""
     s = _pos(spot, "spot")
     k = _pos(strike, "strike")
     t = _num(years, "years")
@@ -98,13 +101,25 @@ def bs_call(spot, strike, years, rate, vol, div_yield=0.0):
         raise PVPError("vol must be non-negative")
     if q < 0:
         raise PVPError("div_yield must be non-negative")
+    # sanity bounds — beyond these the model is meaningless and libm overflows; fail closed instead
+    if abs(r) > 1.0:
+        raise PVPError(f"rate {r} outside the sane bound [-1, 1]")
+    if sig > 5.0:
+        raise PVPError(f"vol {sig} outside the sane bound [0, 5]")
+    if q > 1.0:
+        raise PVPError(f"div_yield {q} outside the sane bound [0, 1]")
+    if t > 100.0:
+        raise PVPError(f"years {t} outside the sane bound (0, 100]")
     if t <= 0:
         return round(max(s - k, 0.0), 6)
-    if sig == 0.0:
-        return round(max(s * math.exp(-q * t) - k * math.exp(-r * t), 0.0), 6)
-    d1 = (math.log(s / k) + (r - q + 0.5 * sig * sig) * t) / (sig * math.sqrt(t))
-    d2 = d1 - sig * math.sqrt(t)
-    return round(s * math.exp(-q * t) * _norm_cdf(d1) - k * math.exp(-r * t) * _norm_cdf(d2), 6)
+    try:
+        if sig == 0.0:
+            return round(max(s * math.exp(-q * t) - k * math.exp(-r * t), 0.0), 6)
+        d1 = (math.log(s / k) + (r - q + 0.5 * sig * sig) * t) / (sig * math.sqrt(t))
+        d2 = d1 - sig * math.sqrt(t)
+        return round(s * math.exp(-q * t) * _norm_cdf(d1) - k * math.exp(-r * t) * _norm_cdf(d2), 6)
+    except (OverflowError, ValueError) as exc:
+        raise PVPError(f"Black-Scholes numeric failure for spot={s} strike={k} t={t}: {exc}") from exc
 
 
 # --------------------------------------------------------------------------- input model
@@ -130,6 +145,9 @@ class PayVersusPerformance:
         self.fy_mmdd = str(awards.get("fiscal_year_end", "12-31"))
         self.fy_end = {y: _fy_end(y, self.fy_mmdd) for y in self.fiscal_years}
         self.prior_fy_end = {y: _fy_end(y - 1, self.fy_mmdd) for y in self.fiscal_years}
+        # a fiscal year STARTS the day after the prior fiscal year-end — never a bare Jan 1, or a
+        # non-calendar filer (e.g. 06-30 FYE) would silently drop its first-half activity
+        self.fy_start = {y: self.prior_fy_end[y] + timedelta(days=1) for y in self.fiscal_years}
 
         self.prices = {}
         for k, v in (awards.get("price_by_date") or {}).items():
@@ -157,13 +175,32 @@ class PayVersusPerformance:
         self.neos = [self._load_neo(n) for n in awards.get("neos", [])]
         if not self.neos:
             raise PVPError("at least one NEO is required")
+        neo_ids = [n["id"] for n in self.neos]
+        if len(set(neo_ids)) != len(neo_ids):
+            raise PVPError("NEO ids must be unique")
+        # tranche ids must be GLOBALLY unique: the PSU Monte Carlo memo is keyed on (tranche id,
+        # measurement date), so a duplicated id would silently serve one award's cached fair value
+        # for a different award — a wrong number, not an error. Reject at load.
+        tids = [t["id"] for n in self.neos for t in n["tranches"]]
+        dupes = sorted({t for t in tids if tids.count(t) > 1})
+        if dupes:
+            raise PVPError(f"tranche ids must be unique across all NEOs; duplicated: {dupes}")
+        # NOTE (rule fidelity): Item 402(v) requires SEPARATE columns for each person who served as
+        # PEO during a covered year. This reference engine models one continuous PEO; a mid-year CEO
+        # transition needs the additional columns (documented limitation, enforced here).
         peos = [n for n in self.neos if n["is_peo"]]
         if len(peos) != 1:
-            raise PVPError("exactly one principal executive officer (is_peo) is required")
+            raise PVPError("exactly one principal executive officer (is_peo) is required "
+                           "(multi-PEO transition years are a documented unsupported case)")
         self.peo = peos[0]
         self.non_peo = [n for n in self.neos if not n["is_peo"]]
         if not self.non_peo:
             raise PVPError("at least one non-PEO NEO is required for the average column")
+
+    def _fy_of_date(self, d: date) -> int:
+        """The fiscal year a calendar date belongs to, per the configured fiscal year-end: the FY
+        labeled Y runs from the day after FY(Y-1)-end through FY(Y)-end."""
+        return d.year if d <= _fy_end(d.year, self.fy_mmdd) else d.year + 1
 
     def _load_neo(self, n):
         nid = str(n.get("id", "")).strip()
@@ -181,17 +218,42 @@ class PayVersusPerformance:
                 "option_awards": _num(row.get("option_awards", 0.0), f"{nid} option_awards {fy}"),
             }
         tranches = [self._load_tranche(nid, t) for t in (n.get("tranches") or [])]
+        # Pension is the rule's three named buckets, not a caller-netted scalar:
+        # + service cost + prior service cost − SCT-reported change in actuarial present value.
+        pension = {}
+        for k, v in (n.get("pension_adjustment_by_fy") or {}).items():
+            if not isinstance(v, dict):
+                raise PVPError(f"{nid} pension {k}: must be an object with service_cost, "
+                               f"prior_service_cost, change_in_actuarial_pv (never a pre-netted number)")
+            missing = {"service_cost", "prior_service_cost", "change_in_actuarial_pv"} - set(v)
+            if missing:
+                raise PVPError(f"{nid} pension {k}: missing {sorted(missing)}")
+            pension[int(k)] = {
+                "service_cost": _num(v["service_cost"], f"{nid} pension service_cost {k}"),
+                "prior_service_cost": _num(v["prior_service_cost"], f"{nid} pension prior_service_cost {k}"),
+                "change_in_actuarial_pv": _num(v["change_in_actuarial_pv"], f"{nid} pension change {k}"),
+            }
         return {
             "id": nid, "role": role, "is_peo": bool(n.get("is_peo", False)),
             "sct": sct, "tranches": tranches,
-            "pension_by_fy": {int(k): _num(v, f"{nid} pension {k}")
-                              for k, v in (n.get("pension_adjustment_by_fy") or {}).items()},
+            "pension_by_fy": pension,
         }
 
     def _load_tranche(self, nid, t):
         ttype = str(t.get("type", "")).strip()
         if ttype not in AWARD_TYPES:
             raise PVPError(f"{nid}: tranche type must be one of {AWARD_TYPES}, got {ttype!r}")
+        if "dividends_paid_unvested" in t:
+            # the old tranche-level scalar re-added the same dividends every covered year the award
+            # stayed live (double-counting); refuse it loudly rather than silently ignore it
+            raise PVPError(f"{nid}: 'dividends_paid_unvested' is not supported — use "
+                           f"'dividends_paid_unvested_by_fy' (year-specific amounts per 402(v))")
+        div_by_fy = {}
+        for k, v in (t.get("dividends_paid_unvested_by_fy") or {}).items():
+            amt = _num(v, f"{nid} dividends {k}")
+            if amt < 0:
+                raise PVPError(f"{nid} dividends {k}: must be non-negative")
+            div_by_fy[int(k)] = amt
         tr = {
             "id": str(t.get("id", "")).strip(),
             "type": ttype,
@@ -199,14 +261,18 @@ class PayVersusPerformance:
             "grant_date": _date(t.get("grant_date", ""), f"{nid} grant_date"),
             "vest_date": _date(t.get("vest_date", ""), f"{nid} vest_date"),
             "forfeited": bool(t.get("forfeited", False)),
-            "dividends_paid_unvested": _num(t.get("dividends_paid_unvested", 0.0), f"{nid} dividends"),
+            "dividends_by_fy": div_by_fy,
         }
         if not tr["id"]:
             raise PVPError(f"{nid}: every tranche needs an id")
-        if tr["grant_fy"] not in self.fiscal_years and tr["grant_fy"] > min(self.fiscal_years):
-            # a prior-to-window grant year is fine; a grant_fy AFTER the window opens must be a covered year
-            if tr["grant_fy"] > max(self.fiscal_years):
-                raise PVPError(f"{tr['id']}: grant_fy {tr['grant_fy']} is after the covered window")
+        # grant_fy must EQUAL the fiscal year the grant_date actually falls in — an incoherent pair
+        # would silently bucket a prior-year award as a covered-year grant (a wrong number)
+        derived_fy = self._fy_of_date(tr["grant_date"])
+        if tr["grant_fy"] != derived_fy:
+            raise PVPError(f"{tr['id']}: grant_fy {tr['grant_fy']} contradicts grant_date "
+                           f"{tr['grant_date'].isoformat()} (which falls in FY{derived_fy})")
+        if tr["grant_fy"] > max(self.fiscal_years):
+            raise PVPError(f"{tr['id']}: grant_fy {tr['grant_fy']} is after the covered window")
         if tr["forfeited"]:
             tr["forfeit_date"] = _date(t.get("forfeit_date", ""), f"{tr['id']} forfeit_date")
             if tr["forfeit_date"] < tr["grant_date"]:
@@ -226,6 +292,14 @@ class PayVersusPerformance:
         else:  # psu_rtsr
             tr["target_shares"] = _pos(t.get("target_shares"), f"{tr['id']} target_shares")
             tr["performance_end"] = _date(t.get("performance_end", t.get("vest_date")), f"{tr['id']} performance_end")
+            # once the performance period has CLOSED, the award's value is the shares actually
+            # EARNED — never a silent 100%-of-target assumption. The earned payout percent is a
+            # caller-supplied fact; it is required lazily, at the first at/after-period measurement.
+            if "earned_payout_pct" in t:
+                pct = _num(t["earned_payout_pct"], f"{tr['id']} earned_payout_pct")
+                if pct < 0 or pct > 300:
+                    raise PVPError(f"{tr['id']}: earned_payout_pct must be within [0, 300]")
+                tr["earned_payout_pct"] = pct
         return tr
 
     # ---------------------------------------------------------------- price + fair value
@@ -286,12 +360,21 @@ class PayVersusPerformance:
                           _num((self.market.get("rtsr") or {}).get("volatility", self.market.get("volatility")), "vol"),
                           _num((self.market.get("rtsr") or {}).get("dividend_yield", self.market.get("dividend_yield", 0.0)), "q"))
             return round(per * tr["shares"], 6)
-        # psu_rtsr — remaining-period market-condition re-measurement via the shared Monte Carlo estimator
+        # psu_rtsr — remaining-period market-condition re-measurement via the shared Monte Carlo
+        # estimator. Tranche ids are load-time unique, so (id, date) is a sound memo key; the id is
+        # included in the key defensively alongside the date.
         key = (tr["id"], at.isoformat())
         if key not in self._mc_cache:
-            years = max((tr["performance_end"].toordinal() - at.toordinal()) / 365.0, 0.0)
+            years = (tr["performance_end"].toordinal() - at.toordinal()) / 365.0
             if years <= 0.0:
-                per_share = px          # performance period closed: value settles at the current share price basis
+                # performance period CLOSED: the award is worth price x shares actually EARNED.
+                # Fail closed rather than silently assume a 100%-of-target payout.
+                if "earned_payout_pct" not in tr:
+                    raise PVPError(
+                        f"{tr['id']}: measured at/after performance_end "
+                        f"({tr['performance_end'].isoformat()}) — earned_payout_pct is required; "
+                        f"refusing to assume a 100%-of-target payout")
+                per_share = px * tr["earned_payout_pct"] / 100.0
             else:
                 val = monte_carlo_valuation(self._mc_context(px, years), self._psu_curve())
                 per_share = val["fair_value_per_target_share"]
@@ -318,7 +401,7 @@ def cap_for_neo_year(pvp: PayVersusPerformance, neo, fy: int):
     the affected tranches at the exact date the rule prescribes."""
     ye = pvp.fy_end[fy]
     pye = pvp.prior_fy_end[fy]
-    y_start = date(fy, 1, 1)
+    y_start = pvp.fy_start[fy]          # day after the prior FY end — correct for non-calendar filers
     sct = neo["sct"][fy]
     sct_total = sct["total"]
     sct_equity = sct["stock_awards"] + sct["option_awards"]
@@ -340,11 +423,16 @@ def cap_for_neo_year(pvp: PayVersusPerformance, neo, fy: int):
         forfeited_this_year = tr["forfeited"] and (y_start <= tr["forfeit_date"] <= ye)
         unvested_at_ye = (not vested_this_year) and (not forfeited_this_year) and (tr["vest_date"] > ye)
 
+        # dividends are YEAR-SPECIFIC facts (dividends_paid_unvested_by_fy[fy]): paid during THIS
+        # covered year on the still-unvested award and not otherwise reflected. A live tranche —
+        # including one that vested or forfeited later in the same year — earns exactly this year's
+        # amount, exactly once; nothing carries or repeats across covered years.
+        dividends += tr["dividends_by_fy"].get(fy, 0.0)
+
         if forfeited_this_year:
             if not granted_this_year:
                 less_forfeited += pvp.fair_value(tr, pye)   # remove value carried at the prior year-end
             # a same-year grant that also forfeits in-year carried no prior-year value and no SCT-add to remove
-            dividends += tr["dividends_paid_unvested"] if vested_this_year else 0.0
             continue
         if vested_this_year:
             if granted_this_year:
@@ -356,9 +444,9 @@ def cap_for_neo_year(pvp: PayVersusPerformance, neo, fy: int):
                 add_ye_new += pvp.fair_value(tr, ye)
             else:
                 chg_prior_unvested += pvp.fair_value(tr, ye) - pvp.fair_value(tr, pye)
-        dividends += tr["dividends_paid_unvested"]
 
-    pension = neo["pension_by_fy"].get(fy, 0.0)
+    p = neo["pension_by_fy"].get(fy)
+    pension = (p["service_cost"] + p["prior_service_cost"] - p["change_in_actuarial_pv"]) if p else 0.0
     equity_adj = (-sct_equity + add_ye_new + chg_prior_unvested + vest_new
                   + chg_prior_vested - less_forfeited + dividends)
     cap = sct_total + equity_adj + pension
