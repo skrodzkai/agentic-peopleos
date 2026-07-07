@@ -287,6 +287,12 @@ for args in ((100, 100, 100, -1000, 0.2), (1e-308, 1e308, 1, 0.05, 0.2), (100, 1
     except P.PVPError:
         ok(True, f"bs_call rejects extreme input {args} with a clean PVPError")
 
+# REGRESSION: the real-ticker/real-name deny-list is enforced by the ENGINE, not only by CI scans
+bad(lambda a, f: a["subject"].update({"ticker": "QLYS"}), "a real subject ticker (deny-list)")
+bad(lambda a, f: a["subject"].update({"ticker": "ZZZZ"}), "a non-synthetic-shape subject ticker")
+bad(lambda a, f: a["market"]["rtsr"]["peer_tickers"].append("GTLB"), "a real rTSR peer ticker")
+bad(lambda a, f: a["subject"].update({"name": "Qualys, Inc."}), "a real company name on a synthetic ticker")
+
 
 # --------------------------------------------------------------------------- shipped sample reconciles end-to-end
 DATA = ROOT / "examples" / "pay-versus-performance" / "data"

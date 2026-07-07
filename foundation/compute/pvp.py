@@ -32,7 +32,9 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 import math
+import re
 
+from foundation.compute.peers import REAL_TICKERS, real_peer_identifiers, name_matches_real
 from foundation.compute.rtsr import PayoutCurve, monte_carlo_valuation
 
 TARGET_ROUND = 2                 # dollars are reported to the cent; fair values round to 2 dp for byte-stable output
@@ -41,6 +43,28 @@ AWARD_TYPES = ("rsu", "option", "psu_rtsr")
 
 class PVPError(ValueError):
     """Raised when Pay-versus-Performance inputs are structurally invalid (the engine fails closed)."""
+
+
+_SYNTH_TICKER_RE = re.compile(r"^(ACMQ|[A-Z]{3}Q)$")   # the exec-comp arm's synthetic shape: ACMQ or ###Q
+
+
+def _reject_real_identifiers(tickers, names, label):
+    """Public-safety gate, enforced by the ENGINE (not just CI): this universe is synthetic by
+    construction, so every ticker must carry the synthetic shape (which structurally excludes any
+    real ticker), must not collide with the shared real-ticker deny-list, and no real peer-company
+    NAME may appear. The roster load fails closed (require=True) so an unavailable roster can never
+    silently disable the guard. Mirrors the rTSR arm's enforcement."""
+    ups = {str(t).strip().upper() for t in tickers}
+    hits = sorted(ups & REAL_TICKERS)
+    if hits:
+        raise PVPError(f"{label} contains real ticker collision(s): {', '.join(hits)}")
+    non_synth = sorted(t for t in ups if not _SYNTH_TICKER_RE.fullmatch(t))
+    if non_synth:
+        raise PVPError(f"{label} must use synthetic tickers (ACMQ or ###Q); got: {', '.join(non_synth[:5])}")
+    _, real = real_peer_identifiers(require=True)
+    name_hits = sorted({str(n).strip() for n in names if name_matches_real(n, real)})
+    if name_hits:
+        raise PVPError(f"{label} contains real company name(s): {', '.join(name_hits[:5])}")
 
 
 # --------------------------------------------------------------------------- small validators
@@ -137,6 +161,10 @@ class PayVersusPerformance:
         self.company_name = str(subj.get("name", "")).strip()
         if not self.ticker or not self.company_name:
             raise PVPError("subject.ticker and subject.name are required")
+        rtsr_m = (awards.get("market") or {}).get("rtsr") or {}
+        peer_ticks = list(rtsr_m.get("peer_tickers", [])) + list((rtsr_m.get("peer_spots") or {}).keys())
+        _reject_real_identifiers([self.ticker] + peer_ticks, [self.company_name],
+                                 "Pay-versus-Performance universe")
         self.fiscal_years = [int(y) for y in awards.get("fiscal_years", [])]
         if len(self.fiscal_years) < 3:
             raise PVPError("Pay-versus-Performance requires at least three covered fiscal years")
