@@ -718,6 +718,50 @@ def train_model(panel_path=PANEL_PATH):
     return model, calibration, design, slices
 
 
+def model_from_manifest(manifest=None, manifest_path: Path = MANIFEST_PATH, panel_path: Path = PANEL_PATH):
+    """Load the (model, calibration, bands) triple from the PINNED, version-controlled manifest — the published
+    trained artifact — WITHOUT re-fitting (no IRLS), so a renderer scores the published model fast and
+    deterministically.
+
+    This is a TRUSTED-manifest loader for the committed artifact. It fails closed on exactly two things and NOT a
+    third:
+      (1) SCHEMA + GOVERNANCE CONTRACT (via validate_manifest) — exact key set, every pinned field vs the module
+          source of truth, status/increment/version, and a strict numeric shape for the fitted primary model
+          (finite coefficients/standardizer, std > 0).
+      (2) PANEL PROVENANCE — the manifest's panel_data_hash must equal the hash of the panel on disk, so a
+          manifest built from a DIFFERENT panel is rejected (pass panel_path=None to skip, e.g. a hand-built
+          manifest in a unit test).
+      (NOT) It does NOT re-verify that the coefficients reproduce a fresh fit — that is the separate, expensive
+          check_reproducible() / `retention.py validate` CI gate. A schema-valid manifest carrying
+          tampered-but-finite coefficients would still load here, so a caller must pass only the committed
+          manifest (or one it already trusts). The reconstructed model scores identically to the published
+          artifact (coefficients are the manifest's, rounded exactly as published)."""
+    m = manifest if manifest is not None else json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    validate_manifest(m)                                          # schema + governance-contract gate (fails closed)
+    if panel_path is not None and m.get("panel_data_hash") != panel_data_hash(panel_path):
+        raise ModelError("model_from_manifest: manifest panel_data_hash does not match the panel on disk — "
+                         "refusing to score a manifest built from a different panel (panel drift)")
+    pc = m["primary_coefficients"]
+    for k in ("features", "intercept", "pos_weight", "standardizer_mean", "standardizer_std"):
+        if k not in pc:
+            raise ModelError(f"manifest primary_coefficients missing {k!r}")
+    names = list(m["design_features"])                            # the canonical column order
+    coef, mean_d, std_d = pc["features"], pc["standardizer_mean"], pc["standardizer_std"]
+    if not (set(coef) == set(mean_d) == set(std_d) == set(names)):
+        raise ModelError("manifest coefficient / standardizer / design-feature name sets disagree")
+    model = {"intercept": pc["intercept"], "coef": {n: coef[n] for n in names},
+             "mean": [mean_d[n] for n in names], "std": [std_d[n] for n in names],
+             "feature_names": names, "pos_weight": pc["pos_weight"]}
+    _validate_model(model)                                        # structural soundness gate (fails closed)
+    cal = m["primary_calibration"]
+    if not _finite_num(cal.get("a")) or not _finite_num(cal.get("b")):
+        raise ModelError("manifest primary_calibration a/b must be finite")
+    bands = m["risk_band_thresholds"]
+    if not (set(bands) == {"elevated", "high"} and _finite_num(bands["elevated"]) and _finite_num(bands["high"])):
+        raise ModelError("manifest risk_band_thresholds must be finite {elevated, high}")
+    return model, {"a": cal["a"], "b": cal["b"]}, {"elevated": bands["elevated"], "high": bands["high"]}
+
+
 # --------------------------------------------------------------- evaluation + realism guard (Increment 3)
 
 REALISM_AUC_MAX = 0.90            # a synthetic model above this is implausibly perfect -> fail closed
@@ -1063,6 +1107,93 @@ def reconciliation_summary(segments):
     return {"n_segments": len(rendered), "n_suppressed": suppressed,
             "n_flagged": sum(1 for s in rendered if s.get("gap_flagged")),
             "max_abs_gap": round(max((abs(s["reconciliation_gap"]) for s in rendered), default=0.0), 6)}
+
+
+# --------------------------------------------------- company-level committee rollups (Increment 4 helpers)
+# These keep the ANALYTICS in the engine (deterministic, fail-closed, tested) so a renderer does NO math — it
+# only formats what these return. Each reuses the EXACT segment/band machinery above, so a company number is
+# never a hand-average of segment rows.
+
+def company_risk(rows, model, calibration, design, slices, horizon=6):
+    """The whole out-of-time TEST slice as one 'company' pseudo-segment: model BOTTOM-UP vs empirical
+    TOP-DOWN `horizon`-month voluntary-exit risk, via the identical `_km_exit_probability` machinery
+    `segment_risk` uses over the same window (never a hand-average of segment rows). Fails closed on
+    unaligned rows / a non-canonical slice, exactly like `segment_risk`. Returns
+    {bottom_up, top_down, gap, n_employees, n_rows, horizon_months}."""
+    if type(horizon) is not int or horizon <= 0:
+        raise ModelError(f"company_risk: horizon must be a positive integer (got {horizon!r})")
+    if len(rows) != len(design["X"]):
+        raise ModelError("company_risk: rows are not aligned with the design matrix")
+    if any(rows[i][ID_COL] != design["emp"][i] or rows[i][INDEX_COL] != design["month_index"][i]
+           for i in range(len(rows))):
+        raise ModelError("company_risk: rows are not aligned index-for-identity with the design matrix")
+    _validate_model(model)
+    _validate_calibration(calibration)
+    _validate_slices(design, slices)
+    test = slices["test"]
+    months_observed = len({rows[i][INDEX_COL] for i in test})
+    if horizon > months_observed:                          # never silently truncate + mislabel the horizon
+        raise ModelError(f"company_risk: horizon {horizon} exceeds the {months_observed} observed test months — "
+                         "the empirical top-down number would be truncated yet reported at the larger horizon")
+    haz = {i: calibrated_probability(model, calibration, design["X"][i]) for i in test}
+    bottom_up = round(_km_exit_probability(test, rows, lambda i: haz[i], horizon), 6)
+    top_down = round(_km_exit_probability(test, rows, lambda i: design["y"][i], horizon), 6)
+    return {"bottom_up": bottom_up, "top_down": top_down, "gap": round(bottom_up - top_down, 6),
+            "n_employees": len({rows[i][ID_COL] for i in test}), "n_rows": len(test),
+            "horizon_months": horizon, "months_observed": months_observed}
+
+
+def tier_counts(model, calibration, design, slices):
+    """Support-tier sizing: set the low/elevated/high thresholds on the CALIBRATION slice (no test-slice
+    leakage), then bucket every TEST-slice PERSON-MONTH (never a person) into a tier. Returns
+    {counts:{low,elevated,high}, thresholds:{elevated,high}, n_rows}. Fails closed on a non-canonical slice."""
+    _validate_model(model)
+    _validate_calibration(calibration)
+    _validate_slices(design, slices)
+    bands = risk_bands([calibrated_probability(model, calibration, design["X"][i]) for i in slices["calibration"]])
+    counts = {"low": 0, "elevated": 0, "high": 0}
+    for i in slices["test"]:
+        counts[risk_tier(calibrated_probability(model, calibration, design["X"][i]), bands)] += 1
+    return {"counts": counts, "thresholds": bands, "n_rows": len(slices["test"])}
+
+
+def company_survival(model, calibration, design, slices, max_h=12, median_h=18):
+    """Company-level survival S(t) under the calibrated model. The per-month company hazard is the MEAN
+    calibrated hazard across TEST person-months in each observed test month; because the observed window is
+    only the test slice long, months beyond it are PROJECTED forward at the mean observed monthly hazard — a
+    frozen-hazard 'what-if at the current rate', NOT a path forecast (the renderer labels it so). By
+    construction S at the observed-window end equals `company_risk`'s bottom-up, so the two panels agree.
+    Returns {survival:[S1..S_max_h], p_exit:[1-S1..], months_observed, median_months (sentinel-aware over
+    median_h; None => 'not reached'), median_horizon, max_h}."""
+    if type(max_h) is not int or max_h <= 0:
+        raise ModelError(f"company_survival: max_h must be a positive integer (got {max_h!r})")
+    if type(median_h) is not int or median_h <= 0:
+        raise ModelError(f"company_survival: median_h must be a positive integer (got {median_h!r})")
+    _validate_model(model)
+    _validate_calibration(calibration)
+    _validate_slices(design, slices)
+    by_month = {}
+    for i in slices["test"]:
+        cell = by_month.setdefault(design["month_index"][i], [0.0, 0])
+        cell[0] += calibrated_probability(model, calibration, design["X"][i])
+        cell[1] += 1
+    observed = [by_month[mi][0] / by_month[mi][1] for mi in sorted(by_month) if by_month[mi][1]]
+    if not observed:
+        raise ModelError("company_survival: no test-slice person-months to form a hazard path")
+    proj = sum(observed) / len(observed)                          # mean observed monthly hazard for the projection tail
+
+    def _path(n):
+        p = list(observed[:n])
+        while len(p) < n:
+            p.append(proj)                                        # frozen-hazard projection beyond the observed window
+        return p
+
+    surv = survival_curve(_path(max_h))                           # fails closed on any rate outside [0,1]
+    return {"survival": [round(s, 6) for s in surv],
+            "p_exit": [round(1.0 - s, 6) for s in surv],
+            "months_observed": min(len(observed), max_h),
+            "median_months": median_months_to_exit(_path(median_h), median_h),
+            "median_horizon": median_h, "max_h": max_h}
 
 
 # --------------------------------------------------------------------------- model manifest (scaffold)

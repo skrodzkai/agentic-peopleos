@@ -2,7 +2,7 @@
 
 A coordinator agent asks the TA-reporting agent for the weekly report. The reporter posts a
 **recommendation with cited evidence** to `#people-analytics` and stops. An **entitled** human
-approves with a ✅. Only then does the gated action (publish) run. Every step is one row in a
+approves with a ✓. Only then does the gated action (publish) run. Every step is one row in a
 hash-chained ledger; the chat is just the human-readable surface.
 
 This is the answer to *"what bad thing did this prevent?"* — provable in code, transcript,
@@ -54,7 +54,7 @@ not just the happy path:
 | **approved** | People Business Partner (in the `hr_approver` pool) | gated publish runs | [`output/approved.events.sample.jsonl`](output/approved.events.sample.jsonl) · [transcript](output/approved.transcript.sample.md) |
 | **denied** | Engineering Observer (channel member, **not** entitled) | no publish; agent escalates | [`output/denied.events.sample.jsonl`](output/denied.events.sample.jsonl) · [transcript](output/denied.transcript.sample.md) |
 
-In the denied transcript the observer's ✅ *appears in chat* — you can't stop someone adding an
+In the denied transcript the observer's ✓ *appears in chat* — you can't stop someone adding an
 emoji — but the registry re-derives entitlement and refuses to count it, so the action never
 runs. **The ledger validates in both cases**; it just records an escalation instead of an
 action. Regenerate: `python3 examples/visible-handoff/scenarios.py`.

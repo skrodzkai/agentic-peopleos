@@ -39,7 +39,7 @@ except PermissionError:
 
 # A non-member cannot react either.
 try:
-    chat.react(ref, ghost, "✅")
+    chat.react(ref, ghost, "✓")
     ok(False, "non-member react should raise")
 except PermissionError:
     ok(True, "a non-member cannot react in the channel")

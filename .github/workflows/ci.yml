@@ -43,6 +43,7 @@ jobs:
           examples/equity-spend/run.py examples/equity-spend/evals/test_equity_spend_agent.py
           examples/glass-lewis-screen/run.py examples/glass-lewis-screen/evals/test_glass_lewis_agent.py
           examples/merit-comp-planning/run.py examples/merit-comp-planning/evals/test_merit_comp_agent.py
+          examples/retention-risk/run.py examples/retention-risk/evals/test_retention_agent.py
           examples/ta-reporting/run.py examples/ta-reporting/evals/test_report.py
           examples/comp-reporting/run.py examples/comp-reporting/evals/test_comp.py
           examples/visible-handoff/run.py examples/visible-handoff/evals/test_handoff.py
@@ -193,6 +194,14 @@ jobs:
           python3 run.py
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md output/equity_refresh_grants.sample.csv \
             || (echo "::error::merit-comp-planning output is stale — run examples/merit-comp-planning/run.py and commit" && exit 1)
+
+      - name: Retention arm — retention-risk committee dashboard eval
+        working-directory: examples/retention-risk
+        run: |
+          python3 evals/test_retention_agent.py
+          python3 run.py
+          git diff --exit-code -- output/report.sample.html output/committee-digest.sample.md \
+            || (echo "::error::retention-risk output is stale — run examples/retention-risk/run.py and commit" && exit 1)
 
       - name: Operating-review decision ledger validates (registry-backed)
         run: |

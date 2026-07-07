@@ -177,12 +177,12 @@ def _payout_curve_svg(curve):
     for p, v in rows:
         body.append(f"<circle cx='{sx(p):.1f}' cy='{sy(v):.1f}' r='5' fill='{ch.CYAN2}'/>")
         body.append(f"<text x='{sx(p):.1f}' y='{sy(v)-10:.1f}' text-anchor='middle' "
-                    f"font-family=\"'JetBrains Mono',monospace\" font-size='10' fill='{ch.INK}'>{ch.ordinal(p)}</text>")
+                    f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='10' fill='{ch.INK}'>{ch.ordinal(p)}</text>")
         body.append(f"<text x='{sx(p):.1f}' y='{sy(v)+20:.1f}' text-anchor='middle' "
-                    f"font-family=\"'JetBrains Mono',monospace\" font-size='10' fill='{ch.MUTED}'>{v:g}%</text>")
+                    f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='10' fill='{ch.MUTED}'>{v:g}%</text>")
     for p in (0, 25, 55, 75, 100):
         body.append(f"<text x='{sx(p):.1f}' y='{h-10}' text-anchor='middle' "
-                    f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{ch.SOFT}'>{p}</text>")
+                    f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='9' fill='{ch.SOFT}'>{p}</text>")
     return ch._svg(w, h, "".join(body))
 
 
@@ -207,7 +207,7 @@ def _payout_history_svg(history, target=100.0):
         f"<line data-target-line='100' x1='{x0}' y1='{target_y:.1f}' x2='{x1}' y2='{target_y:.1f}' "
         f"stroke='{ch.AMBER}' stroke-width='2' stroke-dasharray='5 5' opacity='.9'/>",
         f"<text x='{x1}' y='{target_y - 7:.1f}' text-anchor='end' "
-        f"font-family=\"'JetBrains Mono',monospace\" font-size='10' font-weight='700' "
+        f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='10' font-weight='700' "
         f"fill='{ch.AMBER}'>Target 100%</text>",
         f"<path d='{area}' fill='{ch.CYAN}' opacity='.10'/>",
         f"<path d='{line}' fill='none' stroke='{ch.CYAN2}' stroke-width='3' stroke-linejoin='round' "
@@ -217,20 +217,20 @@ def _payout_history_svg(history, target=100.0):
         y = sy(pct)
         body.append(f"<line x1='{x0 - 4}' y1='{y:.1f}' x2='{x1}' y2='{y:.1f}' stroke='{ch.GRID}'/>")
         body.append(f"<text x='{x0 - 10}' y='{y + 3:.1f}' text-anchor='end' "
-                    f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{ch.SOFT}'>{pct}%</text>")
+                    f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='9' fill='{ch.SOFT}'>{pct}%</text>")
     label_idx = {0, len(rows) - 1, len(rows) // 2}
     for i, r in enumerate(rows):
         x, y = sx(i), sy(r["payout"])
         if i == len(rows) - 1:
             body.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='6' fill='#fff' stroke='{ch.CYAN}' stroke-width='3'/>")
             body.append(f"<text x='{x:.1f}' y='{y - 12:.1f}' text-anchor='middle' "
-                        f"font-family=\"'JetBrains Mono',monospace\" font-size='10' font-weight='700' "
+                        f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='10' font-weight='700' "
                         f"fill='{ch.INK}'>{r['payout']:.2f}%</text>")
         elif r["payout"] == 0:
             body.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='4' fill='{ch.RED}'/>")
         if i in label_idx:
             body.append(f"<text x='{x:.1f}' y='{h - 16}' text-anchor='middle' "
-                        f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{ch.SOFT}'>{_e(r['date'][5:])}</text>")
+                        f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='9' fill='{ch.SOFT}'>{_e(r['date'][5:])}</text>")
     svg = ch._svg(w, h, "".join(body))
     return svg.replace("<svg ", "<svg data-chart='payout-history' ", 1)
 
@@ -253,13 +253,13 @@ def _peer_tsr_distribution_svg(perf):
         f"<line data-zero-line='true' x1='{x0}' y1='{zero:.1f}' x2='{x1}' y2='{zero:.1f}' "
         f"stroke='{ch.INK}' stroke-width='1.4' opacity='.55'/>",
         f"<text x='{x1}' y='{zero - 7:.1f}' text-anchor='end' "
-        f"font-family=\"'JetBrains Mono',monospace\" font-size='10' fill='{ch.SOFT}'>0% TSR</text>",
+        f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='10' fill='{ch.SOFT}'>0% TSR</text>",
     ]
     for pct in (-100, -50, 0, 50, 100, 150, 200):
         y = sy(pct)
         body.append(f"<line x1='{x0}' y1='{y:.1f}' x2='{x1}' y2='{y:.1f}' stroke='{ch.GRID}'/>")
         body.append(f"<text x='{x0 - 8}' y='{y + 3:.1f}' text-anchor='end' "
-                    f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{ch.SOFT}'>{pct}%</text>")
+                    f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='9' fill='{ch.SOFT}'>{pct}%</text>")
     for i, r in enumerate(rows):
         val = float(r["tsr"]["return_pct"])
         x = x0 + i * (bw + gap)
@@ -274,13 +274,13 @@ def _peer_tsr_distribution_svg(perf):
                     f"height='{max(1, height):.1f}' rx='2' fill='{fill}' opacity='{opacity}'/>")
         if is_issuer:
             body.append(f"<text x='{x + bw / 2:.1f}' y='{min(y, y_neg) - 7:.1f}' text-anchor='middle' "
-                        f"font-family=\"'JetBrains Mono',monospace\" font-size='10' font-weight='800' "
+                        f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='10' font-weight='800' "
                         f"fill='{ch.CYAN2}'>Issuer highlighted</text>")
         if i % 2 == 0 or is_issuer:
             body.append(f"<text x='{x + bw / 2:.1f}' y='{h - 38}' transform='rotate(-45 {x + bw / 2:.1f} {h - 38})' "
-                        f"text-anchor='end' font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{ch.SOFT}'>{_e(r['ticker'])}</text>")
+                        f"text-anchor='end' font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='9' fill='{ch.SOFT}'>{_e(r['ticker'])}</text>")
     body.append(f"<text x='{(x0 + x1) / 2:.1f}' y='{h - 8}' text-anchor='middle' "
-                f"font-family=\"'JetBrains Mono',monospace\" font-size='10' fill='{ch.MUTED}'>Synthetic software index TSRs</text>")
+                f"font-family=\"ui-monospace,'SF Mono',Menlo,Consolas,monospace\" font-size='10' fill='{ch.MUTED}'>Synthetic software index TSRs</text>")
     svg = ch._svg(w, h, "".join(body))
     return svg.replace("<svg ", "<svg data-chart='peer-tsr-distribution' ", 1)
 
@@ -500,20 +500,20 @@ def main(argv=None):
 HTML = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><title>{title}</title>
 <style>
-:root {{ color-scheme: dark; --bg:#000; --panel:#071018; --line:rgba(141,177,206,.18);
-  --ink:#eef7ff; --muted:#8db1ce; --soft:#6d8294; --cyan:#1ba7ff; --cyan2:#48c7ff;
+:root {{ color-scheme: dark; --bg:#06131d; --panel:#0a1f2c; --panel2:#0f2a3e; --line:rgba(141,177,206,.16);
+  --ink:#eef7ff; --muted:#8db1ce; --soft:#8296ab; --cyan:#1ba7ff; --cyan2:#48c7ff;
   --green:#43d477; --red:#ff4d4f; --amber:#f7b955; --indigo:#7c8cff; }}
-* {{ box-sizing:border-box; }} body {{ margin:0; background:#000; color:var(--ink);
-  font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }}
-.mono {{ font-family:"JetBrains Mono", "SFMono-Regular", Consolas, monospace; }}
+* {{ box-sizing:border-box; }} body {{ margin:0; background:radial-gradient(1100px 420px at 78% -10%,rgba(27,167,255,.10),transparent 70%),var(--bg) color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }}
+.mono {{ font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace; }}
 header {{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; padding:30px 34px 18px;
-  border-bottom:1px solid var(--line); background:linear-gradient(180deg,#071018,#000); }}
+  border-bottom:1px solid var(--line); background:linear-gradient(180deg,#0f2a3e,#06131d); }}
 .brand {{ color:var(--cyan); font-size:13px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }}
 .brand span {{ color:#fff; }} h1 {{ margin:8px 0 8px; font-size:30px; line-height:1.05; letter-spacing:0; }}
 p {{ margin:0; color:var(--muted); }} .status {{ border:1px solid var(--amber); color:var(--amber);
   padding:8px 10px; border-radius:6px; font-size:12px; font-weight:800; text-transform:uppercase; }}
 .insight {{ margin:24px 34px; padding:18px 20px; border:1px solid rgba(27,167,255,.35);
-  background:#03131d; border-radius:8px; }} .insight p {{ color:var(--ink); font-size:16px; line-height:1.45; }}
+  background:#0a1f2c; border-radius:8px; }} .insight p {{ color:var(--ink); font-size:16px; line-height:1.45; }}
 .tag {{ color:var(--cyan2); font-size:12px; font-weight:800; text-transform:uppercase; margin-bottom:8px; }}
 .kpis {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:0 34px 18px; }}
 .kpi {{ min-height:120px; padding:16px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }}
@@ -530,7 +530,7 @@ table {{ width:100%; border-collapse:collapse; font-size:12px; }} th {{ text-ali
 .dist {{ display:grid; gap:8px; margin-top:12px; }} .dist div {{ display:flex; justify-content:space-between;
   gap:16px; padding:9px 10px; border:1px solid rgba(141,177,206,.12); border-radius:6px; }}
 .dist span {{ color:var(--muted); }} .method {{ margin:0 34px 34px; padding:18px 20px; border:1px solid var(--line);
-  border-radius:8px; background:#03070b; }} h2 {{ margin:0 0 10px; font-size:17px; }}
+  border-radius:8px; background:#071a26; }} h2 {{ margin:0 0 10px; font-size:17px; }}
 li {{ margin:8px 0; color:var(--muted); line-height:1.45; }}
 @media (max-width: 900px) {{ header,.kpis,main {{ display:block; }} .kpi,.tile {{ margin-bottom:12px; }} }}
 </style></head><body>{body}</body></html>

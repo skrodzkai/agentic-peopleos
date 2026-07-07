@@ -53,6 +53,19 @@ ok(c.forest_plot([{"group": "Women vs men", "adj": -1.2, "ci_lo": -2.5, "ci_hi":
 evil = "</text></svg><script>x</script>"
 ok("<script>" not in c.forest_plot([{"group": evil, "adj": 1.0, "ci_lo": -1.0, "ci_hi": 3.0, "raw": 2.0}]),
    "forest_plot escapes the group label")
+ok("<script>" not in c.forest_plot([{"group": "g", "adj": -1.0, "ci_lo": -2.0, "ci_hi": -0.5, "raw": -3.0}],
+                                    unit="</text><script>x</script>"),
+   "forest_plot escapes the unit (no markup injection via the axis unit suffix)")
+# point-only mode: a row with NO ci/raw must render a plain point, never raise (the documented default)
+_pt = c.forest_plot([{"group": "g", "adj": 0.1}])
+ok(_svg_ok(_pt), "forest_plot renders a CI-less row as a point-only estimate (no KeyError) under the default mode")
+ok(_svg_ok(c.forest_plot([{"group": "d", "adj": -0.6}], unit="", color_mode="direction", zero_label=None)),
+   "forest_plot point-only works in direction mode too")
+try:
+    c.forest_plot([{"group": "g", "adj": 0.1}], tick_step=0)
+    ok(False, "forest_plot(tick_step=0) should raise ValueError")
+except ValueError:
+    ok(True, "forest_plot(tick_step=0) raises a controlled ValueError (no raw ZeroDivisionError)")
 ok("<script>" not in c.percentile_strip(100, 0, 200, [(50, evil)], you_label=evil), "percentile_strip escapes labels")
 ok("<script>" not in c.histogram([1, 2], [evil, evil]), "histogram escapes bin labels")
 ok("<script>" not in c.waterfall([("Begin", 1, "total"), (evil, 1, "add"), ("End", 2, "total")]),

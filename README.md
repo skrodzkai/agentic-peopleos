@@ -1,20 +1,29 @@
 # Agentic PeopleOS
 
-**Operating discipline for agent-run People functions.**
+**Agents do the work. Humans own every decision. The ledger proves it.**
 
 [![CI](https://github.com/skrodzkai/agentic-peopleos/actions/workflows/ci.yml/badge.svg)](https://github.com/skrodzkai/agentic-peopleos/actions/workflows/ci.yml)
 
-Most of an HR back office is judgment applied to repeatable process — sourcing, screening,
-onboarding, comp analysis, performance paperwork, policy questions, compliance. That's work a
-well-governed fleet of AI agents can do. Agentic PeopleOS is the operating layer that makes it
-trustworthy enough for a real company: every agent has a role, a budget, an audit trail, a
-performance review, and hard limits — and a human owns every consequential decision.
+Most of an HR back office is judgment applied to repeatable process — sourcing, screening, onboarding,
+comp analysis, performance paperwork, compliance. A well-governed fleet of AI agents can do that work;
+the hard part is running the fleet **safely and auditably**. Agentic PeopleOS is that operating layer: a
+working system for an agent-run People function — **fifteen dashboard-rendering reference agents** across
+People Analytics, Executive Compensation, Total Rewards, and retention-risk ML, every one built on the same governance
+spine — a **hash-chained decision ledger**, **role-scoped human approvals**, **injection-safe content**,
+and a **fail-closed compute engine**. The agents are the easy part. The spine is the point.
 
-This repo is the sanitized, reusable skeleton of that operating system — no secrets, no live
-systems, no proprietary logic.
+> Built by [@skrodzkai](https://github.com/skrodzkai) — a senior Total Rewards leader and hands-on AI
+> systems engineer who designs and operates a 30+ agent production fleet. Not a product, not a pitch —
+> [say hi](https://github.com/skrodzkai) if this is your kind of problem.
 
-> Built by [@skrodzkai](https://github.com/skrodzkai) — a senior Total Rewards leader and
-> hands-on AI systems engineer building the operating system for an agent-run People function.
+**[Take the 60-second visual tour →](https://skrodzkai.github.io/agentic-peopleos/)** — every dashboard,
+the spine, and what each control prevents. Or run the whole governed loop locally:
+
+```bash
+python3 examples/visible-handoff/run.py    # request → recommendation → human ✅ → gated publish
+```
+
+![How Agentic PeopleOS stays governed — the arms recommend, the governance spine mediates, an entitled human approves, and only then does the gated action run; every step a hash-chained ledger row.](docs/assets/system-diagram.svg)
 
 ---
 
@@ -218,6 +227,36 @@ and a human gate — applied to merit, bonus, promotion, and equity refreshers c
   budget are **illustrative** placeholders a real cycle calibrates; the workforce is synthetic; the agent
   renders and governs — it does no allocation math and authorizes no pay.
 
+## The retention arm — governed glass-box ML
+
+Where the reporting arms compose known metrics, the **retention arm** ships a *model* — and treats it as a
+governance problem first. It renders a **segment-first, glass-box hazard model** for voluntary-exit risk as
+a committee planning instrument, from the shared retention engine
+([`foundation/compute/retention.py`](foundation/compute/retention.py)).
+
+- **[Retention Risk — Committee View](examples/retention-risk/)** — a discrete-time monthly hazard model (a
+  pure-Python, L2-regularized logistic fit, Platt-calibrated, evaluated **out-of-time** on the future
+  relative to training) rendered as a dashboard that **performs its own trustworthiness**: model-vs-observed
+  segment risk is computed two ways — the model's calibrated **bottom-up** vs the empirical Kaplan-Meier
+  **top-down** — and the **disagreement is plotted in red, never averaged away** (Customer Success reads
+  18.3% where history shows 3.3%, and the dashboard *shows* it). Every metric appears **beside its no-skill
+  baseline** (on a ~1.8%/mo event honest numbers look small — so PR-AUC 0.078 sits next to the 0.018 base
+  rate, top-decile lift **4.6×**, 76 of 900 flags real); a **realism guard fails the build** if the model
+  looks implausibly perfect, and three **planted decoy features** rank #15/#17/#23 of 23 as a legible
+  leakage tripwire. The glass-box drivers are the model's **exact additive log-odds** (unvested equity and
+  comp-ratio protect; stale raises/promotions and manager-team churn push), labeled *associational, not
+  causal*. It reconstructs the *published* model from its **pinned manifest** (no re-fit), so the committed
+  dashboard reproduces the model's metrics in CI. The agent reads every number from the engine, renders and
+  governs, and stops at a human publish gate — it does no model fitting or source-metric computation, and
+  **surfaces no individual score** (outputs are segment-level and barred from adverse action).
+
+**Segment-first, by construction.** There is **no per-employee score, no name, no leaderboard** anywhere on
+this surface; regions are broad-only, small segments are suppressed (floor n ≥ 30), and fairness ships as a
+**visibly unchecked checklist** — a governed system shows its unfinished edges. The
+[retention-risk model card](governance/retention-risk-model-card.md) is the binding contract: this is a
+**planning signal, never an adverse-action input** (never a termination, pay, or performance trigger), and
+voluntary exits only (involuntary and retirement are competing-risk censored).
+
 ## Portable skills — point your agent at real SEC data
 
 Three **portable, standard-library agent skills** ([`skills/`](skills/)) — copy them into any agent's skills
@@ -327,8 +366,8 @@ This is a set of conventions and templates, not a runtime or an SDK. Bring your
 own LLM client and scheduler. The reference pattern is intentionally simple:
 plain files, plain Python, explicit budgets, and visible audit trails.
 
-The patterns here are proven: the same operating system runs a 30+ agent autonomous fleet
-in production today.
+**[The 60-second visual tour →](https://skrodzkai.github.io/agentic-peopleos/)** — the dashboards, the
+governance spine, and what each control prevents, on one page.
 
 ## License
 

@@ -6,7 +6,7 @@
 2. **recommendation** — the TA-reporting agent computes the report (reusing the
    `ta-reporting` example so the numbers are real) and posts it as a draft **requiring
    approval**, with cited evidence (`requires_approval: true`, `scope: publish.ta_report`).
-3. **approval** — a human reacts ✅. The system adjudicates entitlement via the registry and
+3. **approval** — a human reacts ✓. The system adjudicates entitlement via the registry and
    records an `approval` event (`decision`, `entitled`, `by`, `scope`, bound to the
    recommendation by `causation_id`).
 4. **action** — only on an entitled `approved`, the reporter publishes. The `action` event is

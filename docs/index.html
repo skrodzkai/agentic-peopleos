@@ -1,0 +1,458 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic PeopleOS — an agent-run People function, governed</title>
+<meta name="description" content="Agents do the work. Humans own every decision. The ledger proves it. Agentic PeopleOS is the operating system for an agent-run People function — fifteen reference agents across analytics, executive compensation, total rewards, and retention-risk ML, all built on one governance spine.">
+<meta property="og:title" content="Agentic PeopleOS — an agent-run People function, governed">
+<meta property="og:description" content="Agents do the work. Humans own every decision. The ledger proves it. A working reference operating system for an agent-run People function.">
+<meta property="og:image" content="https://skrodzkai.github.io/agentic-peopleos/assets/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://skrodzkai.github.io/agentic-peopleos/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://skrodzkai.github.io/agentic-peopleos/assets/og-card.png">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#06131d">
+<style>
+  :root{
+    --bg:#06131d; --bg-deep:#050f18;
+    --panel-hi:rgba(15,42,62,.55); --panel-lo:rgba(10,31,44,.85);
+    --line:#14364a; --line-bright:rgba(27,167,255,.35); --edge-light:rgba(219,231,243,.07);
+    --text:#dbe7f0; --text-bright:#eef7ff; --muted:#8db1ce; --soft:#8296ab;
+    --cyan:#1ba7ff; --green:#43d477; --amber:#f7b955; --red:#ff4d4f;
+    --r-sm:8px; --r-md:12px; --r-lg:16px;
+    --shadow-card:inset 0 1px 0 var(--edge-light),0 8px 24px -12px rgba(2,8,14,.5);
+    --shadow-lift:inset 0 1px 0 var(--edge-light),0 16px 40px -16px rgba(2,8,14,.65);
+    --shadow-shot:0 24px 48px -24px rgba(0,0,0,.6);
+    --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:radial-gradient(1100px 560px at 50% -80px,rgba(27,167,255,.13),transparent 62%),
+       radial-gradient(900px 480px at 82% 18%,rgba(67,212,119,.045),transparent 60%),var(--bg);
+       background-repeat:no-repeat;color:var(--text);font-family:var(--sans);margin:0;
+       -webkit-font-smoothing:antialiased;line-height:1.55;overflow-x:hidden}
+  img{max-width:100%;display:block}
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  ::selection{background:rgba(27,167,255,.28);color:#eaf3fb}
+  a:focus-visible,.btn:focus-visible,.viewfull:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:4px}
+  section{scroll-margin-top:72px}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition-duration:.01ms!important}}
+
+  /* kicker labels — the dashboards' section-label voice */
+  .kicker{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;letter-spacing:.22em;
+          text-transform:uppercase;color:var(--cyan);margin:0 0 12px}
+  .kicker::before{content:"";width:20px;height:1px;flex:0 0 auto;background:linear-gradient(90deg,var(--cyan),transparent)}
+
+  .card{background:linear-gradient(180deg,var(--panel-hi) 0%,var(--panel-lo) 100%);border:1px solid var(--line);
+        border-radius:var(--r-lg);box-shadow:var(--shadow-card);
+        transition:border-color .2s ease,transform .2s ease,box-shadow .2s ease}
+
+  section{padding-top:120px}
+  section:first-of-type{padding-top:0}
+  h2{font-size:clamp(26px,3.4vw,38px);line-height:1.12;font-weight:700;margin:0 0 14px;
+     letter-spacing:-.015em;color:var(--text-bright);text-wrap:balance}
+  h3{font-size:20px;font-weight:700;margin:0 0 10px;color:var(--text-bright)}
+  .lead{color:var(--muted);font-size:17px;line-height:1.6;max-width:66ch;margin:0 0 36px;text-wrap:pretty}
+
+  /* ---- top bar ---- */
+  .topbar{position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(20,54,74,.85);
+          background:rgba(6,19,29,.72);backdrop-filter:blur(14px) saturate(1.5);-webkit-backdrop-filter:blur(14px) saturate(1.5)}
+  .topbar .wrap{display:flex;align-items:center;justify-content:space-between;
+                height:56px;font-family:var(--mono);font-size:13px}
+  .wordmark{font-weight:700;letter-spacing:.02em;color:var(--text-bright)}
+  .wordmark .os{color:var(--cyan)}
+  .brandmark{display:flex;align-items:center;gap:9px}
+  .logomark{height:24px;width:auto;display:block;flex:0 0 auto}
+  .hero-logo{height:72px;width:auto;display:block;margin:0 auto 14px}
+  .hero-wordmark{font-weight:800;font-size:22px;letter-spacing:.01em;color:var(--text-bright);margin:0 0 26px}
+  .hero-wordmark .os{color:var(--cyan)}
+  .topbar .links{display:flex;gap:20px;color:var(--muted)}
+  .topbar .links a{color:var(--muted);transition:color .15s ease}
+  .topbar .links a:hover{color:var(--text-bright);text-decoration:none}
+
+  /* ---- hero ---- */
+  .hero{position:relative;z-index:0;overflow:hidden;min-height:78vh;display:flex;flex-direction:column;justify-content:center;
+        align-items:center;text-align:center;padding-top:80px;padding-bottom:24px}
+  .hero::before{content:"";position:absolute;inset:-40px -80px 10%;z-index:-1;
+        background-image:radial-gradient(rgba(219,231,243,.055) 1px,transparent 1.5px);background-size:26px 26px;
+        -webkit-mask-image:radial-gradient(ellipse 62% 52% at 50% 38%,#000 25%,transparent 74%);
+        mask-image:radial-gradient(ellipse 62% 52% at 50% 38%,#000 25%,transparent 74%);pointer-events:none}
+  .hero .kicker{display:inline-flex;justify-content:center;margin:0 auto 28px;padding:7px 16px;font-size:11px;
+        letter-spacing:.18em;border:1px solid rgba(27,167,255,.28);background:rgba(27,167,255,.07);border-radius:999px}
+  .hero .kicker::before{display:none}
+  .hero h1{font-size:clamp(38px,6vw,62px);line-height:1.06;font-weight:700;margin:0 0 22px;
+           letter-spacing:-.025em;color:var(--text-bright);text-wrap:balance}
+  .hero h1 span{text-shadow:0 0 28px rgba(27,167,255,.38)}
+  .hero .sub{color:var(--muted);font-size:18px;line-height:1.6;max-width:62ch;margin:0 auto 32px}
+  .chips{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:0 0 36px}
+  .chip{display:inline-flex;align-items:baseline;gap:7px;font-family:var(--mono);font-size:12px;
+        background:linear-gradient(180deg,rgba(15,42,62,.5),rgba(10,31,44,.8));
+        border:1px solid var(--line);border-radius:999px;padding:9px 16px;color:var(--muted);
+        box-shadow:inset 0 1px 0 var(--edge-light);transition:border-color .2s ease}
+  .chip:hover{border-color:var(--line-bright)}
+  .chip b{font-weight:700;font-size:16px;color:var(--text-bright);font-variant-numeric:tabular-nums}
+  .cta-row{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;align-items:center}
+  .btn{font-family:var(--sans);font-size:15px;font-weight:700;letter-spacing:.01em;padding:12px 24px;
+       border-radius:var(--r-md);border:1px solid rgba(255,255,255,.16);
+       background:linear-gradient(180deg,#4fc3ff 0%,#1b9ff0 100%);color:#04141f;
+       box-shadow:inset 0 1px 0 rgba(255,255,255,.30),0 8px 24px -8px rgba(27,167,255,.50);
+       transition:transform .15s ease,box-shadow .15s ease,filter .15s ease}
+  .btn:hover{filter:brightness(1.06);transform:translateY(-1px);text-decoration:none;
+             box-shadow:inset 0 1px 0 rgba(255,255,255,.30),0 12px 30px -8px rgba(27,167,255,.60)}
+  .btn:active{transform:translateY(0)}
+  .codechip{font-family:var(--mono);font-size:13px;background:var(--bg-deep);
+            border:1px solid var(--line);border-radius:var(--r-md);padding:12px 18px;color:var(--text);
+            box-shadow:inset 0 1px 0 rgba(219,231,243,.04)}
+  .codechip::before{content:"$ ";color:var(--muted)}
+  .cta-cap{font-family:var(--mono);color:var(--muted);font-size:12.5px;margin:14px 0 0}
+
+  /* ---- diagram ---- */
+  .diagram-card{padding:24px}
+
+  /* ---- spine cards ---- */
+  .spine-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+  .spine-card{grid-column:span 2;padding:24px;display:flex;flex-direction:column}
+  .spine-card:nth-child(4),.spine-card:nth-child(5){grid-column:span 3}
+  .spine-card:hover{border-color:var(--line-bright);transform:translateY(-2px);box-shadow:var(--shadow-lift)}
+  .spine-card .name{font-size:17px;font-weight:700;margin:0 0 6px;color:var(--text-bright)}
+  .spine-card .what{color:var(--muted);font-size:14px;margin:0 0 16px}
+  .prevents-label{font-family:var(--mono);font-size:11px;letter-spacing:.22em;
+                  text-transform:uppercase;color:var(--amber);margin:0 0 5px}
+  .prevents-body{font-size:13.5px;color:var(--text);margin:0 0 16px}
+  .filepath{font-family:var(--mono);font-size:12px;color:var(--cyan);background:rgba(27,167,255,.08);
+            border:1px solid rgba(27,167,255,.18);border-radius:var(--r-sm);padding:4px 10px;
+            align-self:flex-start;margin-top:auto}
+
+  /* proof strip */
+  .proof{margin-top:40px;padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+  .proof>*{min-width:0}                 /* grid items may shrink below their content's intrinsic width (long <pre>) */
+  .proof .cap{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin:12px 0 0}
+  .proof img{border-radius:var(--r-md);border:1px solid var(--line)}
+  pre{font-family:var(--mono);font-size:13px;background:var(--bg-deep);border:1px solid var(--line);max-width:100%;
+      border-radius:var(--r-md);padding:18px 20px;overflow-x:auto;color:var(--text);margin:14px 0 0;line-height:1.7;
+      box-shadow:inset 0 1px 0 rgba(219,231,243,.04);tab-size:2}
+
+  /* ---- gallery ---- */
+  .shot-card{padding:24px;margin-bottom:56px}
+  .shot-head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:12px}
+  .numchip{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 8px;
+           font-family:var(--mono);font-size:13px;font-weight:700;color:var(--cyan);
+           background:rgba(27,167,255,.08);border:1px solid rgba(27,167,255,.35);border-radius:var(--r-sm);
+           font-variant-numeric:tabular-nums}
+  .shot-title{font-size:24px;font-weight:700;letter-spacing:-.01em;color:var(--text-bright)}
+  .armchip{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--muted);
+           border:1px solid var(--line);border-radius:999px;padding:4px 12px;text-transform:uppercase;
+           background:rgba(10,27,41,.6)}
+  .armchip.amber{color:var(--amber);border-color:rgba(247,185,85,.5)}
+  .armchip.green{color:var(--green);border-color:rgba(67,212,119,.5)}
+  .shot-cap{color:var(--muted);font-size:15px;line-height:1.65;margin:0 0 20px;max-width:80ch}
+  .shot{max-height:640px;overflow:hidden;position:relative;border-radius:var(--r-md);border:1px solid var(--line);
+        padding-top:36px;background:#0f2a3e;box-shadow:var(--shadow-shot);transition:border-color .2s ease}
+  .shot:hover{border-color:var(--line-bright)}
+  .shot::before{content:"";position:absolute;top:0;left:0;right:0;height:36px;border-bottom:1px solid var(--line);
+        background-image:radial-gradient(circle at 20px 18px,#2c4b63 0 5px,transparent 5.5px),
+        radial-gradient(circle at 40px 18px,#2c4b63 0 5px,transparent 5.5px),
+        radial-gradient(circle at 60px 18px,#2c4b63 0 5px,transparent 5.5px)}
+  .shot::after{content:"";position:absolute;left:0;right:0;bottom:0;height:140px;
+               background:linear-gradient(to bottom,rgba(6,19,29,0),var(--bg));pointer-events:none}
+  .shot .viewfull{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:2;
+                  font-family:var(--mono);font-size:13px;background:rgba(10,27,41,.92);
+                  border:1px solid var(--line);border-radius:999px;padding:8px 18px;color:var(--cyan);
+                  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+                  box-shadow:0 8px 20px -8px rgba(0,0,0,.5);transition:border-color .15s ease,color .15s ease}
+  .shot .viewfull:hover{text-decoration:none;border-color:var(--cyan)}
+  .gallery-foot{font-family:var(--mono);font-size:13px;color:var(--muted);text-align:center;
+                margin-top:8px;max-width:90ch;margin-left:auto;margin-right:auto;line-height:1.7}
+
+  /* ---- run it ---- */
+  .runit{padding:32px;position:relative;overflow:hidden}
+  .runit::before{content:"";position:absolute;inset:0;pointer-events:none;
+                 background:radial-gradient(480px 200px at 12% 0%,rgba(27,167,255,.09),transparent 70%)}
+  .runit h3{font-size:24px;letter-spacing:-.01em}
+  .runit .note{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin:14px 0 0}
+
+  /* ---- about ---- */
+  .about-body{max-width:68ch}
+  .about-body p{font-size:16px;margin:0 0 18px}
+  .sayhi{font-family:var(--mono);color:var(--cyan)}
+
+  /* ---- footer ---- */
+  footer{margin-top:120px;border-top:0;position:relative;padding:40px 0 56px}
+  footer::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;
+                 background:linear-gradient(90deg,transparent,#1e4058 18%,#1e4058 82%,transparent)}
+  .honesty{color:var(--muted);font-size:13px;max-width:78ch;margin:0 0 16px;line-height:1.7}
+  .foot-right{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+
+  /* ---- lightbox (optional, page works without JS) ---- */
+  #lightbox{display:none;position:fixed;inset:0;z-index:100;background:rgba(4,12,19,.9);
+            backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+            padding:32px;overflow:auto;cursor:zoom-out}
+  #lightbox.open{display:block}
+  #lightbox img{max-width:1000px;margin:0 auto;border-radius:var(--r-md);border:1px solid var(--line);
+                box-shadow:0 32px 80px -24px rgba(0,0,0,.8)}
+
+  @media (max-width:720px){
+    section{padding-top:64px}
+    footer{margin-top:64px}
+    /* topbar: wrap + shrink so the repo URL never overflows a 375px viewport */
+    .topbar .wrap{flex-wrap:wrap;height:auto;padding-top:9px;padding-bottom:9px;gap:2px 12px}
+    .topbar .links{font-size:11px;gap:12px;min-width:0;flex:1 1 auto}
+    .topbar .links a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:56vw}
+    /* mobile containment: clamp the hero glow's side-bleed + let command blocks wrap so nothing widens the document */
+    .hero::before{inset:-24px 0 10%}
+    pre{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+    .hero{padding-top:48px}
+    .hero .sub{font-size:16px}
+    .spine-grid{grid-template-columns:1fr}
+    .spine-card,.spine-card:nth-child(4),.spine-card:nth-child(5){grid-column:auto}
+    .proof{grid-template-columns:1fr}
+    .shot{max-height:420px}
+  }
+</style>
+
+<!-- ============ SECTION 0 — TOP BAR ============ -->
+<div class="topbar">
+  <div class="wrap">
+    <span class="brandmark"><svg class="logomark" viewBox="36 12 118 107" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Agentic PeopleOS"><g fill="none" stroke-linejoin="round" shape-rendering="geometricPrecision"><path d="M102.50 94.00 C102.50 95.00 102.50 96.00 102.50 97.00 C102.50 104.80 111.10 108.20 121.60 108.40 C133.50 108.60 142.50 103.60 143.80 96.10 C145.00 89.00 140.20 84.20 132.00 79.70 C125.20 76.00 116.70 71.60 114.50 64.40 C112.30 57.10 117.20 50.40 124.90 49.00 C132.70 47.60 139.60 51.20 142.20 55.70" stroke="#1ba7ff" stroke-width="10.5" stroke-linecap="round"/><path d="M46.5 101.5 C46.5 99.5 46.5 98.0 46.5 97.0 C47.0 73.7 54.1 57.5 68.4 52.8 C72.2 51.55 76.8 51.55 80.6 52.8 C94.9 57.5 102.0 73.7 102.5 97" stroke="#E7F0FA" stroke-width="10.5" stroke-linecap="butt"/><circle cx="46.5" cy="101.5" r="5.25" fill="#E7F0FA" stroke="none"/><circle cx="74.5" cy="36.8" r="14.6" stroke="#1ba7ff" stroke-width="9.3"/></g></svg><span class="wordmark">Agentic People<span class="os">OS</span></span></span>
+    <span class="links">
+      <a href="https://github.com/skrodzkai/agentic-peopleos">github.com/skrodzkai/agentic-peopleos</a>
+      <a href="https://github.com/skrodzkai/agentic-peopleos/blob/main/LICENSE">MIT</a>
+    </span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ SECTION 1 — HERO ============ -->
+  <section class="hero" id="top">
+    <svg class="hero-logo" viewBox="36 12 118 107" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Agentic PeopleOS"><g fill="none" stroke-linejoin="round" shape-rendering="geometricPrecision"><path d="M102.50 94.00 C102.50 95.00 102.50 96.00 102.50 97.00 C102.50 104.80 111.10 108.20 121.60 108.40 C133.50 108.60 142.50 103.60 143.80 96.10 C145.00 89.00 140.20 84.20 132.00 79.70 C125.20 76.00 116.70 71.60 114.50 64.40 C112.30 57.10 117.20 50.40 124.90 49.00 C132.70 47.60 139.60 51.20 142.20 55.70" stroke="#1ba7ff" stroke-width="10.5" stroke-linecap="round"/><path d="M46.5 101.5 C46.5 99.5 46.5 98.0 46.5 97.0 C47.0 73.7 54.1 57.5 68.4 52.8 C72.2 51.55 76.8 51.55 80.6 52.8 C94.9 57.5 102.0 73.7 102.5 97" stroke="#E7F0FA" stroke-width="10.5" stroke-linecap="butt"/><circle cx="46.5" cy="101.5" r="5.25" fill="#E7F0FA" stroke="none"/><circle cx="74.5" cy="36.8" r="14.6" stroke="#1ba7ff" stroke-width="9.3"/></g></svg>
+    <div class="hero-wordmark">Agentic People<span class="os">OS</span></div>
+    <p class="kicker">A working reference system · Synthetic data · Real controls</p>
+    <h1>Agents do the work.<br>Humans own every decision.<br><span style="color:var(--cyan)">The ledger proves it.</span></h1>
+    <p class="sub">Agentic PeopleOS is the operating system for an agent-run People function — fifteen reference agents across analytics, executive compensation, total rewards, and retention-risk ML, all built on one governance spine: a hash-chained decision ledger, role-scoped human approvals, injection-safe content, and a fail-closed engine. The agents are the easy part. The spine is the point.</p>
+    <div class="chips">
+      <span class="chip"><b>15</b> rendered dashboards, one shared engine</span>
+      <span class="chip"><b style="color:var(--cyan)">72</b> governed metrics, defined once</span>
+      <span class="chip"><b style="color:var(--amber)">5</b> attack classes caught in evals</span>
+      <span class="chip"><b style="color:var(--green)">0</b> ungated consequential actions</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn" href="https://github.com/skrodzkai/agentic-peopleos">View the system on GitHub →</a>
+      <span class="codechip">python3 examples/visible-handoff/run.py</span>
+    </div>
+    <p class="cta-cap">request → recommendation → human <span style="color:var(--green)">✓</span> → gated publish, every step a hash-chained row.</p>
+  </section>
+
+  <!-- ============ SECTION 2 — SYSTEM DIAGRAM ============ -->
+  <section>
+    <p class="kicker">The operating system</p>
+    <h2>One spine under every arm</h2>
+    <p class="lead">Every arm produces recommendations, never actions. Everything routes through the spine; nothing consequential runs until an entitled human approves — and the ledger can prove, later, that it really happened that way.</p>
+    <div class="card diagram-card">
+      <img src="assets/system-diagram.svg" alt="How Agentic PeopleOS stays governed: the arms recommend, the governance spine mediates, an entitled human approves, and only then does the gated action run — every step written to a hash-chained ledger.">
+    </div>
+  </section>
+
+  <!-- ============ SECTION 3 — THE GOVERNANCE SPINE ============ -->
+  <section>
+    <p class="kicker">The differentiator</p>
+    <h2>Five controls, each tied to the bad thing it prevents</h2>
+    <p class="lead">"Governed" is asserted on every AI-for-HR slide. Here it's demonstrated: each control below is working code in this repo, with an eval that attacks it and a ledger you can re-verify yourself.</p>
+
+    <div class="spine-grid">
+      <div class="card spine-card">
+        <p class="name">Hash-chained decision ledger</p>
+        <p class="what">An append-only, replayable JSONL record of every request, recommendation, approval, and action.</p>
+        <p class="prevents-label">Prevents</p>
+        <p class="prevents-body">History editing, forged or out-of-order approvals, and decision laundering — an action with no genuine approval behind it.</p>
+        <span class="filepath">core/event_log.py</span>
+      </div>
+      <div class="card spine-card">
+        <p class="name">Role-scoped approval registry</p>
+        <p class="what">Approval satisfied by a pool: any one entitled HR human; entitlement is re-derived on replay, never trusted from the log.</p>
+        <p class="prevents-label">Prevents</p>
+        <p class="prevents-body">A bot, an imposter, or a non-entitled colleague "approving" — and the opposite failure, one person's PTO blocking every decision.</p>
+        <span class="filepath">core/approval_registry.py</span>
+      </div>
+      <div class="card spine-card">
+        <p class="name">Injection-safe content</p>
+        <p class="what">Only provenance-trusted policy is authoritative.</p>
+        <p class="prevents-label">Prevents</p>
+        <p class="prevents-body">A pasted note or channel message smuggling in an instruction or an "approval." A chat message can never approve anything.</p>
+        <span class="filepath">core/content.py</span>
+      </div>
+      <div class="card spine-card">
+        <p class="name">Fail-closed compute</p>
+        <p class="what">One shared engine does all metric math; it has no method that could change a salary, rating, or record, and returns <code>data_pending</code> when a source isn't modeled.</p>
+        <p class="prevents-label">Prevents</p>
+        <p class="prevents-body">Fabricated numbers and quiet write-access. An agent that can't verify the world is safe stops rather than acting blind.</p>
+        <span class="filepath">foundation/compute/engine.py</span>
+      </div>
+      <div class="card spine-card">
+        <p class="name">Human gate by construction</p>
+        <p class="what">Agents recommend; the gated action cannot execute before an entitled human's recorded approval.</p>
+        <p class="prevents-label">Prevents</p>
+        <p class="prevents-body">Any consequential action without a named human owner. Not a policy — a control flow.</p>
+        <span class="filepath">examples/visible-handoff/run.py</span>
+      </div>
+    </div>
+
+    <div class="card proof">
+      <div>
+        <a href="assets/ledger-proof.png" target="_blank" rel="noopener" data-lightbox>
+          <img src="assets/ledger-proof.png" alt="The rendered decision ledger: request, recommendation, human approval, and gated action as a verified hash chain." loading="lazy">
+        </a>
+        <p class="cap">the actual ledger render: request → recommendation → human approval → gated action, chain verified.</p>
+      </div>
+      <div>
+        <h3>Attack it yourself</h3>
+        <p style="color:var(--muted);font-size:15px;margin:0">The eval suite forges an approval, replays a bot as a human, duplicates a reaction, injects instructions through content, and tampers with a ledger row — all five are caught.</p>
+        <pre>python3 examples/visible-handoff/run.py
+python3 examples/visible-handoff/evals/test_handoff.py
+python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
+    --registry examples/visible-handoff/approval_registry.json</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 4 — THE ARMS GALLERY ============ -->
+  <section>
+    <p class="kicker">The arms</p>
+    <h2>What the fleet actually ships</h2>
+    <p class="lead">Every dashboard below is rendered by this repo — one deterministic SVG toolkit, one compute engine, synthetic Acme Corp data (the exec-comp peer universe and proxy pay are real, SEC-disclosed public figures). Note the badge in every top-right corner: nothing here publishes itself.</p>
+
+    <!-- 01 -->
+    <div class="card shot-card">
+      <div class="shot-head">
+        <span class="numchip">01</span>
+        <span class="shot-title">People Intelligence — Executive View</span>
+        <span class="armchip">Analytics Arm</span>
+        <span class="armchip amber">★ the marquee</span>
+      </div>
+      <p class="shot-cap">The one page a CEO actually reads: Revenue per FTE against the SaaS market, the headcount bridge, operating leverage, pay positioning, attrition hotspots, org shape, and the 9-box — every number computed once in the shared engine and cited to the metric registry. Top-right corner: DRAFT · AWAITING PUBLISH APPROVAL. It stays a draft until a human owns it.</p>
+      <div class="shot">
+        <a href="assets/people-intelligence.png" target="_blank" rel="noopener" data-lightbox>
+          <img src="assets/people-intelligence.png" alt="People Intelligence executive dashboard" loading="lazy">
+        </a>
+        <a class="viewfull" href="assets/people-intelligence.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
+      </div>
+    </div>
+
+    <!-- 02 -->
+    <div class="card shot-card">
+      <div class="shot-head">
+        <span class="numchip">02</span>
+        <span class="shot-title">ISS vs Glass Lewis — Say-on-Pay War Room</span>
+        <span class="armchip">Executive Comp Arm</span>
+      </div>
+      <p class="shot-cap">Two proxy-advisor reconstructions scoring the same pay — and disagreeing. Glass Lewis's five-test scorecard reads Low; ISS's TSR-centric lens reads Medium: an ISS-only flag. The two-pole counterfactual (pay-vs-TSR-only ≈ Severe, financials-only ≈ Negligible) shows exactly why the lenses diverge — the read a comp committee needs before the vote.</p>
+      <div class="shot">
+        <a href="assets/glass-lewis-war-room.png" target="_blank" rel="noopener" data-lightbox>
+          <img src="assets/glass-lewis-war-room.png" alt="ISS vs Glass Lewis say-on-pay war room dashboard" loading="lazy">
+        </a>
+        <a class="viewfull" href="assets/glass-lewis-war-room.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
+      </div>
+    </div>
+
+    <!-- 03 -->
+    <div class="card shot-card">
+      <div class="shot-head">
+        <span class="numchip">03</span>
+        <span class="shot-title">Company-Wide Equity Spend & Burn</span>
+        <span class="armchip">Executive Comp Arm</span>
+      </div>
+      <p class="shot-cap">The board deliverable a VP of Total Rewards owns every quarter: SBC as a share of revenue, value-adjusted burn against the industry cap, overhang, pool longevity — the pool funds ~2.8 more years — and where the equity actually goes, executives through broad-based staff.</p>
+      <div class="shot">
+        <a href="assets/equity-spend.png" target="_blank" rel="noopener" data-lightbox>
+          <img src="assets/equity-spend.png" alt="Company-wide equity spend and burn dashboard" loading="lazy">
+        </a>
+        <a class="viewfull" href="assets/equity-spend.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
+      </div>
+    </div>
+
+    <!-- 04 -->
+    <div class="card shot-card">
+      <div class="shot-head">
+        <span class="numchip">04</span>
+        <span class="shot-title">Merit & Comp-Cycle Planning</span>
+        <span class="armchip">Total Rewards Arm</span>
+      </div>
+      <p class="shot-cap">The annual cycle, rendered: a merit budget allocated through a performance × compa-ratio matrix, the bonus pool, promotions, and equity refreshers. The loop closes: refreshers are emitted as append-valid rows in the equity ledger's schema, so next quarter's board burn already carries this cycle's grants.</p>
+      <div class="shot">
+        <a href="assets/merit-comp.png" target="_blank" rel="noopener" data-lightbox>
+          <img src="assets/merit-comp.png" alt="Merit and comp-cycle planning dashboard" loading="lazy">
+        </a>
+        <a class="viewfull" href="assets/merit-comp.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
+      </div>
+    </div>
+
+    <!-- 05 — retention (governed glass-box ML) -->
+    <div class="card shot-card">
+      <div class="shot-head">
+        <span class="numchip">05</span>
+        <span class="shot-title">Retention Risk — governed glass-box ML</span>
+        <span class="armchip">Retention Arm</span>
+        <span class="armchip green">★ governed ML</span>
+      </div>
+      <p class="shot-cap">A segment-first hazard model that <em>performs</em> its own trustworthiness: model-vs-observed disagreement plotted in red (never averaged away), every metric printed beside its no-skill baseline, three planted decoy features ranked #15/#17/#23 as a leakage tripwire, and fairness shipped as a visibly unchecked checklist. Governance-first — the <a href="https://github.com/skrodzkai/agentic-peopleos/blob/main/governance/retention-risk-model-card.md" target="_blank" rel="noopener">model card</a> sets the prohibited uses (never an input to termination or individual pay) before the dashboard renders. No individual score is ever surfaced or published.</p>
+      <div class="shot">
+        <a href="assets/retention-risk.png" target="_blank" rel="noopener" data-lightbox>
+          <img src="assets/retention-risk.png" alt="Retention Risk committee dashboard — a segment-first glass-box hazard model" loading="lazy">
+        </a>
+        <a class="viewfull" href="assets/retention-risk.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
+      </div>
+    </div>
+
+    <p class="gallery-foot">…and ten more: headcount · attrition · people-ops · operating review · peer builder · benchmarking · rTSR PSU · ISS pay screen · TA reporting · comp reporting — all rendered, all in <a href="https://github.com/skrodzkai/agentic-peopleos/tree/main/examples">examples/ ↗</a></p>
+  </section>
+
+  <!-- ============ SECTION 5 — RUN IT ============ -->
+  <section>
+    <div class="card runit">
+      <h3>Clone it, attack it, verify it</h3>
+      <pre>python3 examples/visible-handoff/run.py
+python3 examples/visible-handoff/evals/test_handoff.py
+python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
+    --registry examples/visible-handoff/approval_registry.json</pre>
+      <p class="note">Python 3, standard library. No API keys, no vendors, no telemetry.</p>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 6 — ABOUT THE BUILDER ============ -->
+  <section>
+    <p class="kicker">Who builds this</p>
+    <h2>Built from inside the function</h2>
+    <div class="about-body">
+      <p>The person behind it runs Total Rewards, and has lived in the problems these dashboards model — executive compensation, equity and burn, the merit cycle, and the proxy-advisor lens a committee has to anticipate. It's a reference system on synthetic data; nothing is drawn from any employer's data, systems, or process.</p>
+      <p>The same operating discipline runs a 30+ agent autonomous fleet in the background. This repo is the sanitized skeleton of what keeps that safe: every agent with a role, a budget, and an audit trail, and a human owning every consequential call.</p>
+      <p>The point is narrow: "governed" is something you can show — in code, in evals, in a ledger you can re-verify — not assert on a slide. Nothing here is for sale and nobody's looking for anything; <a class="sayhi" href="https://github.com/skrodzkai">say hi → github.com/skrodzkai</a> if you're working on the same problem.</p>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 7 — FOOTER / honesty strip ============ -->
+  <footer>
+    <p class="honesty">Synthetic Acme Corp data throughout, except the executive-comp peer universe and proxy-pay figures, which are real, public, SEC-disclosed data with documented provenance — an illustrative, dated snapshot. The ISS and Glass Lewis models are illustrative reconstructions from public methodology, not affiliated with and not the output of either firm. No secrets, no live systems, no proprietary logic. MIT license.</p>
+    <p class="foot-right">Agentic PeopleOS · <a href="https://github.com/skrodzkai/agentic-peopleos">github.com/skrodzkai/agentic-peopleos</a></p>
+  </footer>
+
+</div>
+
+<!-- optional image lightbox — the page is fully functional without this -->
+<div id="lightbox" aria-hidden="true"><img alt=""></div>
+<script>
+  (function(){
+    var lb=document.getElementById('lightbox'),img=lb.querySelector('img');
+    document.querySelectorAll('[data-lightbox]').forEach(function(a){
+      a.addEventListener('click',function(e){
+        e.preventDefault();img.src=a.getAttribute('href');lb.classList.add('open');
+      });
+    });
+    lb.addEventListener('click',function(){lb.classList.remove('open');img.src='';});
+    document.addEventListener('keydown',function(e){
+      if(e.key==='Escape'){lb.classList.remove('open');img.src='';}
+    });
+  })();
+</script>

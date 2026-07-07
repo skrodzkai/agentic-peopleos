@@ -55,6 +55,11 @@ REQUIRED_OUTPUTS = [
                "merit-comp-planning", "ta-reporting", "comp-reporting")
     for a in _STD_OUTPUTS
 ] + [
+    # retention-risk uses a committee-digest (not the day1-digest tuple above) — enumerate it explicitly so a
+    # deleted retention output can't shrink the glob set and slip the deletion-resistant gate
+    "examples/retention-risk/output/report.sample.html",
+    "examples/retention-risk/output/report.sample.png",
+    "examples/retention-risk/output/committee-digest.sample.md",
     "examples/merit-comp-planning/output/equity_refresh_grants.sample.csv",   # the equity-handoff artifact
     "examples/operating-review/output/decision.sample.events.jsonl",
     "examples/visible-handoff/output/ledger.sample.html",

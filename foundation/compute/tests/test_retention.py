@@ -649,6 +649,74 @@ raises(R.ModelError, lambda: R.segment_risk(rows[:-1], model, calib, design, sli
 raises(R.ModelError, lambda: R.segment_risk(list(reversed(rows)), model, calib, design, slices),
        "segment_risk fails closed on a same-length but reordered panel (identity guard, not just length)")
 
+# --- company-level committee rollups (helpers the committee dashboard formats; the engine does the math) ---
+_cr = R.company_risk(rows, model, calib, design, slices, horizon=6)
+ok(set(_cr) == {"bottom_up", "top_down", "gap", "n_employees", "n_rows", "horizon_months", "months_observed"},
+   "company_risk returns the full rollup shape (incl. months_observed)")
+ok(_cr["months_observed"] == len({rows[i][R.INDEX_COL] for i in slices["test"]}),
+   "company_risk reports the distinct observed test-month count")
+raises(R.ModelError, lambda: R.company_risk(rows, model, calib, design, slices, horizon=99),
+       "company_risk rejects a horizon beyond the observed test window (no silent truncation + mislabel)")
+ok(0.0 <= _cr["bottom_up"] <= 1.0 and 0.0 <= _cr["top_down"] <= 1.0,
+   "company_risk model + empirical 6-mo risks are valid probabilities")
+ok(abs(round(_cr["bottom_up"] - _cr["top_down"], 6) - _cr["gap"]) < 1e-9,
+   "company_risk gap is exactly bottom-up minus top-down (surfaced, never hidden)")
+ok(_cr["n_rows"] == len(slices["test"]), "company_risk covers the whole out-of-time test slice")
+_seg_bu = [s["bottom_up_6mo"] for segs in seg.values() for s in segs if not s.get("suppressed")]
+ok(min(_seg_bu) <= _cr["bottom_up"] <= max(_seg_bu),
+   "the company aggregate lies within the segment spread (a blend, not a hand-average)")
+ok(R.company_risk(rows, model, calib, design, slices, horizon=6) == _cr, "company_risk is deterministic")
+raises(R.ModelError, lambda: R.company_risk(list(reversed(rows)), model, calib, design, slices),
+       "company_risk fails closed on a reordered panel (identity guard)")
+for _bad in (0, -1, 6.0, None):
+    raises(R.ModelError, lambda b=_bad: R.company_risk(rows, model, calib, design, slices, horizon=b),
+           f"company_risk rejects a horizon of {_bad!r}")
+
+# tier_counts: thresholds on calibration, person-months bucketed on test; never leaks a person
+_tc = R.tier_counts(model, calib, design, slices)
+ok(set(_tc["counts"]) == {"low", "elevated", "high"}, "tier_counts returns the three support tiers")
+ok(sum(_tc["counts"].values()) == len(slices["test"]) == _tc["n_rows"],
+   "every test person-month is bucketed into exactly one tier")
+ok(0.0 <= _tc["thresholds"]["elevated"] <= _tc["thresholds"]["high"] <= 1.0,
+   "the tier thresholds are ordered probabilities (elevated <= high)")
+_bands = R.risk_bands([R.calibrated_probability(model, calib, design["X"][i]) for i in slices["calibration"]])
+ok(_tc["thresholds"] == _bands, "tier_counts sets its thresholds on the CALIBRATION slice (no test leakage)")
+
+# company_survival: a monotone survival curve; S at the observed-window end == company bottom-up (panels agree)
+_cs = R.company_survival(model, calib, design, slices, max_h=12, median_h=18)
+ok(len(_cs["survival"]) == 12 and all(0.0 <= s <= 1.0 for s in _cs["survival"]),
+   "company_survival returns a 12-month S(t) of valid probabilities")
+ok(all(_cs["survival"][i] >= _cs["survival"][i + 1] - 1e-12 for i in range(11)),
+   "survival is monotone non-increasing")
+ok(all(abs((1 - _cs["survival"][i]) - _cs["p_exit"][i]) < 1e-9 for i in range(12)),
+   "p_exit is exactly 1 - survival")
+ok(abs((1 - _cs["survival"][5]) - _cr["bottom_up"]) < 1e-9,
+   "S at the 6-month observed-window end equals company_risk bottom-up (the survival + beacon panels agree)")
+ok(_cs["median_months"] is None or isinstance(_cs["median_months"], int),
+   "the median time-to-exit is an int or the sentinel None ('not reached')")
+for _bad in (0, -1, 12.0, None):
+    raises(R.ModelError, lambda b=_bad: R.company_survival(model, calib, design, slices, max_h=b),
+           f"company_survival rejects a max_h of {_bad!r}")
+
+# model_from_manifest is a TRUSTED-manifest loader: it fails closed on panel drift + malformed fitted fields,
+# but by design does NOT re-verify coefficient reproducibility (that is check_reproducible / `retention.py
+# validate`). Cover the fail-closed guards it DOES enforce (previously uncovered by negative-path tests).
+import copy as _c9  # noqa: E402
+_mani = R.load_manifest()
+R.model_from_manifest(_mani)                          # the committed manifest matches the committed panel — loads clean
+_bad_hash = _c9.deepcopy(_mani); _bad_hash["panel_data_hash"] = "0" * 64
+raises(R.ModelError, lambda: R.model_from_manifest(_bad_hash),
+       "model_from_manifest rejects a manifest whose panel_data_hash != the on-disk panel (panel drift)")
+_bad_cal = _c9.deepcopy(_mani); _bad_cal["primary_calibration"]["a"] = float("nan")
+raises((R.ModelError, R.ManifestError), lambda: R.model_from_manifest(_bad_cal, panel_path=None),
+       "model_from_manifest fails closed on a non-finite Platt calibration parameter")
+_bad_band = _c9.deepcopy(_mani); _bad_band["risk_band_thresholds"] = {"elevated": 0.03}
+raises((R.ModelError, R.ManifestError), lambda: R.model_from_manifest(_bad_band, panel_path=None),
+       "model_from_manifest fails closed on malformed risk-band thresholds (missing 'high')")
+_bad_pc = _c9.deepcopy(_mani); del _bad_pc["primary_coefficients"]["pos_weight"]
+raises((R.ModelError, R.ManifestError), lambda: R.model_from_manifest(_bad_pc, panel_path=None),
+       "model_from_manifest fails closed when the fitted primary model is missing a required field")
+
 print(f"OK — {CHECKS} retention Increment 0+1+2+3+4 checks passed "
       f"(contract + feature builder + glass-box hazard + eval/realism-guard + segment layer; {len(rows)} "
       f"person-months, {len(names)} design features, voluntary={ev['voluntary']}; test AUC={E['roc_auc']:.3f}, "

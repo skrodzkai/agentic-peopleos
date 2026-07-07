@@ -6,6 +6,10 @@ JavaScript, no external libraries, no network. Same inputs -> identical bytes (s
 dashboard can be byte-diffed in CI). Dark "skrodzkai" palette baked in to match the arm.
 
 This module draws; it does not compute. Geometry only.
+
+Palette-parity contract: the hex constants below EQUAL the dashboard CSS design tokens
+(see foundation/render/dashboard.py) byte-for-byte, so every SVG mark reads as native to the
+navy-glass panel it sits on. Fonts are system stacks only — no bundled/web fonts.
 """
 from __future__ import annotations
 
@@ -13,19 +17,21 @@ import hashlib
 import html
 import re
 
-# --- skrodzkai dark palette (explicit hex so SVG gradients render identically in screenshot + CI) ---
-BG = "#000000"
+# --- navy-glass palette (explicit hex == the dashboard CSS tokens, so SVG renders identically in screenshot + CI) ---
+BG = "#0a1f2c"       # panel base — knockout fills/strokes so marks read as rings/cutouts on glass panels
 INK = "#eef7ff"
 MUTED = "#8db1ce"
-SOFT = "#6d8294"
+SOFT = "#8296ab"
 CYAN = "#1ba7ff"
 CYAN2 = "#48c7ff"
 GREEN = "#43d477"
 RED = "#ff4d4f"
 AMBER = "#f7b955"
 INDIGO = "#7c8cff"
-GRID = "rgba(141,177,206,.14)"
+GRID = "rgba(141,177,206,.16)"
 TRACK = "rgba(255,255,255,.06)"
+MONO = "ui-monospace,'SF Mono',Menlo,Consolas,monospace"
+SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
 
 
 def _esc(v) -> str:
@@ -134,24 +140,24 @@ def percentile_strip(value, lo, hi, ticks, target=None, you_label="You",
     b.append(f"<rect x='{x0}' y='{ty - bar/2}' width='{x1 - x0}' height='{bar}' rx='{bar/2}' "
              f"fill='url(#{track})' opacity='.92'/>")
     # end labels
-    b.append(f"<text x='{x0}' y='{ty - bar/2 - 9}' font-family=\"'JetBrains Mono',monospace\" "
+    b.append(f"<text x='{x0}' y='{ty - bar/2 - 9}' font-family=\"{MONO}\" "
              f"font-size='10.5' fill='{SOFT}'>{_esc(fmt(lo))}</text>")
     b.append(f"<text x='{x1}' y='{ty - bar/2 - 9}' text-anchor='end' "
-             f"font-family=\"'JetBrains Mono',monospace\" font-size='10.5' fill='{SOFT}'>{_esc(fmt(hi))}</text>")
+             f"font-family=\"{MONO}\" font-size='10.5' fill='{SOFT}'>{_esc(fmt(hi))}</text>")
     # ticks
     for tv, tl in ticks:
         xx = X(tv)
         b.append(f"<line x1='{_f(xx)}' y1='{ty - bar/2 - 5}' x2='{_f(xx)}' y2='{ty + bar/2 + 5}' "
                  f"stroke='{SOFT}' stroke-width='1'/>")
         b.append(f"<text x='{_f(xx)}' y='{ty + bar/2 + 20}' text-anchor='middle' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='10' fill='{MUTED}'>{_esc(tl)}</text>")
+                 f"font-family=\"{MONO}\" font-size='10' fill='{MUTED}'>{_esc(tl)}</text>")
     # target
     if target is not None:
         tx = X(target)
         b.append(f"<line x1='{_f(tx)}' y1='{ty - bar/2 - 13}' x2='{_f(tx)}' y2='{ty + bar/2 + 8}' "
                  f"stroke='{AMBER}' stroke-width='2' stroke-dasharray='3 3'/>")
         b.append(f"<text x='{_f(tx)}' y='{ty - bar/2 - 17}' text-anchor='middle' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='10.5' font-weight='700' "
+                 f"font-family=\"{MONO}\" font-size='10.5' font-weight='700' "
                  f"fill='{AMBER}'>target {_esc(fmt(target))}</text>")
     # you needle
     yx = X(value)
@@ -161,10 +167,10 @@ def percentile_strip(value, lo, hi, ticks, target=None, you_label="You",
              f"<line x1='{_f(yx)}' y1='{ty - bar/2 - 2}' x2='{_f(yx)}' y2='{ty + bar/2 + 2}' "
              f"stroke='#fff' stroke-width='3'/>"
              f"<circle cx='{_f(yx)}' cy='{ty}' r='7.5' fill='#fff' stroke='{CYAN}' stroke-width='3'/></g>")
-    b.append(f"<rect x='{_f(fx)}' y='{ty + bar/2 + 8}' width='{fw}' height='23' rx='6' fill='#06222f' "
-             f"stroke='{CYAN}' stroke-width='1'/>")
+    b.append(f"<rect x='{_f(fx)}' y='{ty + bar/2 + 8}' width='{fw}' height='23' rx='6' fill='#08283a' "
+             f"stroke='rgba(27,167,255,.55)' stroke-width='1'/>")
     b.append(f"<text x='{_f(fx + fw/2)}' y='{ty + bar/2 + 23}' text-anchor='middle' "
-             f"font-family=\"'JetBrains Mono',monospace\" font-size='11' font-weight='700' "
+             f"font-family=\"{MONO}\" font-size='11' font-weight='700' "
              f"fill='{CYAN2}'>{_esc(you_label)} · {_esc(fmt(value))}</text>")
     return _svg(w, h, "".join(b))
 
@@ -202,7 +208,7 @@ def waterfall(steps) -> str:
         gv = round(g)
         b.append(f"<line x1='{mL}' y1='{_f(Y(gv))}' x2='{w - mR}' y2='{_f(Y(gv))}' stroke='{GRID}'/>")
         b.append(f"<text x='{mL - 6}' y='{_f(Y(gv) + 3)}' text-anchor='end' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='9.5' fill='{SOFT}'>{gv}</text>")
+                 f"font-family=\"{MONO}\" font-size='9.5' fill='{SOFT}'>{gv}</text>")
         g += gstep
     run = 0
     for i, (label, v, k) in enumerate(steps):
@@ -220,7 +226,7 @@ def waterfall(steps) -> str:
         hgt = max(bot - top, 2)
         b.append(f"<rect x='{_f(x)}' y='{_f(top)}' width='{_f(bw)}' height='{_f(hgt)}' rx='3' fill='{fill}'/>")
         b.append(f"<text x='{_f(cx)}' y='{_f(top - 5)}' text-anchor='middle' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='9.5' font-weight='700' "
+                 f"font-family=\"{MONO}\" font-size='9.5' font-weight='700' "
                  f"fill='{INK if k == 'total' else fill}'>{_esc(lab)}</text>")
         if k != "total" and i < n - 1:
             yrun = Y(run)
@@ -228,7 +234,7 @@ def waterfall(steps) -> str:
             b.append(f"<line x1='{_f(cx + bw/2)}' y1='{_f(yrun)}' x2='{_f(nx)}' y2='{_f(yrun)}' "
                      f"stroke='{SOFT}' stroke-width='1' stroke-dasharray='2 2'/>")
         b.append(f"<text x='{_f(cx)}' y='{h - 12}' text-anchor='middle' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='9.5' fill='{MUTED}'>{_esc(label)}</text>")
+                 f"font-family=\"{MONO}\" font-size='9.5' fill='{MUTED}'>{_esc(label)}</text>")
     return _svg(w, h, "".join(b))
 
 
@@ -260,12 +266,12 @@ def dual_axis_line(labels, left, right, left_fmt=lambda v: f"${v}", right_fmt=la
         v = (llo - lpad) + (lhi + lpad - (llo - lpad)) * t / 4
         b.append(f"<line x1='{mL}' y1='{_f(Yl(v))}' x2='{w - mR}' y2='{_f(Yl(v))}' stroke='{GRID}'/>")
         b.append(f"<text x='{mL - 6}' y='{_f(Yl(v) + 3)}' text-anchor='end' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{SOFT}'>{_esc(left_fmt(int(round(v))))}</text>")
+                 f"font-family=\"{MONO}\" font-size='9' fill='{SOFT}'>{_esc(left_fmt(int(round(v))))}</text>")
     # right axis labels
     for t in range(4):
         v = (rlo - rpad) + (rhi + rpad - (rlo - rpad)) * t / 3
         b.append(f"<text x='{w - mR + 6}' y='{_f(Yr(v) + 3)}' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{INDIGO}'>{_esc(right_fmt(int(round(v))))}</text>")
+                 f"font-family=\"{MONO}\" font-size='9' fill='{INDIGO}'>{_esc(right_fmt(int(round(v))))}</text>")
     # right (headcount) dashed
     dh = "M" + " L".join(f"{_f(X(i))} {_f(Yr(v))}" for i, v in enumerate(right))
     b.append(f"<path d='{dh}' fill='none' stroke='{INDIGO}' stroke-width='2' stroke-dasharray='5 4' opacity='.85'/>")
@@ -278,9 +284,9 @@ def dual_axis_line(labels, left, right, left_fmt=lambda v: f"${v}", right_fmt=la
         b.append(f"<circle cx='{_f(X(i))}' cy='{_f(Yl(v))}' r='3' fill='{BG}' stroke='{CYAN}' stroke-width='2'/>")
         if i % 2 == 0 or i == len(labels) - 1:
             b.append(f"<text x='{_f(X(i))}' y='{h - 10}' text-anchor='middle' "
-                     f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{MUTED}'>{_esc(labels[i])}</text>")
+                     f"font-family=\"{MONO}\" font-size='9' fill='{MUTED}'>{_esc(labels[i])}</text>")
     b.append(f"<text x='{_f(X(len(left)-1))}' y='{_f(Yl(left[-1]) - 9)}' text-anchor='end' "
-             f"font-family=\"'JetBrains Mono',monospace\" font-size='10' font-weight='700' "
+             f"font-family=\"{MONO}\" font-size='10' font-weight='700' "
              f"fill='{CYAN2}'>{_esc(left_fmt(left[-1]))}</text>")
     return _svg(w, h, "".join(b))
 
@@ -306,18 +312,18 @@ def histogram(bins, labels, highlight=None, sub_first=False) -> str:
     b = []
     for i, v in enumerate(bins):
         x = mL + i * (bw + gap)
-        fill = _safe_color(highlight.get(i, GREEN if not sub_first else CYAN))   # allowlist caller color
+        fill = _safe_color(highlight.get(i, CYAN))   # allowlist caller color; neutral series = cyan (green is never default)
         if sub_first and i == 0:
             fill = RED
         yt = Y(v)
         hgt = max(mT + plotH - yt, 1)
         op = ".96" if i in highlight or (sub_first and i == 0) else ".82"
-        b.append(f"<rect x='{_f(x)}' y='{_f(yt)}' width='{_f(bw)}' height='{_f(hgt)}' rx='2.5' "
+        b.append(f"<rect x='{_f(x)}' y='{_f(yt)}' width='{_f(bw)}' height='{_f(hgt)}' rx='3' "
                  f"fill='{fill}' opacity='{op}'/>")
         b.append(f"<text x='{_f(x + bw/2)}' y='{_f(yt - 5)}' text-anchor='middle' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{MUTED}'>{_esc(_trim(v))}</text>")
+                 f"font-family=\"{MONO}\" font-size='9' fill='{MUTED}'>{_esc(_trim(v))}</text>")
         b.append(f"<text x='{_f(x + bw/2)}' y='{h - 24}' text-anchor='middle' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='8.5' fill='{SOFT}'>{_esc(labels[i])}</text>")
+                 f"font-family=\"{MONO}\" font-size='8.5' fill='{SOFT}'>{_esc(labels[i])}</text>")
     return _svg(w, h, "".join(b))
 
 
@@ -325,52 +331,97 @@ def _trim(v):
     return int(v) if float(v).is_integer() else v
 
 
-# ============================================================ forest plot (adjusted pay gap)
-def forest_plot(rows, lo=-9, hi=3) -> str:
-    """Effect-size-with-uncertainty. rows: list of dict(group, adj, ci_lo, ci_hi, raw).
-    A point estimate + 95% CI whisker; a ghost 'raw' marker; red when the CI excludes parity (0)."""
+# ============================================================ forest plot (effect size / segment / driver)
+def _forest_color(d, mode) -> str:
+    """Row color for a forest row. 'significance' (the pay-gap default) = RED when the CI excludes 0;
+    'direction' = GREEN for a protective (adj<0) effect, RED for a risk-raising one; 'flag' = RED when the
+    row carries a truthy 'flag' (e.g. a reconciliation gap), else CYAN."""
+    if mode == "direction":
+        return GREEN if d["adj"] < 0 else RED
+    if mode == "flag":
+        return RED if d.get("flag") else CYAN
+    # significance (default): a row is "significant" only if it carries a CI that excludes 0. A row with no
+    # CI is a plain point (never raises) — the documented point-only mode works under the default too.
+    if "ci_lo" in d and "ci_hi" in d:
+        return RED if (d["ci_lo"] > 0 or d["ci_hi"] < 0) else CYAN
+    return CYAN
+
+
+def forest_plot(rows, lo=-9, hi=3, *,
+                unit="%", zero_label="parity (0%)", ghost_label="raw", color_mode="significance",
+                tick_step=2, label_w=138, value_fmt=None) -> str:
+    """Effect-size-with-uncertainty rows on a shared axis. In the default (pay-gap) mode each row is a point
+    estimate + 95% CI whisker + a ghost 'raw' marker, colored red when the CI excludes parity (0). The
+    keyword-only params generalize it — every default reproduces the pay-gap rendering byte-for-byte:
+
+      * unit        — tick/value suffix ("" for log-odds).
+      * zero_label  — center reference-line label; None suppresses the line entirely (e.g. a 0..hi risk axis).
+      * ghost_label — prefix for the ghost marker; a row WITHOUT a 'raw' key draws no ghost.
+      * color_mode  — 'significance' (CI excludes 0 -> RED), 'direction' (adj<0 GREEN / adj>=0 RED),
+                      or 'flag' (row['flag'] truthy -> RED else CYAN).
+      * tick_step / label_w — axis tick spacing and the left label-gutter width.
+      * value_fmt   — optional callable(adj)->str overriding the right-edge value text.
+
+    Optional per-row keys: 'flag' (bool, for color_mode='flag'), 'sub' (a small soft second line under the
+    right-edge value, e.g. a signed gap), and 'raw' (omit to draw no ghost). A degenerate/absent interval
+    (no ci keys, or ci_lo == ci_hi) renders as a point only. rows: list of
+    dict(group, adj[, ci_lo, ci_hi, raw, flag, sub])."""
     w = 560
+    unit = _esc(unit)                                             # escape once — interpolated raw into tick/ghost/value text below
+    if not tick_step:                                            # a controlled error, never a raw ZeroDivisionError in the tick loop
+        raise ValueError("forest_plot: tick_step must be non-zero")
     rows = list(rows)
     if not rows:
         return _svg(w, 56, "")
     h = 56 + 46 * len(rows)
-    mL, mR, mT, mB = 138, 60, 20, 30
+    mL, mR, mT, mB = label_w, 60, 20, 30
     plotW, plotH = w - mL - mR, h - mT - mB
     X = _scale(lo, hi, mL, w - mR)
     rh = plotH / len(rows)
     b = []
-    # parity line
-    b.append(f"<line x1='{_f(X(0))}' y1='{mT - 4}' x2='{_f(X(0))}' y2='{mT + plotH}' "
-             f"stroke='{MUTED}' stroke-width='1.4'/>")
-    b.append(f"<text x='{_f(X(0))}' y='{mT - 8}' text-anchor='middle' "
-             f"font-family=\"'JetBrains Mono',monospace\" font-size='9.5' font-weight='700' "
-             f"fill='{MUTED}'>parity (0%)</text>")
-    tick = lo
-    while tick <= hi:
+    # center reference line (parity / no-effect) — suppressed when zero_label is None
+    if zero_label is not None:
+        b.append(f"<line x1='{_f(X(0))}' y1='{mT - 4}' x2='{_f(X(0))}' y2='{mT + plotH}' "
+                 f"stroke='{MUTED}' stroke-width='1.4'/>")
+        b.append(f"<text x='{_f(X(0))}' y='{mT - 8}' text-anchor='middle' "
+                 f"font-family=\"{MONO}\" font-size='9.5' font-weight='700' "
+                 f"fill='{MUTED}'>{_esc(zero_label)}</text>")
+    n_ticks = int(round((hi - lo) / tick_step))                   # integer count avoids float-accumulation drift
+    for k in range(n_ticks + 1):
+        tick = lo + k * tick_step
+        tv = round(tick, 6)
+        tv = int(tv) if float(tv).is_integer() else tv
         b.append(f"<line x1='{_f(X(tick))}' y1='{mT + plotH}' x2='{_f(X(tick))}' y2='{mT + plotH + 4}' stroke='{SOFT}'/>")
         b.append(f"<text x='{_f(X(tick))}' y='{h - 12}' text-anchor='middle' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{SOFT}'>{tick}%</text>")
-        tick += 2
+                 f"font-family=\"{MONO}\" font-size='9' fill='{SOFT}'>{tv}{unit}</text>")
     for i, d in enumerate(rows):
         cy = mT + rh * i + rh / 2
-        sig = d["ci_lo"] > 0 or d["ci_hi"] < 0
-        col = RED if sig else CYAN
+        col = _forest_color(d, color_mode)
         b.append(f"<text x='{mL - 12}' y='{_f(cy + 3)}' text-anchor='end' "
-                 f"font-family='Inter,sans-serif' font-size='11.5' fill='{INK}'>{_esc(d['group'])}</text>")
-        # raw ghost
-        b.append(f"<circle cx='{_f(X(d['raw']))}' cy='{_f(cy)}' r='4.5' fill='{SOFT}' opacity='.7'/>")
-        b.append(f"<text x='{_f(X(d['raw']))}' y='{_f(cy - 9)}' text-anchor='middle' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='8.5' fill='{SOFT}'>raw {_esc(d['raw'])}%</text>")
-        # CI whisker
-        b.append(f"<line x1='{_f(X(d['ci_lo']))}' y1='{_f(cy)}' x2='{_f(X(d['ci_hi']))}' y2='{_f(cy)}' "
-                 f"stroke='{col}' stroke-width='2'/>")
-        for e in (d["ci_lo"], d["ci_hi"]):
-            b.append(f"<line x1='{_f(X(e))}' y1='{_f(cy - 5)}' x2='{_f(X(e))}' y2='{_f(cy + 5)}' "
+                 f"font-family=\"{SANS}\" font-size='11.5' fill='{INK}'>{_esc(d['group'])}</text>")
+        # ghost 'raw'/observed marker (only when the row carries a 'raw' value)
+        if "raw" in d:
+            b.append(f"<circle cx='{_f(X(d['raw']))}' cy='{_f(cy)}' r='4.5' fill='{SOFT}' opacity='.7'/>")
+            b.append(f"<text x='{_f(X(d['raw']))}' y='{_f(cy - 9)}' text-anchor='middle' "
+                     f"font-family=\"{MONO}\" font-size='8.5' fill='{SOFT}'>{_esc(ghost_label)} {_esc(d['raw'])}{unit}</text>")
+        # CI whisker (skipped for a degenerate/absent interval -> a point-only estimate)
+        if "ci_lo" in d and "ci_hi" in d and d["ci_lo"] != d["ci_hi"]:
+            b.append(f"<line x1='{_f(X(d['ci_lo']))}' y1='{_f(cy)}' x2='{_f(X(d['ci_hi']))}' y2='{_f(cy)}' "
                      f"stroke='{col}' stroke-width='2'/>")
-        # adjusted point
+            for e in (d["ci_lo"], d["ci_hi"]):
+                b.append(f"<line x1='{_f(X(e))}' y1='{_f(cy - 5)}' x2='{_f(X(e))}' y2='{_f(cy + 5)}' "
+                         f"stroke='{col}' stroke-width='2'/>")
+        # point estimate
         b.append(f"<circle cx='{_f(X(d['adj']))}' cy='{_f(cy)}' r='5.5' fill='{col}' stroke='{BG}' stroke-width='1.5'/>")
-        b.append(f"<text x='{w - mR + 8}' y='{_f(cy + 3)}' font-family=\"'JetBrains Mono',monospace\" "
-                 f"font-size='10.5' font-weight='700' fill='{col}'>{'+' if d['adj'] > 0 else ''}{_esc(d['adj'])}%</text>")
+        if value_fmt:
+            val_txt = _esc(value_fmt(d["adj"]))                   # escape a caller-formatted string (attr/markup sink)
+        else:
+            val_txt = f"{'+' if d['adj'] > 0 else ''}{_esc(d['adj'])}{unit}"
+        b.append(f"<text x='{w - mR + 8}' y='{_f(cy + 3)}' font-family=\"{MONO}\" "
+                 f"font-size='10.5' font-weight='700' fill='{col}'>{val_txt}</text>")
+        if d.get("sub"):
+            b.append(f"<text x='{w - mR + 8}' y='{_f(cy + 14)}' font-family=\"{MONO}\" "
+                     f"font-size='8.5' fill='{SOFT}'>{_esc(d['sub'])}</text>")
     return _svg(w, h, "".join(b))
 
 
@@ -404,24 +455,24 @@ def heatmap_9box(matrix, row_labels=("High", "Med", "Low"), col_labels=("Low", "
             b.append(f"<circle cx='{_f(x + cell/2)}' cy='{_f(y + ch/2 - 5)}' r='{_f(br)}' "
                      f"fill='{CYAN}' opacity='{_f(0.18 + t*0.5, 2)}'/>")
             b.append(f"<text x='{_f(x + cell/2)}' y='{_f(y + ch/2)}' text-anchor='middle' "
-                     f"font-family='Inter,sans-serif' font-size='16' font-weight='700' fill='{INK}'>{cnt}</text>")
+                     f"font-family=\"{SANS}\" font-size='16' font-weight='700' fill='{INK}'>{cnt}</text>")
             b.append(f"<text x='{_f(x + cell/2)}' y='{_f(y + ch/2 + 15)}' text-anchor='middle' "
-                     f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{MUTED}'>{_f(100*cnt/total,0)}%</text>")
+                     f"font-family=\"{MONO}\" font-size='9' fill='{MUTED}'>{_f(100*cnt/total,0)}%</text>")
             if (r, c) in labels:
-                b.append(f"<text x='{_f(x + 7)}' y='{_f(y + 13)}' font-family=\"'JetBrains Mono',monospace\" "
+                b.append(f"<text x='{_f(x + 7)}' y='{_f(y + 13)}' font-family=\"{MONO}\" "
                          f"font-size='8.5' font-weight='700' fill='{CYAN2 if star else SOFT}'>{_esc(labels[(r,c)])}</text>")
     gw = 3 * cell + 2 * gap
     gh = 3 * ch + 2 * gap
     b.append(f"<text x='{_f(mL + gw/2)}' y='{_f(mT + gh + 24)}' text-anchor='middle' "
-             f"font-family=\"'JetBrains Mono',monospace\" font-size='10' font-weight='700' fill='{MUTED}'>Performance →</text>")
+             f"font-family=\"{MONO}\" font-size='10' font-weight='700' fill='{MUTED}'>Performance →</text>")
     b.append(f"<text x='16' y='{_f(mT + gh/2)}' text-anchor='middle' transform='rotate(-90 16 {_f(mT + gh/2)})' "
-             f"font-family=\"'JetBrains Mono',monospace\" font-size='10' font-weight='700' fill='{MUTED}'>Potential →</text>")
+             f"font-family=\"{MONO}\" font-size='10' font-weight='700' fill='{MUTED}'>Potential →</text>")
     for i, t in enumerate(col_labels):
         b.append(f"<text x='{_f(mL + i*(cell+gap) + cell/2)}' y='{_f(mT + gh + 11)}' text-anchor='middle' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{SOFT}'>{_esc(t)}</text>")
+                 f"font-family=\"{MONO}\" font-size='9' fill='{SOFT}'>{_esc(t)}</text>")
     for i, t in enumerate(row_labels):
         b.append(f"<text x='{mL - 8}' y='{_f(mT + i*(ch+gap) + ch/2)}' text-anchor='end' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='9' fill='{SOFT}'>{_esc(t)}</text>")
+                 f"font-family=\"{MONO}\" font-size='9' fill='{SOFT}'>{_esc(t)}</text>")
     return _svg(w, h, "".join(b))
 
 
@@ -455,7 +506,7 @@ def org_diamond(rows, mgr_color=CYAN, ic_color="#345a7d"):
         if mh > 0.4:                                       # manager core
             b.append(f"<rect x='{_f(cx-mh)}' y='{_f(y)}' width='{_f(mh*2)}' height='{rowh}' rx='2' fill='{mgr_color}'/>")
         b.append(f"<text x='{mL-10}' y='{_f(y+rowh/2+3)}' text-anchor='end' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='10' font-weight='700' fill='{MUTED}'>{_esc(label)}</text>")
+                 f"font-family=\"{MONO}\" font-size='10' font-weight='700' fill='{MUTED}'>{_esc(label)}</text>")
         b.append(f"<text x='{_f(cx+fh+7)}' y='{_f(y+rowh/2+3)}' "
-                 f"font-family=\"'JetBrains Mono',monospace\" font-size='9.5' fill='{SOFT}'>{_esc(total)}</text>")
+                 f"font-family=\"{MONO}\" font-size='9.5' fill='{SOFT}'>{_esc(total)}</text>")
     return _svg(w, h, "".join(b))

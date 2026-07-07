@@ -1,0 +1,32 @@
+# Tools the retention-risk agent is allowed to use.
+# Note what's ABSENT: no "send"/"publish" tool, no write access to any system of record, and nothing
+# that could act on an individual.
+
+tools:
+  - name: retention_engine_read
+    access: read-only
+    description: >
+      Reconstructs the PUBLISHED glass-box hazard model from its pinned manifest (model_from_manifest —
+      no re-fit) and reads out-of-time metrics (evaluate), two-way segment risk (segment_risk +
+      reconciliation_summary), and company rollups (company_risk / tier_counts / company_survival) from
+      the retention engine (foundation/compute/retention.py), which is itself read-only over the
+      synthetic panel. The agent performs no model fitting and computes no source metric of its own — it
+      formats engine statistics and the plain display ratios between them.
+
+  - name: chart_toolkit
+    access: pure-render
+    description: >
+      Draws the dashboard with the deterministic, stdlib SVG toolkit (foundation/render/charts.py).
+      Pure functions string -> SVG; no data access, no IO, no network.
+
+  - name: report_writer
+    access: write-local
+    description: >
+      Renders the committee dashboard (HTML) and the digest (Markdown) to the local output/ directory.
+      Produces drafts only.
+
+# Intentionally NOT granted:
+#   - email / Slack / "publish" — a human owns distribution (publish gate)
+#   - any write access to the HRIS / comp system — this agent only reads the model
+#   - any "decide" or per-employee capability — the agent surfaces SEGMENTS + levers; humans decide,
+#     and no individual is ever scored, named, or acted on from this surface

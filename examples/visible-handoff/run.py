@@ -3,7 +3,7 @@
 
 A coordinator agent asks the TA-reporting agent for the weekly report. The reporter
 posts a *recommendation* with cited evidence to #people-analytics and stops. An
-**entitled** human approves with a ✅. Only then does the gated action (publish) run.
+**entitled** human approves with a ✓. Only then does the gated action (publish) run.
 Every step is one row in a hash-chained ledger; the chat is just the human-readable
 surface.
 
@@ -110,7 +110,7 @@ def run_handoff(out_dir=OUT, *, approver_id="hr.business-partner", inject=False,
             entitled, areason = reg.can_approve(approver_id, SCOPE)
             member, mreason = reg.can_react(approver_id, CHANNEL)
             if member:  # a non-member can't react in the channel at all (surface ACL)
-                chat.react(rec_msg, _actor(reg, approver_id), "✅", ts=T[3])
+                chat.react(rec_msg, _actor(reg, approver_id), "✓", ts=T[3])
             d = "approved" if (entitled and member) else "denied"
             reason = areason if not entitled else (mreason if not member else "entitled channel member")
             ev = log.append({"ts": T[3], "actor": _actor(reg, approver_id), "channel": CHANNEL,
@@ -131,7 +131,7 @@ def run_handoff(out_dir=OUT, *, approver_id="hr.business-partner", inject=False,
     if decision == "approved":
         who = _actor(reg, approver_id)["display"]
         chat.post(CHANNEL, reporter, type="action", case_ref=CASE, ts=T[4],
-                  text=f"Approved by {who} — publishing the weekly TA digest. ✅")
+                  text=f"Approved by {who} — publishing the weekly TA digest. ✓")
         log.append({"ts": T[4], "actor": reporter, "channel": CHANNEL, "type": "action",
                     "case_ref": CASE, "correlation_id": CASE, "gated": True, "scope": SCOPE,
                     "causation_id": approval_event["event_id"],

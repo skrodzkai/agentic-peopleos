@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="dt">
+<title id="dt">Agentic PeopleOS — arms, governance spine, human gate</title>
+<defs>
+<marker id="ac" markerWidth="8" markerHeight="8" refX="6.2" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L7.5,4 L0,7.5 L1.9,4 Z" fill="#1ba7ff"/></marker>
+<marker id="aa" markerWidth="8" markerHeight="8" refX="6.2" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L7.5,4 L0,7.5 L1.9,4 Z" fill="#f7b955"/></marker>
+<marker id="ag" markerWidth="8" markerHeight="8" refX="6.2" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0.5 L7.5,4 L0,7.5 L1.9,4 Z" fill="#43d477"/></marker>
+<radialGradient id="gBg" cx="50%" cy="0%" r="90%"><stop offset="0" stop-color="#0d2c47" stop-opacity="0.5"/><stop offset="1" stop-color="#0d2c47" stop-opacity="0"/></radialGradient>
+<linearGradient id="gCard" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f2a3e"/><stop offset="1" stop-color="#0a1f2c"/></linearGradient>
+<linearGradient id="gSpine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0e2a40"/><stop offset="0.5" stop-color="#0a2033"/><stop offset="1" stop-color="#081826"/></linearGradient>
+<filter id="fSpine" x="-25%" y="-15%" width="150%" height="130%"><feDropShadow dx="0" dy="0" stdDeviation="14" flood-color="#1ba7ff" flood-opacity="0.22"/></filter>
+</defs>
+<rect width="1200" height="800" rx="16" fill="#06131d"/>
+<rect width="1200" height="800" rx="16" fill="url(#gBg)"/>
+<rect x="0.5" y="0.5" width="1199" height="799" rx="15.5" fill="none" stroke="#14364a" stroke-width="1"/>
+<text x='48' y='44' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='13' fill='#1ba7ff' letter-spacing='3'>AGENTIC PEOPLEOS</text>
+<text x='48' y='72' font-family="-apple-system,'Segoe UI',sans-serif" font-size='22' fill='#dbe7f0' font-weight='700' letter-spacing='-0.2'>How an agent-run People function stays governed</text>
+<rect x="930" y="34" width="222" height="30" rx="15" fill="#f7b955" fill-opacity="0.12" stroke="#f7b955" stroke-width="1.5" stroke-opacity="0.45"/>
+<text x='1041' y='53' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#f7b955' text-anchor='middle' letter-spacing='0.5'>FAIL-CLOSED BY CONSTRUCTION</text>
+<text x='48' y='110' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce' letter-spacing='2'>THE ARMS — RECOMMEND, NEVER ACT</text>
+<text x='600' y='110' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce' text-anchor='middle' letter-spacing='2'>THE SPINE — GATES EVERY ACTION</text>
+<text x='1152' y='110' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce' text-anchor='end' letter-spacing='2'>HUMAN OWNS THE DECISION</text>
+<rect x="48" y="128" width="300" height="96" rx="10" fill="url(#gCard)" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.38"/>
+<text x='64' y='155' font-family="-apple-system,'Segoe UI',sans-serif" font-size='14' fill='#dbe7f0' font-weight='600'>People Analytics</text>
+<rect x='272' y='141' width='62' height='18' rx='9.0' fill='#0f2a3e' stroke='#1ba7ff' stroke-width='1' stroke-opacity='0.5'/>
+<text x='303.0' y='153.2' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#1ba7ff' text-anchor='middle' letter-spacing='0.5'>5 AGENTS</text>
+<text x='64' y='177' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>people-intelligence · headcount ·</text>
+<text x='64' y='193' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>attrition · people-ops ·</text>
+<text x='64' y='209' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>operating review</text>
+<rect x="48" y="240" width="300" height="96" rx="10" fill="url(#gCard)" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.38"/>
+<text x='64' y='267' font-family="-apple-system,'Segoe UI',sans-serif" font-size='14' fill='#dbe7f0' font-weight='600'>Executive Comp</text>
+<rect x='272' y='253' width='62' height='18' rx='9.0' fill='#0f2a3e' stroke='#1ba7ff' stroke-width='1' stroke-opacity='0.5'/>
+<text x='303.0' y='265.2' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#1ba7ff' text-anchor='middle' letter-spacing='0.5'>6 AGENTS</text>
+<text x='64' y='289' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>peer builder · benchmarking ·</text>
+<text x='64' y='305' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>rTSR PSU · ISS screen ·</text>
+<text x='64' y='321' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>equity spend · ISS vs GL</text>
+<rect x="48" y="352" width="300" height="96" rx="10" fill="url(#gCard)" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.38"/>
+<text x='64' y='379' font-family="-apple-system,'Segoe UI',sans-serif" font-size='14' fill='#dbe7f0' font-weight='600'>Total Rewards</text>
+<rect x='272' y='365' width='62' height='18' rx='9.0' fill='#0f2a3e' stroke='#1ba7ff' stroke-width='1' stroke-opacity='0.5'/>
+<text x='303.0' y='377.2' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#1ba7ff' text-anchor='middle' letter-spacing='0.5'>3 AGENTS</text>
+<text x='64' y='401' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>merit cycle · comp reporting ·</text>
+<text x='64' y='417' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>TA reporting</text>
+<rect x="48" y="464" width="300" height="96" rx="10" fill="url(#gCard)" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.38"/>
+<text x='64' y='491' font-family="-apple-system,'Segoe UI',sans-serif" font-size='14' fill='#dbe7f0' font-weight='600'>Retention-risk ML</text>
+<rect x='264' y='477' width='70' height='18' rx='9.0' fill='#0f2a3e' stroke='#43d477' stroke-width='1' stroke-opacity='0.5'/>
+<text x='299.0' y='489.2' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#43d477' text-anchor='middle' letter-spacing='0.5'>GLASS-BOX</text>
+<text x='64' y='513' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>hazard model · model card ·</text>
+<text x='64' y='529' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>prohibited uses</text>
+<rect x="48" y="576" width="300" height="96" rx="10" fill="url(#gCard)" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.38"/>
+<text x='64' y='603' font-family="-apple-system,'Segoe UI',sans-serif" font-size='14' fill='#dbe7f0' font-weight='600'>SEC EDGAR skills</text>
+<rect x='272' y='589' width='62' height='18' rx='9.0' fill='#0f2a3e' stroke='#1ba7ff' stroke-width='1' stroke-opacity='0.5'/>
+<text x='303.0' y='601.2' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#1ba7ff' text-anchor='middle' letter-spacing='0.5'>3 SKILLS</text>
+<text x='64' y='625' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>sec-edgar · comp-research ·</text>
+<text x='64' y='641' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>proxy-extractor</text>
+<rect x="450" y="128" width="300" height="544" rx="14" fill="url(#gSpine)" stroke="#1ba7ff" stroke-width="1.5" stroke-opacity="0.9" filter="url(#fSpine)"/>
+<text x='600' y='158' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='12.5' fill='#1ba7ff' font-weight='700' text-anchor='middle' letter-spacing='2.5'>GOVERNANCE SPINE</text>
+<text x='600' y='177' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce' text-anchor='middle'>one spine under every arm</text>
+<rect x="464" y="196" width="272" height="104" rx="8" fill="#0f2a3e" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.22"/>
+<line x1="467" y1="208" x2="467" y2="288" stroke="#1ba7ff" stroke-width="2.5" stroke-linecap="round"/>
+<text x='722' y='216' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#33506a' text-anchor='end' letter-spacing='1'>01</text>
+<text x='482' y='221' font-family="-apple-system,'Segoe UI',sans-serif" font-size='13' fill='#dbe7f0' font-weight='600'>Metric registry + fail-closed engine</text>
+<text x='482' y='241' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce'>72 metrics defined once · engine has</text>
+<text x='482' y='256' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce'>no write methods · unknown → data_</text>
+<text x='482' y='271' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce'>pending, never a guess</text>
+<rect x="464" y="314" width="272" height="104" rx="8" fill="#0f2a3e" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.22"/>
+<line x1="467" y1="326" x2="467" y2="406" stroke="#1ba7ff" stroke-width="2.5" stroke-linecap="round"/>
+<text x='722' y='334' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#33506a' text-anchor='end' letter-spacing='1'>02</text>
+<text x='482' y='339' font-family="-apple-system,'Segoe UI',sans-serif" font-size='13' fill='#dbe7f0' font-weight='600'>Decision ledger — hash-chained</text>
+<text x='482' y='359' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce'>replayable JSONL · detects edits,</text>
+<text x='482' y='374' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce'>gaps, forged approvals, laundering</text>
+<rect x="464" y="432" width="272" height="104" rx="8" fill="#0f2a3e" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.22"/>
+<line x1="467" y1="444" x2="467" y2="524" stroke="#1ba7ff" stroke-width="2.5" stroke-linecap="round"/>
+<text x='722' y='452' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#33506a' text-anchor='end' letter-spacing='1'>03</text>
+<text x='482' y='457' font-family="-apple-system,'Segoe UI',sans-serif" font-size='13' fill='#dbe7f0' font-weight='600'>Approval registry — role-scoped</text>
+<text x='482' y='477' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce'>pool-based: any one entitled human ·</text>
+<text x='482' y='492' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce'>entitlement re-derived on replay</text>
+<rect x="464" y="550" width="272" height="104" rx="8" fill="#0f2a3e" stroke="#1ba7ff" stroke-width="1" stroke-opacity="0.22"/>
+<line x1="467" y1="562" x2="467" y2="642" stroke="#1ba7ff" stroke-width="2.5" stroke-linecap="round"/>
+<text x='722' y='570' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#33506a' text-anchor='end' letter-spacing='1'>04</text>
+<text x='482' y='575' font-family="-apple-system,'Segoe UI',sans-serif" font-size='13' fill='#dbe7f0' font-weight='600'>Content trust — injection-safe</text>
+<text x='482' y='595' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce'>only provenance-trusted policy is</text>
+<text x='482' y='610' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce'>authoritative · a chat message</text>
+<text x='482' y='625' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#8db1ce'>can never approve</text>
+<rect x="852" y="162" width="300" height="118" rx="10" fill="url(#gCard)" stroke="#14364a" stroke-width="1"/>
+<path d="M864,163.5 H1140" stroke="#f7b955" stroke-width="2.5" stroke-linecap="round"/>
+<text x='866' y='186' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#f7b955' letter-spacing='1.5'>HUMAN</text>
+<text x='866' y='214' font-family="-apple-system,'Segoe UI',sans-serif" font-size='13.5' fill='#dbe7f0' font-weight='700'>An entitled human owns the decision</text>
+<text x='866' y='240' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>approve · deny · escalate — recorded</text>
+<text x='866' y='256' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>with role + entitlement</text>
+<rect x="852" y="372" width="300" height="110" rx="10" fill="url(#gCard)" stroke="#14364a" stroke-width="1"/>
+<path d="M864,373.5 H1140" stroke="#43d477" stroke-width="2.5" stroke-linecap="round"/>
+<text x='866' y='395' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10' fill='#43d477' letter-spacing='1.5'>GATED ACTION</text>
+<text x='866' y='419' font-family="-apple-system,'Segoe UI',sans-serif" font-size='14' fill='#dbe7f0' font-weight='600'>Only then: the action runs</text>
+<text x='866' y='443' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>publish the report · append grant</text>
+<text x='866' y='459' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='10.5' fill='#8db1ce'>rows · commit the artifact</text>
+<rect x="852" y="556" width="300" height="104" rx="12" fill="#43d477" fill-opacity="0.07" stroke="#43d477" stroke-width="1.5" stroke-opacity="0.55"/>
+<path d="M872,582 l4,4 7,-8" stroke="#43d477" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x='890' y='587' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='12' fill='#43d477' font-weight='700'>LEDGER OK · chain verified</text>
+<rect x="868" y="600" width="268" height="46" rx="6" fill="#06131d" fill-opacity="0.6" stroke="#14364a" stroke-width="1"/>
+<text x='882' y='620' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#8db1ce'>python3 -m core.event_log validate</text>
+<text x='882' y='634' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9' fill='#8db1ce'>output/events.jsonl --registry …</text>
+<line x1="362" y1="176" x2="362" y2="624" stroke="#1ba7ff" stroke-width="1.5" stroke-opacity="0.35" stroke-linecap="round"/>
+<path d="M348,176 H362" stroke="#1ba7ff" stroke-width="1.5" stroke-opacity="0.45"/>
+<circle cx="362" cy="176" r="2.5" fill="#1ba7ff" fill-opacity="0.85"/>
+<path d="M348,288 H362" stroke="#1ba7ff" stroke-width="1.5" stroke-opacity="0.45"/>
+<circle cx="362" cy="288" r="2.5" fill="#1ba7ff" fill-opacity="0.85"/>
+<path d="M348,400 H362" stroke="#1ba7ff" stroke-width="1.5" stroke-opacity="0.45"/>
+<circle cx="362" cy="400" r="2.5" fill="#1ba7ff" fill-opacity="0.85"/>
+<path d="M348,512 H362" stroke="#1ba7ff" stroke-width="1.5" stroke-opacity="0.45"/>
+<circle cx="362" cy="512" r="2.5" fill="#1ba7ff" fill-opacity="0.85"/>
+<path d="M348,624 H362" stroke="#1ba7ff" stroke-width="1.5" stroke-opacity="0.45"/>
+<circle cx="362" cy="624" r="2.5" fill="#1ba7ff" fill-opacity="0.85"/>
+<path d="M362,400 L447,400" stroke="#1ba7ff" stroke-width="2" fill="none" marker-end="url(#ac)"/>
+<text x='404' y='391' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9.5' fill='#1ba7ff' text-anchor='middle' letter-spacing='0.8'>RECOMMEND</text>
+<path d="M750,221 L848,221" stroke="#f7b955" stroke-width="2" fill="none" stroke-dasharray="7 5" marker-end="url(#aa)"/>
+<text x='799' y='243' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9.5' fill='#f7b955' text-anchor='middle' letter-spacing='0.4'>REQUIRES APPROVAL</text>
+<path d="M1002,282 L1002,368" stroke="#43d477" stroke-width="2" fill="none" marker-end="url(#ag)"/>
+<path d="M1013,326 l3.5,3.5 6,-7" stroke="#43d477" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x='1026' y='330' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9.5' fill='#43d477' letter-spacing='0.8'>APPROVED</text>
+<path d="M1002,482 L1002,552" stroke="#43d477" stroke-width="2" fill="none" marker-end="url(#ag)"/>
+<text x='1014' y='522' font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size='9.5' fill='#43d477' letter-spacing='0.8'>LOGGED</text>
+<rect x="48" y="700" width="1104" height="56" rx="10" fill="#0a1f2c" stroke="#f7b955" stroke-width="1" stroke-opacity="0.3"/>
+<text x="600" y="733" text-anchor="middle" font-family="ui-monospace,'SF Mono',Menlo,monospace" font-size="11" fill="#b9cde0"><tspan fill="#f7b955" font-weight="700">FAIL CLOSED</tspan>  —  can't verify → stop<tspan fill="#43607a">  •  </tspan>no approval → no action<tspan fill="#43607a">  •  </tspan>no source data → data_pending, never a fabricated number</text>
+</svg>

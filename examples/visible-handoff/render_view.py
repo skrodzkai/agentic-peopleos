@@ -19,24 +19,24 @@ LEDGER = HERE / "output" / "events.jsonl"
 OUT = HERE / "output" / "ledger.sample.html"
 
 BADGE = {"request": "#8db1ce", "recommendation": "#1ba7ff", "approval": "#43d477",
-         "action": "#43d477", "escalation": "#f7b955", "fyi": "#6d8294"}
+         "action": "#43d477", "escalation": "#f7b955", "fyi": "#8296ab"}
 
 STYLE = """
-body{margin:0;background:#000;color:#eef7ff;font-family:Inter,-apple-system,'Segoe UI',sans-serif;}
+body{margin:0;background:radial-gradient(1100px 420px at 78% -10%,rgba(27,167,255,.10),transparent 70%),#06131d;background-repeat:no-repeat;color:#eef7ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 .wrap{max-width:820px;margin:0 auto;padding:28px 24px;}
 .brand{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1ba7ff;padding-bottom:12px;}
 .brand b{font-weight:800;font-size:16px}.brand .os{color:#1ba7ff}
 .ok{background:rgba(67,212,119,.14);color:#43d477;border:1px solid rgba(67,212,119,.4);font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px}
 h1{font-size:18px;font-weight:800;margin:16px 0 2px}.sub{color:#8db1ce;font-size:12.5px;margin-bottom:16px}
-.ev{border:1px solid rgba(27,167,255,.28);border-radius:10px;padding:11px 14px;margin:8px 0;background:#05080d}
+.ev{border:1px solid rgba(27,167,255,.30);border-radius:12px;padding:11px 14px;margin:8px 0;background:linear-gradient(180deg,#0f2a3e,#0a1f2c)}
 .row{display:flex;align-items:center;gap:10px}
-.seq{font-family:'JetBrains Mono',monospace;color:#6d8294;font-size:12px;width:34px}
+.seq{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:#8296ab;font-size:12px;width:34px}
 .type{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 9px;border-radius:6px}
 .who{color:#eef7ff;font-size:13px}.who .k{color:#8db1ce}
-.scope{margin-left:auto;color:#8db1ce;font-size:11px;font-family:'JetBrains Mono',monospace}
+.scope{margin-left:auto;color:#8db1ce;font-size:11px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
 .txt{color:#d7e4ef;font-size:12.5px;margin:7px 0 0}
-.hash{color:#48566a;font-size:10.5px;font-family:'JetBrains Mono',monospace;margin-top:7px}
-.foot{color:#6d8294;font-size:11px;margin-top:18px;border-top:1px solid #193044;padding-top:12px}
+.hash{color:#66809a;font-size:10.5px;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;margin-top:7px}
+.foot{color:#8296ab;font-size:11px;margin-top:18px;border-top:1px solid #14364a;padding-top:12px}
 """
 
 

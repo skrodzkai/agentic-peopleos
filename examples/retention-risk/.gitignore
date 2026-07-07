@@ -1,0 +1,4 @@
+__pycache__/
+output/PUBLISHED.json
+output/*.stale
+output/*.tmp

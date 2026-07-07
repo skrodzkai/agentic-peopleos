@@ -294,13 +294,13 @@ def build_narrative(open_reqs: list, kpis: dict) -> str:
 # ---------- rendering: branded HTML (skrodzkai dark) ----------
 
 _STYLE = """
-:root{--bg:#000;--text:#eef7ff;--muted:#8db1ce;--soft:#6d8294;--cyan:#1ba7ff;--cyan2:#48c7ff;
---green:#43d477;--red:#ff4d4f;--amber:#f7b955;--line:rgba(27,167,255,.46);--line-soft:rgba(27,167,255,.22);
---hair:rgba(141,177,206,.20);--track:rgba(255,255,255,.06);}
+:root{--bg:#06131d;--panel:#0a1f2c;--panel2:#0f2a3e;--text:#eef7ff;--muted:#8db1ce;--soft:#8296ab;--cyan:#1ba7ff;--cyan2:#48c7ff;
+--green:#43d477;--red:#ff4d4f;--amber:#f7b955;--line:rgba(27,167,255,.30);--line-soft:rgba(27,167,255,.22);
+--hair:rgba(141,177,206,.16);--track:rgba(255,255,255,.06);}
 *{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;}
+body{margin:0;background:radial-gradient(1100px 420px at 78% -10%,rgba(27,167,255,.10),transparent 70%),var(--bg);background-repeat:no-repeat;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.45;}
 .wrap{max-width:920px;margin:0 auto;padding:28px 26px 40px;}
-.mono{font-family:'JetBrains Mono','SFMono-Regular',Consolas,ui-monospace,monospace;}
+.mono{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;}
 .brand-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:2px solid var(--cyan);margin-bottom:22px;}
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px;color:#fff;letter-spacing:.2px;}
 .brand .os{color:var(--cyan);}
@@ -312,7 +312,7 @@ h1{margin:6px 0 4px;font-size:25px;line-height:1.1;color:#fff;font-weight:800;}
 .callout .label{color:var(--cyan2);text-transform:uppercase;font-size:10.5px;font-weight:800;letter-spacing:.06em;}
 .callout p{margin:4px 0 0;color:var(--text);font-size:14px;line-height:1.5;}
 .meter{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:20px 0 6px;}
-.metric{background:#000;border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+.metric{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--hair);border-radius:12px;padding:13px 15px;}
 .metric strong{display:block;font-size:26px;font-weight:700;color:#fff;line-height:1.05;}
 .metric span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-top:4px;}
 .section-title{color:var(--cyan);text-transform:uppercase;font-size:13px;font-weight:900;letter-spacing:.05em;margin:26px 0 10px;}
@@ -324,7 +324,7 @@ h1{margin:6px 0 4px;font-size:25px;line-height:1.1;color:#fff;font-weight:800;}
 .bar>div{height:13px;border-radius:4px;}
 .val{width:18px;text-align:right;font-size:12px;color:var(--text);}
 table.data{width:100%;border-collapse:collapse;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12.5px;}
-table.data th{text-align:left;color:var(--cyan);background:#07101a;padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;}
+table.data th{text-align:left;color:var(--cyan);background:#0a1f2c;padding:7px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;}
 table.data td{padding:7px 8px;border-top:1px solid var(--hair);color:var(--text);}
 table.data td.c,table.data th.c{text-align:center;}
 .flagrow{display:flex;align-items:center;gap:7px;font-size:12.5px;margin:6px 0;flex-wrap:wrap;}
@@ -335,7 +335,7 @@ table.data td.c,table.data th.c{text-align:center;}
 .watch{font-size:12.5px;color:var(--text);margin:5px 0;}
 .watch b{color:#fff;}
 .watch .d{color:var(--red);}
-.footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:26px;border-top:1px solid #193044;padding-top:14px;color:var(--soft);font-size:11px;}
+.footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:26px;border-top:1px solid #14364a;padding-top:14px;color:var(--soft);font-size:11px;}
 """
 
 
