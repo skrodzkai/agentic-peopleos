@@ -4,7 +4,7 @@ NYC Local Law 144 requires an **annual independent bias audit** of an Automated 
 Decision Tool, plus candidate notice. The EEOC expects **adverse-impact** analysis of selection
 procedures. This document is the operating cadence that keeps the system *audit-ready* — it does
 **not** replace the independent audit itself, which is performed by a qualified third party (see
-the ⛔ column in [regulatory-readiness](regulatory-readiness.md)).
+the ✗ column in [regulatory-readiness](regulatory-readiness.md)).
 
 The enabling design choice is upstream: **agents flag and recommend; humans decide.** Because
 every consequential decision is a human action recorded in the [decision ledger](event-log.md),

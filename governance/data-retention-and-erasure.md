@@ -46,5 +46,5 @@ because the ledger is engineered to **never need** the personal data:
 
 This repo documents the design; a real deployment implements: the erasure pipeline against the
 live HRIS/ATS, a Data Processing Agreement and Records of Processing (GDPR Art. 30), retention
-timers per store, and a documented data-subject request (DSR) intake + SLA. See the ⛔ column in
+timers per store, and a documented data-subject request (DSR) intake + SLA. See the ✗ column in
 [regulatory-readiness](regulatory-readiness.md).
