@@ -20,7 +20,7 @@ and a **fail-closed compute engine**. The agents are the easy part. The spine is
 the spine, and what each control prevents. Or run the whole governed loop locally:
 
 ```bash
-python3 examples/visible-handoff/run.py    # request → recommendation → human ✅ → gated publish
+python3 examples/visible-handoff/run.py    # request → recommendation → human ✓ → gated publish
 ```
 
 ![How Agentic PeopleOS stays governed — the arms recommend, the governance spine mediates, an entitled human approves, and only then does the gated action run; every step a hash-chained ledger row.](docs/assets/system-diagram.svg)
@@ -63,7 +63,7 @@ transcript, ledger, and evals:
 
 ```bash
 # from the repo root
-python3 examples/visible-handoff/run.py                      # request → recommendation → ✅ → publish
+python3 examples/visible-handoff/run.py                      # request → recommendation → ✓ → publish
 python3 examples/visible-handoff/evals/test_handoff.py       # spoofed/bot/duplicate/injected/tampered — all caught
 python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
     --registry examples/visible-handoff/approval_registry.json      # full integrity: chain + re-verified approvals
@@ -288,7 +288,7 @@ kept separate so the foundation stays small and stdlib-only. See [skills/ROADMAP
   so the agent flags out-of-band pay but **never recommends or changes a salary**.
   Run it: `cd examples/comp-reporting && python3 run.py`.
 - **[Visible handoff](examples/visible-handoff/)** — the governance spine end to end: a cited
-  recommendation in `#people-analytics`, an **entitled human approves with a ✅**, and only then does
+  recommendation in `#people-analytics`, an **entitled human approves with a ✓**, and only then does
   the gated publish run — every step a row in a hash-chained ledger.
   Run it: `cd examples/visible-handoff && python3 run.py`.
 

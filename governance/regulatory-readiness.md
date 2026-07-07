@@ -7,7 +7,7 @@ gap is the point — a portfolio that claims full compliance from a reference sk
 the red flag. **Not legal advice** — confirm current obligations with counsel for any real
 deployment.
 
-| Regulation / framework | Scope | What it requires | Implemented here ✅ | Production must add ⛔ |
+| Regulation / framework | Scope | What it requires | Implemented here ✓ | Production must add ✗ |
 |---|---|---|---|---|
 | **EU AI Act** — Annex III lists recruitment/selection & employment decisions as high-risk; obligations apply **2 Aug 2026** (Art. 113) | hiring, promotion, termination, performance | risk management, **human oversight**, logging/traceability, transparency | human-owned decisions ([HITL matrix](hitl-matrix.md)); a complete, replayable [decision ledger](event-log.md); cited [model & agent cards](model-and-agent-cards.md) | a **Fundamental Rights Impact Assessment**; registration; conformity assessment; post-market monitoring |
 | **NYC Local Law 144** | Automated Employment Decision Tools used on NYC candidates | annual **independent bias audit**, candidate notice, results publication | agents flag/recommend but never decide hiring (decisions human + logged); a [bias-audit cadence](bias-audit-cadence.md) and the queryable trail an audit needs | the **independent third-party audit** itself + published results + candidate notices |
@@ -34,7 +34,7 @@ NIST AI RMF's four functions are a useful spine because the rest of the table ma
 
 Three properties cover most of the above: **human ownership of consequential decisions**, a
 **tamper-evident audit trail**, and **data minimization** (no PII outside the system of record).
-Those are designed in, not bolted on. Everything in the ⛔ column is an organizational and legal
+Those are designed in, not bolted on. Everything in the ✗ column is an organizational and legal
 obligation that no code skeleton can satisfy on its own.
 
 ## Sources
