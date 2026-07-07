@@ -1,0 +1,3 @@
+output/PUBLISHED.json
+output/*.tmp
+output/*.stale

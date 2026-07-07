@@ -26,9 +26,9 @@ jobs:
           python3 -m py_compile
           core/*.py core/tests/*.py tools/*.py
           foundation/data/generate.py
-          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py foundation/compute/retention.py foundation/compute/benchmarking.py foundation/compute/equity_spend.py foundation/compute/glass_lewis_screen.py foundation/compute/merit_comp.py
+          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py foundation/compute/retention.py foundation/compute/benchmarking.py foundation/compute/equity_spend.py foundation/compute/glass_lewis_screen.py foundation/compute/merit_comp.py foundation/compute/pvp.py
           foundation/compute/tests/test_engine.py foundation/compute/tests/test_regression.py
-          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py foundation/compute/tests/test_retention.py foundation/compute/tests/test_benchmarking.py foundation/compute/tests/test_equity_spend.py foundation/compute/tests/test_glass_lewis_screen.py foundation/compute/tests/test_merit_comp.py
+          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py foundation/compute/tests/test_retention.py foundation/compute/tests/test_benchmarking.py foundation/compute/tests/test_equity_spend.py foundation/compute/tests/test_glass_lewis_screen.py foundation/compute/tests/test_merit_comp.py foundation/compute/tests/test_pvp.py
           foundation/render/dashboard.py foundation/render/charts.py
           foundation/render/tests/test_dashboard.py foundation/render/tests/test_charts.py
           examples/headcount-reporting/run.py examples/headcount-reporting/evals/test_headcount.py
@@ -42,6 +42,7 @@ jobs:
           examples/iss-pay-screen/run.py examples/iss-pay-screen/evals/test_iss_pay_screen.py
           examples/equity-spend/run.py examples/equity-spend/evals/test_equity_spend_agent.py
           examples/glass-lewis-screen/run.py examples/glass-lewis-screen/evals/test_glass_lewis_agent.py
+          examples/pay-versus-performance/run.py examples/pay-versus-performance/evals/test_pvp_agent.py
           examples/merit-comp-planning/run.py examples/merit-comp-planning/evals/test_merit_comp_agent.py
           examples/retention-risk/run.py examples/retention-risk/evals/test_retention_agent.py
           examples/ta-reporting/run.py examples/ta-reporting/evals/test_report.py
@@ -89,6 +90,7 @@ jobs:
           python3 foundation/compute/tests/test_equity_spend.py
           python3 foundation/compute/tests/test_glass_lewis_screen.py
           python3 foundation/compute/tests/test_merit_comp.py
+          python3 foundation/compute/tests/test_pvp.py
 
       - name: Retention model manifest reproduces (tolerance sync gate — fitted floats aren't byte-diffed)
         run: python3 foundation/compute/retention.py validate   # re-fits + checks coefficients/calibration reproduce within tol (+ panel_data_hash, schema)
@@ -186,6 +188,14 @@ jobs:
           python3 run.py
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
             || (echo "::error::glass-lewis-screen output is stale — run examples/glass-lewis-screen/run.py and commit" && exit 1)
+
+      - name: Executive comp arm — Pay-versus-Performance (CAP / Item 402(v)) eval
+        working-directory: examples/pay-versus-performance
+        run: |
+          python3 evals/test_pvp_agent.py
+          python3 run.py
+          git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            || (echo "::error::pay-versus-performance output is stale — run examples/pay-versus-performance/run.py and commit" && exit 1)
 
       - name: Total Rewards arm — merit / comp-cycle planning dashboard eval
         working-directory: examples/merit-comp-planning

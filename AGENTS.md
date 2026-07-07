@@ -56,6 +56,7 @@ python3 tools/render_glossary.py             # then `git diff --exit-code` on va
 (cd examples/iss-pay-screen && python3 evals/test_iss_pay_screen.py && python3 run.py)
 (cd examples/equity-spend && python3 evals/test_equity_spend_agent.py && python3 run.py)
 (cd examples/glass-lewis-screen && python3 evals/test_glass_lewis_agent.py && python3 run.py)
+(cd examples/pay-versus-performance && python3 evals/test_pvp_agent.py && python3 run.py)
 # Total Rewards arm — the comp cycle (eval + run, then `git diff --exit-code` on output/report.sample.html +
 # day1-digest.sample.md + equity_refresh_grants.sample.csv)
 (cd examples/merit-comp-planning && python3 evals/test_merit_comp_agent.py && python3 run.py)
@@ -66,6 +67,7 @@ python3 foundation/compute/tests/test_benchmarking.py
 python3 foundation/compute/tests/test_equity_spend.py
 python3 foundation/compute/tests/test_glass_lewis_screen.py
 python3 foundation/compute/tests/test_merit_comp.py
+python3 foundation/compute/tests/test_pvp.py
 # retention-risk model (glass-box hazard + eval + segment layer)
 python3 foundation/compute/tests/test_retention.py
 python3 foundation/compute/retention.py validate   # re-fits + reproduces coefficients/calibration/bands + provenance

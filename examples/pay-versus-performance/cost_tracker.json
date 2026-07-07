@@ -1,0 +1,8 @@
+{
+  "agent": "pay-versus-performance",
+  "mode": "offline",
+  "network_calls": 0,
+  "paid_model_calls": 0,
+  "external_data_feeds": 0,
+  "notes": "Deterministic standard-library Python over synthetic local inputs; PSU fair values re-measured by the shared Monte Carlo estimator."
+}
