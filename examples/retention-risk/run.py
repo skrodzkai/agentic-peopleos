@@ -932,6 +932,11 @@ def main(argv=None):
     try:
         report = build_report()
         html_doc, digest_doc = render_html(report), render_digest(report)
+        # PUBLISHING is a distribution act: require the committed manifest to REPRODUCE (a fresh re-fit within
+        # tolerance) before we write the approval, so a report whose model no longer matches its published
+        # weights can never be blessed. (A plain draft skips this — the reproducibility gate is CI's job there.)
+        if args.publish and not R.check_reproducible():
+            raise ReportError("model manifest does not reproduce within tolerance — refusing to publish")
     except ReportError as exc:
         return _fail_closed(str(exc))
     except Exception as exc:                                    # any engine/data failure fails closed, never a half-draft

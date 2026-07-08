@@ -445,6 +445,7 @@ def fit_hazard(design, slices=None, l2=L2_LAMBDA, iters=IRLS_ITERS):
         raise ModelError("no rows in the train slice")
     mean, std = _standardizer(X, tr)
     Xs = [[1.0] + _apply_std(X[i], mean, std) for i in tr]     # leading intercept column
+    _binary_labels([y[i] for i in tr])                         # labels must be exactly 0/1 before we fit on them
     yt = [float(y[i]) for i in tr]
     n, p = len(Xs), len(Xs[0])
     npos = sum(yt)
@@ -617,6 +618,7 @@ def platt_calibrate(model, design, calib_idx, iters=60):
     if list(calib_idx) != temporal_slices(design)["calibration"]:
         raise ModelError("platt_calibrate: calib_idx is not the canonical calibration slice")
     L = [_logit(model, design["X"][i]) for i in calib_idx]
+    _binary_labels([design["y"][i] for i in calib_idx])        # labels must be exactly 0/1 before calibration
     yt = [float(design["y"][i]) for i in calib_idx]
     npos = sum(yt)
     if npos == 0 or npos == len(yt):
@@ -1239,6 +1241,9 @@ def reliability_curve(model=None, calibration=None, design=None, slices=None, n_
     n = len(test)
     if n < n_bins:
         raise ModelError(f"reliability_curve: {n} test rows < {n_bins} bins")
+    if sum(y) == 0 or sum(y) == n:             # a single-class test slice has no calibration signal to plot
+        raise ModelError("reliability_curve: the test slice is a single class (all 0 or all 1) — "
+                         "no observed-frequency variation to calibrate against")
     order = sorted(range(n), key=lambda i: (probs[i], i))       # stable: ties break by index, deterministic
     bins, ece = [], 0.0
     for b in range(n_bins):

@@ -774,6 +774,19 @@ _forge_train = {**design, "y": list(design["y"])}
 _forge_train["y"][slices["train"][0]] = 999                  # a non-binary label in the TRAIN slice
 raises(R.ModelError, lambda: R.coefficient_intervals(model, _forge_train, slices),
        "coefficient_intervals fails closed on a forged/non-binary train label")
+# the FIT + CALIBRATION paths validate labels too (no silent float() coercion of a forged label)
+raises(R.ModelError, lambda: R.fit_hazard(_forge_train, slices),
+       "fit_hazard fails closed on a forged/non-binary train label")
+_forge_cal = {**design, "y": list(design["y"])}
+_forge_cal["y"][slices["calibration"][0]] = 999
+raises(R.ModelError, lambda: R.platt_calibrate(model, _forge_cal, slices["calibration"]),
+       "platt_calibrate fails closed on a forged/non-binary calibration label")
+# reliability_curve rejects a single-class test slice (no observed-frequency variation to calibrate)
+_all_one = {**design, "y": list(design["y"])}
+for _i in slices["test"]:
+    _all_one["y"][_i] = 1
+raises(R.ModelError, lambda: R.reliability_curve(model, calib, _all_one, slices),
+       "reliability_curve rejects an all-one-class test slice (degenerate calibration)")
 _bad_pw = {**model, "pos_weight": model["pos_weight"] * 2.0}  # structurally valid but wrong class weighting
 raises(R.ModelError, lambda: R.coefficient_intervals(_bad_pw, design, slices),
        "coefficient_intervals rejects a model whose pos_weight != the train slice class balance")
