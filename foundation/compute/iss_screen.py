@@ -11,13 +11,17 @@ model and produces no real ISS output. Two clearly-separated steps:
      ~14-24 names. (The full ISS method adds GICS 8/6/4 precision caps, market-cap bucket sizing, a
      ~20%-of-median centering test, and prior-year-ISS-peer priority — out of scope for this illustration.)
   2. QUANTITATIVE SCREEN — three measures plus a financial-performance adjustment, each computed against
-     the comparison group, mapped to a Low / Medium / High concern level:
-       - MOM (Multiple of Median CEO pay), a 50/50 blend of 1-year and 3-year (the ISS-2026 change);
-       - RDA (Relative Degree of Alignment), 5-year TSR/performance-percentile MINUS pay-percentile vs the
-         group (ISS sign: negative = pay ahead of performance = concern);
+     the comparison group, mapped to a Low / Medium / High concern level. The screen is PARAMETERIZED BY
+     POLICY YEAR (`screen(policy_year=...)`, default 2026) so it tracks live ISS policy and keeps the
+     prior season for a legible before/after — see `ISS_POLICIES`:
+       - MOM (Multiple of Median CEO pay): 2025 = 1-year only; 2026 = a 50/50 blend of 1-year and 3-year;
+       - RDA (Relative Degree of Alignment): the season-window TSR/performance-percentile MINUS
+         pay-percentile vs the group — 2025 = 3-year, 2026 = 5-year (ISS sign: negative = pay ahead of
+         performance = concern);
        - PTA (Pay-TSR Alignment), an absolute 5-year alignment from WEIGHTED least-squares trends of
          indexed TSR vs pay (negative = concern); a simplified-but-faithful build of ISS's published method;
-       - FPA (Financial Performance Assessment), modeled here as a simplified EVA-style PROXY.
+       - FPA (Financial Performance Assessment), modeled here as a simplified single-score EVA-style PROXY
+         (the real ISS FPA is a 5-year, four-EVA-metric screen — a documented approximation, not that).
      Aggregation follows ISS's published rules: the three primary measures' concerns ACCUMULATE (two or
      three elevated ⇒ High), then the FPA can modify a borderline result. A Medium/High concern trips a
      qualitative-review checklist (the second-stage ISS factors).
@@ -63,16 +67,62 @@ COMP_GROUP = {
     "minimum": 12,                      # ISS needs a scorable minimum
 }
 
-# Concern thresholds — NON-S&P-500 (Russell 3000), taken DIRECTLY from the ISS "Pay-for-Performance
-# Mechanics" published threshold table (effective Feb. 1, 2026); CAP's 2026 summary corroborates them.
-# MOM: higher = concern. RDA & PTA follow ISS's published sign — performance-minus-pay — so LOWER (more
-# negative) = concern. The "fpa_eligible" border is ISS's own "Eligible for FPA Adjustment" column.
-ISS_BANDS_NON_SP500 = {
-    "mom": {"fpa_eligible": 1.89, "medium": 2.33, "high": 3.40},      # multiple of median CEO pay
-    "rda": {"fpa_eligible": -41.0, "medium": -54.0, "high": -64.0},   # perf percentile - pay percentile (pts)
-    "pta": {"fpa_eligible": -28.0, "medium": -30.0, "high": -45.0},   # WLS indexed-TSR trend - pay trend (%)
+# ISS revises its quantitative P4P screen every proxy season. To make the illustration track live policy
+# — and to keep the *prior* season available for a legible before/after — the screen is PARAMETERIZED BY
+# POLICY YEAR. Each entry carries the published NON-S&P-500 (Russell 3000) concern thresholds and the
+# measurement WINDOWS that season used. Thresholds are the ISS "Pay-for-Performance Mechanics" published
+# tables (CAP's 2026 policy-update summary corroborates the year-over-year moves). MOM: higher = concern.
+# RDA & PTA follow ISS's published sign — performance-minus-pay — so LOWER (more negative) = concern. The
+# "fpa_eligible" border is ISS's own "Eligible for FPA Adjustment" column.
+#
+# S&P-500 issuers use a DIFFERENT published MOM table (2026: 1.73 / 2.04 / 2.99); this illustration is
+# non-S&P-500 throughout (the subject Acme is a mid-cap Russell-3000 filer), so only the non-S&P-500
+# tables operate here — the S&P-500 case is out of scope, not silently mis-scored.
+ISS_POLICIES = {
+    2025: {
+        "label": "ISS 2025 policy",
+        "effective_note": "meetings on/after Feb 1, 2025",
+        "mom_blend": (1,),                      # 2025 MOM: 1-year only
+        "rda_years": 3,                         # 2025 RDA: 3-year pay/TSR percentile comparison
+        "bands": {
+            "mom": {"fpa_eligible": 1.84, "medium": 2.33, "high": 3.33},
+            "rda": {"fpa_eligible": -38.0, "medium": -50.0, "high": -60.0},
+            "pta": {"fpa_eligible": -25.0, "medium": -30.0, "high": -45.0},
+        },
+    },
+    2026: {
+        "label": "ISS 2026 policy",
+        "effective_note": "meetings on/after Feb 1, 2026",
+        "mom_blend": (1, 3),                    # 2026 MOM: 50/50 average of 1-year and 3-year MOM
+        "rda_years": 5,                         # 2026 RDA: extended to a 5-year comparison
+        "bands": {
+            "mom": {"fpa_eligible": 1.89, "medium": 2.33, "high": 3.40},
+            "rda": {"fpa_eligible": -41.0, "medium": -54.0, "high": -64.0},
+            "pta": {"fpa_eligible": -28.0, "medium": -30.0, "high": -45.0},
+        },
+    },
 }
+# the specific, verified 2026-vs-2025 delta — surfaced on the dashboard so the "tracks live policy" claim
+# is concrete and checkable, not decorative.
+ISS_2026_DELTA = ("RDA extended 3yr -> 5yr; MOM now a 50/50 blend of 1yr and 3yr (was 1yr only); "
+                  "concern thresholds refreshed (RDA -38/-50/-60 -> -41/-54/-64, MOM 1.84/2.33/3.33 -> "
+                  "1.89/2.33/3.40, PTA eligible -25% -> -28%); PTA WLS mechanics unchanged.")
+DEFAULT_POLICY_YEAR = 2026
+_RANK_ROUND = 9                                  # round a measured value before percentile-ranking, so a
+#                                                # near-tie can't flip a rank on last-ULP float drift (macOS
+#                                                # ARM vs Linux x86) — mirrors the Glass Lewis arm's guard.
+
+# Back-compat alias: the default-season non-S&P-500 bands, still importable by name.
+ISS_BANDS_NON_SP500 = ISS_POLICIES[DEFAULT_POLICY_YEAR]["bands"]
 _LABEL = {0: "Low", 1: "Medium", 2: "High"}
+
+
+def policy_for(policy_year):
+    """The frozen ISS policy for a season. Fails closed on an unmodeled year (never a silent default)."""
+    if policy_year not in ISS_POLICIES:
+        raise ISSDataError(f"no ISS policy modeled for {policy_year!r} "
+                           f"(available: {sorted(ISS_POLICIES)})")
+    return ISS_POLICIES[policy_year]
 
 # ISS weighted-least-squares weights for the PTA regressions (decay factor 0.85, geometric mean 1), taken
 # directly from the ISS Mechanics doc. TSR has 6 "fence-post" points (years 0-5, $100 invested at year 0);
@@ -131,6 +181,33 @@ def _median(values):
         raise ISSDataError("median of empty series")
     mid = n // 2
     return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2.0
+
+
+def _rank(value, population):
+    """Percentile-rank a value within a population after ROUNDING both to `_RANK_ROUND` decimals, so a
+    near-tie can't flip on last-ULP float drift across platforms (matches the Glass Lewis arm's guard).
+    The rounded value must still be present in the rounded population (the caller includes it)."""
+    r = round(value, _RANK_ROUND)
+    return _percentile_rank(r, [round(v, _RANK_ROUND) for v in population])
+
+
+def _pay_avg(pay, k):
+    """Average CEO pay over the most recent `k` years (k=1 -> the latest year)."""
+    if not (1 <= k <= len(pay)):
+        raise ISSDataError(f"pay window {k} out of range for {len(pay)} years")
+    return sum(pay[-k:]) / float(k)
+
+
+def _tsr_window(tsr, years):
+    """Cumulative TSR over the most recent `years` on a $100-at-year-0 index (tsr = end-of-year 1..5 values).
+    years=5 -> tsr[-1]/100 - 1; years=3 -> tsr[-1]/index_at_year2 - 1. Fails closed on a non-positive base."""
+    path = [100.0] + list(tsr)                     # index at years 0..5
+    if not (1 <= years < len(path)):
+        raise ISSDataError(f"TSR window {years} out of range")
+    base = path[len(path) - 1 - years]
+    if base <= 0:
+        raise ISSDataError("TSR window base index must be positive")
+    return path[-1] / base - 1.0
 
 
 def _band_high(value, bands):
@@ -265,8 +342,11 @@ class ISSUniverse:
         }
 
     # ---------------------------------------------------------------- step 2: quantitative screen
-    def screen(self, bands=None):
-        bands = bands or ISS_BANDS_NON_SP500
+    def screen(self, policy_year=DEFAULT_POLICY_YEAR, bands=None):
+        policy = policy_for(policy_year)
+        bands = bands or policy["bands"]
+        rda_years = policy["rda_years"]
+        mom_blend = policy["mom_blend"]
         cg = self.comparison_group()
         if not cg["scorable"]:
             raise ISSDataError(
@@ -276,27 +356,20 @@ class ISSUniverse:
         se = self.exec[stk]
         me = [self.exec[m["ticker"]] for m in members]
 
-        def pay1(e):
-            return e["pay"][4]
+        # MOM — multiple of the peer-median CEO pay, averaged over the season's blend windows.
+        # 2025 = 1-year only; 2026 = 50/50 of the 1-year and 3-year multiples (mom_blend encodes it).
+        mom_components = {}
+        for k in mom_blend:
+            mom_components[k] = _pay_avg(se["pay"], k) / _median([_pay_avg(e["pay"], k) for e in me])
+        mom = sum(mom_components.values()) / len(mom_components)
 
-        def pay3(e):
-            return sum(e["pay"][2:]) / 3.0
-
-        def pay5(e):
-            return sum(e["pay"]) / 5.0
-
-        def tsr5(e):
-            return e["tsr"][4] / 100.0 - 1.0          # 5-yr cumulative total return ($100 base)
-
-        # MOM — multiple of median, 50/50 blend of 1-yr and 3-yr
-        mom1 = pay1(se) / _median([pay1(e) for e in me])
-        mom3 = pay3(se) / _median([pay3(e) for e in me])
-        mom = 0.5 * mom1 + 0.5 * mom3
-
-        # RDA — ISS sign: 5-yr TSR/performance percentile MINUS pay percentile vs the group.
-        # Negative = pay outranks performance = concern.
-        pay_pct = _percentile_rank(pay5(se), [pay5(e) for e in me] + [pay5(se)])
-        tsr_pct = _percentile_rank(tsr5(se), [tsr5(e) for e in me] + [tsr5(se)])
+        # RDA — ISS sign: the season-window TSR/performance percentile MINUS the pay percentile vs the group
+        # (2025 = 3-year, 2026 = 5-year). Negative = pay outranks performance = concern. Pay percentile is
+        # taken over the same window and reused by the FPA below (both are relative pay-vs-X measures).
+        pay_win = [_pay_avg(e["pay"], rda_years) for e in me] + [_pay_avg(se["pay"], rda_years)]
+        tsr_win = [_tsr_window(e["tsr"], rda_years) for e in me] + [_tsr_window(se["tsr"], rda_years)]
+        pay_pct = _rank(_pay_avg(se["pay"], rda_years), pay_win)
+        tsr_pct = _rank(_tsr_window(se["tsr"], rda_years), tsr_win)
         rda = round(tsr_pct - pay_pct, 2)
 
         # PTA — ISS weighted-least-squares: normalized TSR trend minus pay trend, in %. TSR uses 6
@@ -307,8 +380,10 @@ class ISSUniverse:
         pta = round((tsr_slope - pay_slope) * 100.0, 2)
 
         # FPA — a simplified EVA-style PROXY: financial-performance percentile minus pay percentile
-        # (negative = pay ahead of financial performance). Real ISS FPA blends four EVA-based metrics.
-        fin_pct = _percentile_rank(se["fin_eva"], [e["fin_eva"] for e in me] + [se["fin_eva"]])
+        # (negative = pay ahead of financial performance). The real ISS FPA is a 5-year (2026) screen
+        # blending FOUR EVA metrics (EVA Margin, EVA Spread, EVA Momentum vs Sales / vs Capital); this
+        # single-score proxy is horizon-agnostic and explicitly not that — see the methodology note.
+        fin_pct = _rank(se["fin_eva"], [e["fin_eva"] for e in me] + [se["fin_eva"]])
         fpa = round(fin_pct - pay_pct, 2)
 
         # ---- Aggregation, per the ISS published rules (Mechanics, "Quantitative Concern Levels") ----
@@ -346,14 +421,22 @@ class ISSUniverse:
                 fpa_note = "eligible (no change)"
 
         concern = _LABEL[overall]
-        triggers = self._qualitative_triggers(mom, rda, pta, fpa) if overall >= 1 else []
+        triggers = self._qualitative_triggers(mom, rda, pta, fpa, bands) if overall >= 1 else []
 
+        policy = policy_for(policy_year)
         return {
             "subject": self.subject, "comparison_group": cg, "concern": concern,
+            "policy": {"year": policy_year, "label": policy["label"], "effective": policy["effective_note"],
+                       "rda_years": rda_years, "mom_blend": list(mom_blend),
+                       "delta_from_prior": ISS_2026_DELTA if policy_year == 2026 else None,
+                       "index_group": "non_sp500"},
             "measures": {
-                "mom": {"value": round(mom, 3), "mom_1yr": round(mom1, 3), "mom_3yr": round(mom3, 3),
-                        "band": _LABEL[mom_c]},
-                "rda": {"value": rda, "pay_pctile": pay_pct, "tsr_pctile": tsr_pct, "band": _LABEL[rda_c]},
+                "mom": {"value": round(mom, 3),
+                        "mom_1yr": round(mom_components[1], 3) if 1 in mom_components else None,
+                        "mom_3yr": round(mom_components[3], 3) if 3 in mom_components else None,
+                        "blend_years": list(mom_blend), "band": _LABEL[mom_c]},
+                "rda": {"value": rda, "window_years": rda_years, "pay_pctile": pay_pct,
+                        "tsr_pctile": tsr_pct, "band": _LABEL[rda_c]},
                 "pta": {"value": pta, "pay_trend_pct": round(pay_slope * 100.0, 2),
                         "tsr_trend_pct": round(tsr_slope * 100.0, 2), "band": _LABEL[pta_c]},
                 "fpa": {"value": fpa, "pay_pctile": pay_pct, "fin_pctile": fin_pct,
@@ -363,15 +446,16 @@ class ISSUniverse:
         }
 
     @staticmethod
-    def _qualitative_triggers(mom, rda, pta, fpa):
-        """The second-stage ISS factors a Medium/High concern puts in scope (illustrative checklist)."""
+    def _qualitative_triggers(mom, rda, pta, fpa, bands):
+        """The second-stage ISS factors a Medium/High concern puts in scope (illustrative checklist),
+        keyed off the SAME policy-year bands the quantitative screen used (never a stale global)."""
         flags = []
-        if mom >= ISS_BANDS_NON_SP500["mom"]["fpa_eligible"]:
+        if mom >= bands["mom"]["fpa_eligible"]:
             flags.append("Magnitude: CEO pay is a high multiple of the peer median — review absolute level.")
-        if rda <= ISS_BANDS_NON_SP500["rda"]["fpa_eligible"]:
+        if rda <= bands["rda"]["fpa_eligible"]:
             flags.append("Pay-for-performance: pay percentile outruns TSR percentile vs the peer group.")
-        if pta <= ISS_BANDS_NON_SP500["pta"]["fpa_eligible"]:
-            flags.append("Trend: CEO pay has grown faster than indexed shareholder return over 5 years.")
+        if pta <= bands["pta"]["fpa_eligible"]:
+            flags.append("Trend: CEO pay has grown faster than indexed shareholder return over the RDA window.")
         if fpa < 0:
             flags.append("Financials: pay also outruns financial performance (EVA-style) — not just TSR.")
         # always-in-scope second-stage factors when any quantitative concern is raised

@@ -49,6 +49,20 @@ for needle in ["ISS Pay-for-Performance Screen", "logomark", "Anticipated ISS qu
 for band in (report["measures"]["mom"]["band"], report["measures"]["rda"]["band"], report["measures"]["pta"]["band"]):
     ok(band in page, f"a measure band '{band}' is shown")
 ok(page.count("<svg") >= 4, "renders the brand mark + the three measure gauges as SVG")
+
+# ---- policy-year stamp + the concrete 2026 delta, and gauges driven by the engine's bands (not hard-coded) ----
+ok(report["res"]["policy"]["year"] == 2026 and "ISS 2026 policy" in page, "the dashboard stamps the ISS 2026 policy")
+ok("2026 update reflected" in page and "RDA extended 3yr" in page,
+   "the dashboard surfaces the concrete 2026-vs-2025 delta")
+ok("non-S&amp;P-500 thresholds" in page, "the dashboard states the (non-S&P-500) threshold set it used")
+b = report["res"]["bands"]
+ok(f"{b['mom']['high']:.2f}" in page or f"{b['mom']['high']}" in page, "MOM high threshold from the engine appears on the gauge")
+ok(str(int(b["rda"]["high"])) in page, "RDA high threshold from the engine appears on the gauge")
+# the gauge thresholds are engine-driven: swapping the policy year changes the rendered thresholds
+report25 = run.build_report(ISSUniverse())   # engine default is 2026; render a 2025 page directly from the engine
+res25 = ISSUniverse().screen(policy_year=2025)
+ok(res25["bands"]["rda"]["high"] == -60.0 and report["res"]["bands"]["rda"]["high"] == -64.0,
+   "2025 vs 2026 RDA-high thresholds differ in the engine the dashboard reads from")
 ok("overlap committee core" in page and str(len(report["committee"]["overlap"])) in page,
    "the ISS-vs-committee peer overlap is shown (the two-peer-object point)")
 

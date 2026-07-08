@@ -43,6 +43,7 @@ DIGEST = OUT / "day1-digest.sample.md"
 COMPANY = "Acme Corp"
 AS_OF = "FY2026"
 PERIOD = "FY2026 proxy season · synthetic"
+POLICY_YEAR = 2026                      # render the ISS 2026 season; the engine also models 2025 for a before/after
 AGENT = "iss-pay-screen"
 SCOPE = "publish.iss_pay_screen"
 APPROVER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .,'&()-]{0,79}$")
@@ -74,7 +75,7 @@ def _e(v):
 
 # ---------------------------------------------------------------- compute (no screening math here)
 def build_report(iss_universe, peer_universe=None):
-    res = iss_universe.screen()                           # the screen decision is entirely iss_screen.py
+    res = iss_universe.screen(policy_year=POLICY_YEAR)    # the screen decision is entirely iss_screen.py
     cg = res["comparison_group"]
     iss_tickers = {m["ticker"] for m in cg["group"]}
 
@@ -154,6 +155,7 @@ def _measure_card(name, sub, value_fmt, band, gauge):
 
 def render_html(report):
     m = report["measures"]
+    res = report["res"]                    # full screen result: carries the policy-year bands + policy meta
     concern = report["concern"]
     cg = report["comparison_group"]
     cc = _CONCERN_COLOR[concern]
@@ -183,22 +185,34 @@ def render_html(report):
                 f"<div class='hero'><span class='c-big' style='color:{cc}'>{_e(concern)}</span>"
                 f"<span class='c-sub'>{'driven by ' + ', '.join(drivers) if drivers else 'no quantitative concern'}"
                 "</span></div></div>"
-                f"<div class='disc'>Illustrative model of ISS's <b>published</b> methodology on synthetic data — "
-                "thresholds + WLS mechanics per ISS's Pay-for-Performance Mechanics doc; the exact FPA threshold "
-                "+ qualitative outcome still need ISS/consultant review. Not ISS's actual output.</div></div></section>")
+                f"<div class='disc'><b>{_e(res['policy']['label'])}</b> · non-S&amp;P-500 thresholds · "
+                f"{_e(res['policy']['effective'])} — illustrative public-methodology reconstruction on "
+                "synthetic data; thresholds + WLS mechanics per ISS's Pay-for-Performance Mechanics doc; "
+                "the exact FPA threshold + qualitative outcome still need ISS/consultant review. Not ISS's "
+                f"actual output.<br><span class='delta'>2026 update reflected: {_e(res['policy']['delta_from_prior'])}</span>"
+                "</div></div></section>")
 
-    # three measure gauges
+    # three measure gauges — every threshold comes from the engine's policy-year bands (never hard-coded),
+    # so a policy change flows straight to the dashboard.
     mom, rda, pta = m["mom"], m["rda"], m["pta"]
+    b = res["bands"]
+    pol = res["policy"]
+    mom_blend_txt = ("50/50 blend of 1-yr & 3-yr" if pol["mom_blend"] == [1, 3]
+                     else " & ".join(f"{k}-yr" for k in pol["mom_blend"]))
+    ry = pol["rda_years"]
     gauges = "".join([
         _measure_card("MOM · Multiple of Median",
-                      "CEO pay ÷ peer-median (50/50 blend of 1-yr & 3-yr)", f"{mom['value']:.2f}×",
-                      mom["band"], _gauge(mom["value"], 1.0, 4.0, 2.33, 3.40, True, f"{mom['value']:.2f}×")),
+                      f"CEO pay ÷ peer-median ({mom_blend_txt})", f"{mom['value']:.2f}×",
+                      mom["band"], _gauge(mom["value"], 1.0, 4.0, b["mom"]["medium"], b["mom"]["high"], True,
+                                          f"{mom['value']:.2f}×")),
         _measure_card("RDA · Relative Degree of Alignment",
-                      "5-yr TSR percentile − pay percentile (lower = concern)", f"{rda['value']:.0f}",
-                      rda["band"], _gauge(rda["value"], -80.0, 20.0, -54.0, -64.0, False, f"{rda['value']:.0f}")),
+                      f"{ry}-yr TSR percentile − pay percentile (lower = concern)", f"{rda['value']:.0f}",
+                      rda["band"], _gauge(rda["value"], -80.0, 20.0, b["rda"]["medium"], b["rda"]["high"], False,
+                                          f"{rda['value']:.0f}")),
         _measure_card("PTA · Pay-TSR Alignment",
                       "5-yr indexed-TSR trend − pay trend (lower = concern)", f"{pta['value']:.0f}%",
-                      pta["band"], _gauge(pta["value"], -60.0, 20.0, -30.0, -45.0, False, f"{pta['value']:.0f}%")),
+                      pta["band"], _gauge(pta["value"], -60.0, 20.0, b["pta"]["medium"], b["pta"]["high"], False,
+                                          f"{pta['value']:.0f}%")),
     ])
     fpa = m["fpa"]
     fpa_row = (f"<div class='fpa'><span class='fpa-h'>FPA · Financial Performance Assessment</span>"
@@ -330,6 +344,7 @@ border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:12p
 .beacon .c-big{font-size:42px;font-weight:800;letter-spacing:-.02em;line-height:1;}
 .beacon .c-sub{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px;color:var(--muted);}
 .beacon .disc{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:10px;color:var(--soft);max-width:300px;text-align:right;line-height:1.5;}
+.beacon .disc .delta{display:inline-block;margin-top:6px;color:var(--muted);}
 .measures{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--hair);border-radius:12px;padding:16px 18px;margin-bottom:16px;}
 .m-head{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
 .m-head .leg{display:inline-flex;align-items:center;gap:6px;}.m-head .leg i{width:9px;height:9px;border-radius:2px;display:inline-block;margin:0 2px 0 8px;}

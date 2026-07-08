@@ -185,9 +185,13 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   shows how the **ISS quantitative pay-for-performance screen** would likely read the subject: the overall
   Low/Medium/High concern, the three measures (**MOM / RDA / PTA**) against ISS's *published* non-S&P-500
   thresholds and weighted-least-squares mechanics, the ISS-derived comparison group (and its overlap with
-  the committee's own peer group), and the FPA modifier. It models the proxy-advisor screen a committee
-  must navigate, on transparent public methodology over synthetic Acme data — anticipating the board read,
-  never deciding pay, and never claiming to be ISS's actual output.
+  the committee's own peer group), and the FPA modifier. The screen is **parameterized by policy year**
+  (`ISS_POLICIES`, default **2026**) so it tracks live ISS policy and keeps the prior season for a legible
+  before/after: the dashboard stamps the season and the concrete **2026 delta** (RDA 3yr→5yr, MOM now a
+  50/50 blend of 1yr and 3yr, refreshed thresholds), and every gauge threshold is read from the engine's
+  bands — never hard-coded. It models the proxy-advisor screen a committee must navigate, on transparent
+  public methodology over synthetic Acme data — anticipating the board read, never deciding pay, and never
+  claiming to be ISS's actual output.
 - **[Equity Spend & Burn](examples/equity-spend/)** — the board equity deliverable a VP of Total Rewards
   presents each quarter, computed over a **company-wide grant ledger**: SBC as a share of revenue, gross/net
   burn and an **illustrative reconstruction of the current ISS Equity-Plan-Scorecard Value-Adjusted Burn

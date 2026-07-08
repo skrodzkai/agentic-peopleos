@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from foundation.compute.iss_screen import (  # noqa: E402
     ISSUniverse, ISSDataError, _percentile_rank, _median, _band_high, _band_low, _wls_norm_slope,
     ISS_BANDS_NON_SP500, FPA_NEUTRAL, _PEER_COLS, _EXEC_COLS,
+    ISS_POLICIES, DEFAULT_POLICY_YEAR, policy_for, _rank, _pay_avg, _tsr_window, _RANK_ROUND,
 )
 
 passed = 0
@@ -218,6 +219,61 @@ _expect_closed("non-finite TSR value (NaN can't flow into a rendered measure or 
                mutate_ex=lambda ex: ex[1].__setitem__("tsrval_y3", "nan"))
 _expect_closed("unknown self-peer ref", mutate_ex=lambda ex: ex[1].__setitem__("self_peers", "ZZZZ"))
 _expect_closed("duplicate exec ticker", mutate_ex=lambda ex: ex.append(dict(ex[1])))
+
+# --------------------------------------------------------------- policy-year parameterization (2025 vs 2026)
+u = ISSUniverse()
+
+# default season is 2026, and the result carries its policy metadata
+ok(DEFAULT_POLICY_YEAR == 2026, "the screen defaults to the ISS 2026 policy")
+r26 = u.screen()
+ok(r26["policy"]["year"] == 2026 and r26 == u.screen(policy_year=2026), "default screen == explicit 2026")
+ok(r26["policy"]["delta_from_prior"] and "RDA extended" in r26["policy"]["delta_from_prior"],
+   "the 2026 result surfaces the concrete delta from 2025")
+
+# the published thresholds are EXACT for each season (verified against ISS's Mechanics tables)
+ok(ISS_POLICIES[2026]["bands"]["mom"] == {"fpa_eligible": 1.89, "medium": 2.33, "high": 3.40}, "2026 MOM thresholds exact")
+ok(ISS_POLICIES[2026]["bands"]["rda"] == {"fpa_eligible": -41.0, "medium": -54.0, "high": -64.0}, "2026 RDA thresholds exact")
+ok(ISS_POLICIES[2026]["bands"]["pta"] == {"fpa_eligible": -28.0, "medium": -30.0, "high": -45.0}, "2026 PTA thresholds exact")
+ok(ISS_POLICIES[2025]["bands"]["mom"] == {"fpa_eligible": 1.84, "medium": 2.33, "high": 3.33}, "2025 MOM thresholds exact")
+ok(ISS_POLICIES[2025]["bands"]["rda"] == {"fpa_eligible": -38.0, "medium": -50.0, "high": -60.0}, "2025 RDA thresholds exact")
+ok(ISS_POLICIES[2025]["bands"]["pta"] == {"fpa_eligible": -25.0, "medium": -30.0, "high": -45.0}, "2025 PTA thresholds exact")
+ok(ISS_BANDS_NON_SP500 is ISS_POLICIES[2026]["bands"], "the back-compat alias is the 2026 bands")
+
+# the WINDOWS actually change the measure, not just the label
+r25 = u.screen(policy_year=2025)
+ok(r26["measures"]["mom"]["blend_years"] == [1, 3] and r25["measures"]["mom"]["blend_years"] == [1],
+   "2026 MOM is a 1yr+3yr blend; 2025 MOM is 1yr only")
+ok(r26["measures"]["mom"]["mom_3yr"] is not None and r25["measures"]["mom"]["mom_3yr"] is None,
+   "the 3-yr MOM component exists only in 2026")
+ok(r26["measures"]["rda"]["window_years"] == 5 and r25["measures"]["rda"]["window_years"] == 3,
+   "RDA window is 5yr (2026) vs 3yr (2025)")
+ok(r26["measures"]["rda"]["value"] != r25["measures"]["rda"]["value"],
+   "the RDA window change moves the RDA value (policy year is not cosmetic)")
+# the 2026 MOM is the mean of its 1yr and 3yr multiples (each field independently rounded to 3dp)
+mom = r26["measures"]["mom"]
+ok(abs(mom["value"] - (mom["mom_1yr"] + mom["mom_3yr"]) / 2.0) < 1.5e-3, "2026 MOM = mean(1yr, 3yr)")
+
+# _pay_avg / _tsr_window windowing math
+ok(_pay_avg([10, 20, 30, 40, 50], 1) == 50.0 and _pay_avg([10, 20, 30, 40, 50], 3) == 40.0, "_pay_avg windows")
+ok(abs(_tsr_window([110, 121, 133, 146, 160], 5) - 0.60) < 1e-9, "_tsr_window 5yr = tsr[-1]/100 - 1")
+ok(abs(_tsr_window([110, 121, 133, 146, 160], 3) - (160.0 / 121.0 - 1.0)) < 1e-9, "_tsr_window 3yr uses the year-2 base")
+
+# fail closed on an unmodeled season, and policy_for mirrors it
+for bad in (2099, "2026", 2024, None):
+    try:
+        u.screen(policy_year=bad); ok(False, f"unmodeled policy {bad!r} must raise")
+    except ISSDataError:
+        ok(True, f"unmodeled policy {bad!r} fails closed")
+try:
+    policy_for(2099); ok(False, "policy_for unmodeled must raise")
+except ISSDataError:
+    ok(True, "policy_for fails closed on an unmodeled year")
+
+# _rank rounds before ranking, so a sub-ULP difference cannot flip a near-tie
+base = [1.0, 2.0, 3.0]
+ok(_rank(2.0, base) == _rank(2.0 + 10 ** (-(_RANK_ROUND + 3)), base),
+   "a difference below the rounding precision does not change the rank")
+ok(u.screen(2026) == ISSUniverse().screen(2026), "the 2026 screen is deterministic across instances")
 
 print(f"OK — {passed} ISS-screen checks passed "
       f"(real Acme: {acme['concern']} concern, comparison group {acme['comparison_group']['n_group']}).")

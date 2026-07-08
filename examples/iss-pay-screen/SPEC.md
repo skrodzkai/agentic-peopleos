@@ -5,6 +5,15 @@ The Executive Compensation arm's **board-anticipation** agent: a dark dashboard 
 quantitative pay-for-performance screen would likely read the subject, so a Compensation Committee can
 anticipate the proxy-advisor result and prepare. Presentation + governance only; stops at a human gate.
 
+## Policy year
+The engine (`foundation/compute/iss_screen.py`) is **parameterized by policy year** (`ISS_POLICIES`,
+default **2026**): MOM/RDA windows and the concern thresholds are keyed by season, so the screen tracks
+live ISS policy and keeps the prior season for a before/after. The dashboard stamps the season + the
+concrete 2026 delta, and reads every gauge threshold from the engine's bands (never hard-coded). The
+verified public thresholds, the 2026 changes, and the honesty ledger (illustrative comparison group;
+FPA as a single-score EVA proxy vs the real four-metric ISS FPA) are documented in
+[`governance/iss-pay-screen-methodology.md`](../../governance/iss-pay-screen-methodology.md).
+
 ## Inputs
 - `foundation/compute/iss_screen.py` — the ISS screen engine (comparison group + MOM/RDA/PTA/FPA →
   concern). The agent does **no** screening math.
