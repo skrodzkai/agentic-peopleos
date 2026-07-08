@@ -22,8 +22,8 @@ arm uses.
 - **Locked-in runoff.** Each outstanding grant's remaining cost = grant-date fair value × (remaining service
   months ÷ total vesting months), recognized **straight-line** over the requisite service period — the same
   amortization convention as `foundation/compute/equity_spend.py`, down to the whole-month day-of-month
-  convention. Split across future fiscal years, the gross runoff **sums back exactly to the backlog**. It is
-  otherwise assumption-free EXCEPT for one, stated plainly: the **gross** runoff assumes **continued service
+  convention. Split across future fiscal years, the gross runoff **sums back exactly to the backlog**. It
+  carries exactly **one stated assumption**, made plain: the **gross** runoff assumes **continued service
   (full vesting)** — a forecast at the close cannot know a future termination — and the *separate* forfeiture
   overlay (§3) is where estimated future forfeitures are applied.
 - **Backlog reconciliation.** The period-0 locked-in backlog equals `equity_spend.compute()["unamortized_sbc"]`

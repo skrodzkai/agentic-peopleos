@@ -25,9 +25,10 @@ $179.8M rolling off from $85.9M in FY2026 to near zero by FY2029. Only then does
 speculative part — a steady-state new-grant run-rate and an estimated forfeiture rate — to show the total run-
 rate a guidance conversation actually needs.
 
-**Honesty.** The locked-in runoff is **assumption-free** amortization. The forfeiture rate, the new-grant run-
-rate/attribution, and the flat-revenue basis are **illustrative** assumptions — labeled as such, never
-guidance. GAAP (ASU 2016-09) permits estimating forfeitures; a forward forecast has no future actuals, so it
+**Honesty.** The locked-in **gross** runoff is pure amortization of grants already made — it carries one
+stated service assumption (**continued service / full vesting** until the separate forfeiture overlay is
+applied), nothing more. The forfeiture rate, the new-grant run-rate/attribution, and the flat-revenue basis
+are **illustrative** assumptions — labeled as such, never guidance. GAAP (ASU 2016-09) permits estimating forfeitures; a forward forecast has no future actuals, so it
 estimates. Synthetic company-wide data; presentation + governance only — the agent never issues guidance or
 sizes a grant. Provenance:
 [`governance/sbc-forecast-methodology.md`](../../governance/sbc-forecast-methodology.md).

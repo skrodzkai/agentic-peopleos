@@ -227,7 +227,8 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   **to the cent** to the equity-spend arm's unamortized-SBC backlog (same amortization, split by year). It then
   layers an **illustrative** steady-state new-grant run-rate and estimated forfeiture rate for a total go-forward
   run-rate. On synthetic Acme, $179.8M rolls off from $85.9M in FY2026 to near zero by FY2029; the locked-in
-  runoff is assumption-free, everything forward is labeled illustrative — never guidance. Provenance:
+  gross runoff is pure amortization (one stated assumption: continued service / full vesting until the
+  forfeiture overlay), everything forward is labeled illustrative — never guidance. Provenance:
   [`governance/sbc-forecast-methodology.md`](governance/sbc-forecast-methodology.md).
 - **[ISS vs Glass Lewis — Say-on-Pay War Room](examples/glass-lewis-screen/)** — the two-proxy-advisor view a
   committee needs before the vote: an illustrative reconstruction of **Glass Lewis's current (2026)

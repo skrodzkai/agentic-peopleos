@@ -212,15 +212,23 @@ def _groups_in(pop, key):
 
 def _unadjusted(pop, key):
     order = _groups_in(pop, key)
-    ref = order[0]
-    ref_mean = sum(r["hourly"] for r in pop if r[key] == ref) / sum(1 for r in pop if r[key] == ref)
-    ref_median = _median([r["hourly"] for r in pop if r[key] == ref])
+    counts = {g: sum(1 for r in pop if r[key] == g) for g in order}
+    # The reference is the highest-paid group that is ITSELF reportable (>= MIN_CELL_N). A sub-threshold cell
+    # must never become the reference: its <MIN_CELL_N pay aggregate would otherwise be the denominator of
+    # every other group's rendered/headline gap and be algebraically recoverable — the exact individual-pay
+    # re-identification the small-cell floor exists to prevent. If NO cell is reportable, nothing is comparable.
+    ref = next((g for g in order if counts[g] >= MIN_CELL_N), None)
+    ref_mean = ref_median = None
+    if ref is not None:
+        ref_mean = sum(r["hourly"] for r in pop if r[key] == ref) / counts[ref]
+        ref_median = _median([r["hourly"] for r in pop if r[key] == ref])
     groups = []
     for g in order:
         h = [r["hourly"] for r in pop if r[key] == g]
         n = len(h)
-        if n < MIN_CELL_N:
+        if n < MIN_CELL_N or ref is None:
             # too few people to report without risking disclosure of an individual's pay — suppress the cell
+            # (also suppress everything when there is no reportable reference to measure against at all)
             groups.append({"group": g, "n": n, "suppressed": True, "mean_hourly": None, "median_hourly": None,
                            "mean_gap_pct": None, "median_gap_pct": None, "is_reference": g == ref})
             continue
@@ -237,10 +245,14 @@ def _unadjusted(pop, key):
 
 
 # ---------------------------------------------------------------- adjusted (regression) gap
-def _design(pop, key, ref_group):
+def _design(pop, key, ref_group, reportable=None):
     """Build (X, y, group_cols) for OLS of ln(hourly) on a protected-class indicator set + legitimate
     controls. The reference group and one reference level of every categorical control are OMITTED (absorbed
-    into the intercept) so the design is full rank; group_cols maps each modelled group to its column index."""
+    into the intercept) so the design is full rank; group_cols maps each modelled group to its column index.
+    When `reportable` is given, sub-MIN_CELL_N cells are dropped from the model entirely — a small group must
+    not surface a rendered adjusted coefficient (headline/forest) any more than a small unadjusted cell."""
+    if reportable is not None:
+        pop = [r for r in pop if r[key] in reportable]
     groups = [g for g in _groups_in(pop, key) if g != ref_group]           # every non-reference group
     families = sorted({r["job_family"] for r in pop})[1:]                  # drop first (reference) category
     locations = sorted({r["location"] for r in pop})[1:]
@@ -274,8 +286,11 @@ def _design(pop, key, ref_group):
     return X, y, group_cols, cols
 
 
-def _adjusted(pop, key, ref_group, z=1.96):
-    X, y, group_cols, cols = _design(pop, key, ref_group)
+def _adjusted(pop, key, ref_group, reportable=None, z=1.96):
+    if ref_group is None:                              # no reportable cell to anchor on — nothing is comparable
+        return {"reference_group": None, "groups": [], "z": z, "controls": [],
+                "n": len(pop), "n_params": 0, "r2": 0.0}
+    X, y, group_cols, cols = _design(pop, key, ref_group, reportable)
     try:
         beta, se, info = ols(X, y)
     except SingularMatrixError as exc:
@@ -379,7 +394,8 @@ def compute(data_dir=None):
                                          "primary lens or the EU screen")
             continue
         unadj = _unadjusted(pop_d, key)
-        adj = _adjusted(pop_d, key, unadj["reference_group"])
+        reportable = {g["group"] for g in unadj["groups"] if not g["suppressed"]}
+        adj = _adjusted(pop_d, key, unadj["reference_group"], reportable)
         entry = {"key": key, "label": d["label"], "note": d["note"], "eu_scope": d["eu_scope"],
                  "n_in_lens": len(pop_d), "unadjusted": unadj, "adjusted": adj}
         if d["eu_scope"]:
