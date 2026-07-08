@@ -386,6 +386,13 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None) -> list
 # ledger's length and head hash; production stores it on WORM / a KMS-signed checkpoint. Here it is a
 # small sidecar committed alongside the ledger. Passing a `secret` HMAC-signs the anchor so an attacker
 # who also rewrites the sidecar cannot forge a matching one without the key.
+#
+# TWO limits, honestly: (1) an UNSIGNED co-located sidecar is only a control on separate/WORM media —
+# an attacker who can rewrite the ledger can rewrite the sidecar too. (2) Even a SIGNED anchor must be
+# the LATEST one: verifying a truncated ledger against an OLDER but genuinely-signed anchor (rolled
+# back to that earlier count+head) passes, because that IS a genuine earlier state. Defending rollback
+# needs monotonic anchor storage (the append-only WORM/KMS property) — a checkpoint sequence that can
+# only advance. Always verify against the current, highest-count anchor.
 
 ANCHOR_SCHEMA_VERSION = "1.0"
 _ANCHOR_HMAC_EXCLUDE = ("hmac",)
@@ -491,8 +498,12 @@ def _main(argv) -> int:
                 anchor_path = argv[i + 1]
             i += 2
             continue
-        if not a.startswith("--"):
-            positional.append(a)
+        if a.startswith("--"):
+            # an unrecognized flag (e.g. a typo'd `--anhor`) must NOT be silently ignored — that would
+            # quietly skip the check it was meant to request
+            print(f"error: unknown flag {a}\n{_USAGE}", file=sys.stderr)
+            return 2
+        positional.append(a)
         i += 1
     args = positional
     if len(args) != 2 or args[0] not in ("validate", "checkpoint"):

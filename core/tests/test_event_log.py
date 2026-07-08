@@ -557,4 +557,26 @@ ok(any("cannot read ledger" in v for v in verify_anchor(pw.with_suffix(".nope"),
 bad_ev = fresh(); bad_ev.write_text("{not json\n", encoding="utf-8")
 ok(verify_anchor(bad_ev, anchor) != [], "a malformed events path fails closed in verify_anchor")
 
+# ROLLBACK is a documented limit: an OLDER but genuinely-signed anchor rubber-stamps a truncation to
+# that earlier count (a genuine earlier state). The defense holds only against the CURRENT anchor.
+pr = fresh(); lr = EventLog(pr, secret=b"k3")
+for n in range(4):
+    lr.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+               "case_ref": "A", "correlation_id": "A", "payload": {"n": n}})
+old_anchor = compute_anchor(lr.events()[:3], secret=b"k3")     # a genuine, signed count=3 checkpoint
+cur_anchor = compute_anchor(lr.events(), secret=b"k3")         # the current, signed count=4 checkpoint
+all_lines = pr.read_text(encoding="utf-8").strip().splitlines()
+pr.write_text("\n".join(all_lines[:3]) + "\n", encoding="utf-8")   # truncate 4 -> 3
+ok(not validate_log(pr, secret=b"k3", anchor=old_anchor),
+   "a rolled-back OLDER signed anchor rubber-stamps a truncation (documented rollback limit)")
+ok(any("truncated" in v.lower() for v in validate_log(pr, secret=b"k3", anchor=cur_anchor)),
+   "the CURRENT (latest) signed anchor still catches the same truncation")
+
+# the CLI rejects an unknown flag (a typo'd --anhor must not silently skip the anchor check)
+import subprocess as _sp, os as _os  # noqa: E402
+_env = {**_os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])}
+_r = _sp.run([sys.executable, "-m", "core.event_log", "validate", str(pr), "--anhor", "x"],
+             capture_output=True, text=True, env=_env)
+ok(_r.returncode == 2 and "unknown flag" in _r.stderr, "the CLI errors on an unknown/typo'd flag")
+
 print(f"OK — {passed} ledger checks passed.")

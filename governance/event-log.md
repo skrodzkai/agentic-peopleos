@@ -126,8 +126,21 @@ Two controls close those gaps:
   beside every sample ledger, and CI regenerates them byte-for-byte AND proves a truncated ledger
   is rejected against its anchor.
 
+Two honest limits on the anchor:
+
+1. The **committed sample anchors are unsigned** — a demonstration of the mechanism. An unsigned,
+   co-located sidecar is only a real control when the attacker cannot also rewrite it: store it on
+   separate/WORM media, or HMAC-sign it (pass a `secret`).
+2. Even a **signed anchor must be the latest one.** Verifying a truncated ledger against an *older*
+   but genuinely-signed anchor (rolled back to that earlier `count`/`head`) passes — because that is
+   a genuine earlier state, indistinguishable from it having been the real one. Defending against
+   anchor **rollback** requires monotonic anchor storage: a checkpoint sequence that can only advance,
+   which is exactly the append-only WORM / KMS property. Always verify against the current,
+   highest-count anchor.
+
 **Production** stores that anchor as a KMS-signed checkpoint on WORM / append-only media; the
-mechanism here is the reference shape of exactly that control.
+mechanism here is the reference shape of exactly that control, and that append-only storage is what
+closes both limits above.
 
 ## Scale
 
