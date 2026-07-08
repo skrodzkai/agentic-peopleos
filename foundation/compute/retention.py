@@ -433,6 +433,8 @@ def fit_hazard(design, slices=None, l2=L2_LAMBDA, iters=IRLS_ITERS):
     {intercept, coef{feature->weight (standardized units)}, mean, std, feature_names, pos_weight}."""
     if not (isinstance(iters, int) and not isinstance(iters, bool) and iters >= 1):
         raise ModelError(f"iters must be a positive int (got {iters!r})")
+    if not (_finite_num(l2) and l2 >= 0):        # a negative/non-finite ridge is nonsense — fail closed at entry
+        raise ModelError(f"l2 (ridge penalty) must be a finite non-negative number (got {l2!r})")
     X, y, names = design["X"], design["y"], design["feature_names"]
     sl = slices or temporal_slices(design)
     # the artifact-creation path must fit on the CANONICAL train slice — a caller-forged slice (e.g. the test
@@ -443,6 +445,7 @@ def fit_hazard(design, slices=None, l2=L2_LAMBDA, iters=IRLS_ITERS):
         raise ModelError("no rows in the train slice")
     mean, std = _standardizer(X, tr)
     Xs = [[1.0] + _apply_std(X[i], mean, std) for i in tr]     # leading intercept column
+    _binary_labels([y[i] for i in tr])                         # labels must be exactly 0/1 before we fit on them
     yt = [float(y[i]) for i in tr]
     n, p = len(Xs), len(Xs[0])
     npos = sum(yt)
@@ -483,7 +486,7 @@ def fit_hazard(design, slices=None, l2=L2_LAMBDA, iters=IRLS_ITERS):
     if last_step > 1e-3:            # the last Newton step must be tiny; a large one means we didn't converge
         raise ModelError(f"IRLS did not converge in {iters} iterations (last step {last_step:.2e})")
     return {"intercept": beta[0], "coef": {names[j]: beta[j + 1] for j in range(len(names))},
-            "mean": mean, "std": std, "feature_names": list(names), "pos_weight": pos_w}
+            "mean": mean, "std": std, "feature_names": list(names), "pos_weight": pos_w, "l2": l2}
 
 
 def _validate_model(model):
@@ -493,7 +496,7 @@ def _validate_model(model):
     feature_names to the canonical DESIGN_FEATURES order (a reordering is a different, wrong model)."""
     if not isinstance(model, dict):
         raise ModelError("model must be a dict")
-    missing = {"intercept", "coef", "mean", "std", "feature_names", "pos_weight"} - set(model)
+    missing = {"intercept", "coef", "mean", "std", "feature_names", "pos_weight", "l2"} - set(model)
     if missing:
         raise ModelError(f"model missing keys: {sorted(missing)}")
     fn = model["feature_names"]
@@ -513,6 +516,8 @@ def _validate_model(model):
         raise ModelError("model intercept must be a finite number")
     if not (_finite_num(model["pos_weight"]) and model["pos_weight"] > 0):
         raise ModelError("model pos_weight must be a finite positive number")
+    if not (_finite_num(model["l2"]) and model["l2"] >= 0):
+        raise ModelError("model l2 (ridge penalty) must be a finite non-negative number")
 
 
 def _validate_calibration(cal):
@@ -613,6 +618,7 @@ def platt_calibrate(model, design, calib_idx, iters=60):
     if list(calib_idx) != temporal_slices(design)["calibration"]:
         raise ModelError("platt_calibrate: calib_idx is not the canonical calibration slice")
     L = [_logit(model, design["X"][i]) for i in calib_idx]
+    _binary_labels([design["y"][i] for i in calib_idx])        # labels must be exactly 0/1 before calibration
     yt = [float(design["y"][i]) for i in calib_idx]
     npos = sum(yt)
     if npos == 0 or npos == len(yt):
@@ -751,7 +757,8 @@ def model_from_manifest(manifest=None, manifest_path: Path = MANIFEST_PATH, pane
         raise ModelError("manifest coefficient / standardizer / design-feature name sets disagree")
     model = {"intercept": pc["intercept"], "coef": {n: coef[n] for n in names},
              "mean": [mean_d[n] for n in names], "std": [std_d[n] for n in names],
-             "feature_names": names, "pos_weight": pc["pos_weight"]}
+             "feature_names": names, "pos_weight": pc["pos_weight"],
+             "l2": m["training_window"]["l2"]}                    # the ridge the model was actually fit under
     _validate_model(model)                                        # structural soundness gate (fails closed)
     cal = m["primary_calibration"]
     if not _finite_num(cal.get("a")) or not _finite_num(cal.get("b")):
@@ -1196,6 +1203,138 @@ def company_survival(model, calibration, design, slices, max_h=12, median_h=18):
             "median_horizon": median_h, "max_h": max_h}
 
 
+# --------------------------------------------------- calibration + coefficient-stability diagnostics (Increment 4b)
+# Two model-diagnostic panels a real people-analytics reviewer asks for first, both computed from the PINNED
+# model (no re-fit) so they reproduce in CI and add no manifest surface:
+#   * reliability_curve  — decile observed-vs-predicted + expected calibration error (is it calibrated?)
+#   * coefficient_intervals — robust (sandwich) SEs at the fitted coefficients (how stable is each driver?)
+
+def _matrix_inverse(A):
+    """Inverse of a small dense square matrix via `_solve` on each unit column. Raises ModelError (via
+    _solve) on a singular system — the diagnostic fails closed rather than emit a bogus covariance."""
+    n = len(A)
+    cols = [_solve(A, [1.0 if r == c else 0.0 for r in range(n)]) for c in range(n)]
+    return [[cols[c][r] for c in range(n)] for r in range(n)]
+
+
+def reliability_curve(model=None, calibration=None, design=None, slices=None, n_bins=10, panel_path=PANEL_PATH):
+    """Out-of-time calibration diagnostic: bin the TEST-slice rows into `n_bins` EQUAL-COUNT groups by the
+    model's calibrated probability, and report each bin's mean predicted probability vs its observed
+    voluntary-exit frequency. Equal-count (not equal-width) bins because the event is rare (~1.8%/mo), so
+    equal-width bins would pile every row into one. The Expected Calibration Error (ECE) is the
+    frequency-weighted mean |predicted - observed| across bins. Everything is SYNTHETIC-VALIDATION only.
+    Same all-or-nothing bundle contract as evaluate(): pass NO bundle (train from panel) or a COMPLETE one."""
+    if not (isinstance(n_bins, int) and not isinstance(n_bins, bool) and 2 <= n_bins <= 50):
+        raise ModelError(f"reliability_curve: n_bins must be an int in [2,50] (got {n_bins!r})")
+    bundle = (model, calibration, design, slices)
+    if all(v is None for v in bundle):
+        model, calibration, design, slices = train_model(panel_path)
+    elif any(v is None for v in bundle):
+        raise ModelError("reliability_curve: pass NO bundle or a COMPLETE (model, calibration, design, slices)")
+    _validate_model(model)
+    _validate_calibration(calibration)
+    _validate_slices(design, slices)
+    test = slices["test"]
+    probs = [calibrated_probability(model, calibration, design["X"][i]) for i in test]
+    y = [design["y"][i] for i in test]
+    _binary_labels(y)                          # fail closed on a forged/non-binary label, exactly like evaluate()
+    n = len(test)
+    if n < n_bins:
+        raise ModelError(f"reliability_curve: {n} test rows < {n_bins} bins")
+    if sum(y) == 0 or sum(y) == n:             # a single-class test slice has no calibration signal to plot
+        raise ModelError("reliability_curve: the test slice is a single class (all 0 or all 1) — "
+                         "no observed-frequency variation to calibrate against")
+    order = sorted(range(n), key=lambda i: (probs[i], i))       # stable: ties break by index, deterministic
+    bins, ece = [], 0.0
+    for b in range(n_bins):
+        lo = b * n // n_bins
+        hi = (b + 1) * n // n_bins
+        idx = order[lo:hi]
+        if not idx:
+            continue
+        mp = sum(probs[i] for i in idx) / len(idx)
+        of = sum(y[i] for i in idx) / len(idx)
+        bins.append({"bin": b + 1, "n": len(idx), "mean_pred": round(mp, 6),
+                     "obs_freq": round(of, 6), "gap": round(mp - of, 6)})
+        ece += (len(idx) / n) * abs(mp - of)
+    return {"bins": bins, "ece": round(ece, 6), "n": n, "n_bins": len(bins),
+            "base_rate": round(sum(y) / n, 6), "validation": SYNTHETIC_VALIDATION}
+
+
+def coefficient_intervals(model=None, design=None, slices=None, z=1.96, panel_path=PANEL_PATH):
+    """Coefficient-stability diagnostic: ROBUST (Huber-White sandwich) standard errors + Wald intervals for
+    each standardized coefficient, evaluated AT the pinned coefficients over the TRAIN slice — no re-fit.
+    The sandwich (not the naive inverse-information) is used because the fit is CLASS-WEIGHTED, so the
+    weights are not frequency weights and the naive covariance would be wrong. cov = H^-1 (Σ r_i^2 x_i x_i^T)
+    H^-1, with H = Σ s_i x_i x_i^T + ridge(on coefficients, not the intercept), s_i = w_i p_i(1-p_i),
+    r_i = w_i(y_i - p_i). These are legibility intervals on a synthetic fit (mechanics, not external
+    inference); a decoy coefficient's interval should comfortably span 0. Returns per DESIGN feature (the
+    intercept is reported separately, never as a 'driver')."""
+    if not (_finite_num(z) and z > 0):
+        raise ModelError(f"coefficient_intervals: z must be a positive finite number (got {z!r})")
+    bundle = (model, design, slices)
+    if all(v is None for v in bundle):
+        model, _cal, design, slices = train_model(panel_path)
+    elif any(v is None for v in bundle):
+        raise ModelError("coefficient_intervals: pass NO bundle or a COMPLETE (model, design, slices)")
+    _validate_model(model)
+    _validate_slices(design, slices)
+    names = model["feature_names"]
+    p = len(names) + 1                                            # + intercept column
+    tr = slices["train"]
+    yt = [design["y"][i] for i in tr]
+    _binary_labels(yt)                                           # fail closed on forged/non-binary labels
+    npos = sum(yt)
+    if npos == 0 or npos == len(yt):
+        raise ModelError("coefficient_intervals: train slice has a single class")
+    pos_w = model["pos_weight"]
+    # the sandwich re-derives the class weighting, so it must be the SAME weighting the model was fit under;
+    # a mismatched pos_weight would silently produce wrong SEs. Manifest stores it rounded (COEF_DP), so allow
+    # a rounding-scale tolerance around the exact rare-class up-weight (n - npos)/npos.
+    if abs(pos_w - (len(yt) - npos) / npos) > 1e-6:
+        raise ModelError("coefficient_intervals: model pos_weight does not match the train slice class balance "
+                         f"(model {pos_w!r} vs {(len(yt) - npos) / npos!r}) — mismatched model/slice")
+    beta = [model["intercept"]] + [model["coef"][nm] for nm in names]
+    H = [[0.0] * p for _ in range(p)]                            # information (Hessian) at beta
+    meat = [[0.0] * p for _ in range(p)]                         # Σ (weighted score)_i (weighted score)_i^T
+    for i in tr:
+        row = [1.0] + _apply_std(design["X"][i], model["mean"], model["std"])
+        yi = float(design["y"][i])
+        w = pos_w if yi == 1.0 else 1.0
+        pi = _sigmoid(_logit(model, design["X"][i]))
+        s = w * pi * (1.0 - pi)
+        r = w * (yi - pi)
+        for a in range(p):
+            ra = row[a]
+            for b in range(a, p):
+                H[a][b] += s * ra * row[b]
+                meat[a][b] += (r * r) * ra * row[b]
+    for a in range(p):                                           # mirror + ridge on coefficients (not intercept)
+        for b in range(a):
+            H[a][b] = H[b][a]
+            meat[a][b] = meat[b][a]
+        if a > 0:
+            H[a][a] += model["l2"]                               # the ridge the model was fit under, not a global
+    Hinv = _matrix_inverse(H)
+    # cov = Hinv @ meat @ Hinv  (symmetric); we only need the diagonal
+    HM = [[sum(Hinv[i][k] * meat[k][j] for k in range(p)) for j in range(p)] for i in range(p)]
+    var = [sum(HM[i][k] * Hinv[k][i] for k in range(p)) for i in range(p)]
+    for v in var:
+        if not _finite_num(v) or v < 0:
+            raise ModelError("coefficient_intervals: non-finite/negative variance (degenerate information)")
+    se = [math.sqrt(v) for v in var]
+    out = []
+    for j, nm in enumerate(names, start=1):
+        c = beta[j]
+        lo, hi = c - z * se[j], c + z * se[j]
+        out.append({"feature": nm, "coef": round(c, COEF_DP), "se": round(se[j], COEF_DP),
+                    "ci_lo": round(lo, COEF_DP), "ci_hi": round(hi, COEF_DP),
+                    "excludes_zero": (lo > 0 or hi < 0), "is_decoy": nm in DECOY_FEATURES})
+    return {"z": z, "intercept": {"coef": round(beta[0], COEF_DP), "se": round(se[0], COEF_DP)},
+            "coefficients": out, "n_train": len(tr), "note": "robust (sandwich) SE on the class-weighted, "
+            "standardized ridge fit; standardized log-odds units; synthetic-validation only"}
+
+
 # --------------------------------------------------------------------------- model manifest (scaffold)
 
 _MANIFEST_KEYS = {
@@ -1387,11 +1526,16 @@ def _validate_trained_shape(m: dict) -> None:
               "irls_iters", "n_train", "n_calibration", "n_test"):
         if not (isinstance(tw.get(k), int) and not isinstance(tw[k], bool) and tw[k] >= 0):
             raise ManifestError(f"training_window.{k} must be a non-negative int")
-    if not _finite_num(tw.get("l2")) or not (isinstance(tw.get("horizons_months"), list)
-                                             and tw["horizons_months"]
-                                             and all(isinstance(h, int) and not isinstance(h, bool) and h > 0
-                                                     for h in tw["horizons_months"])):
-        raise ManifestError("training_window.l2 / horizons_months are malformed")
+    # l2 must be the CANONICAL ridge the published coefficients were fit under (L2_LAMBDA), not merely a
+    # finite non-negative number: a positive-but-wrong l2 (e.g. 0.0 or 50.0) would let model_from_manifest()
+    # load a model whose coefficient_intervals() are computed against the wrong Hessian ridge — silently wrong
+    # SEs. Pin it here at the manifest gate, not only in the separate/skippable check_reproducible().
+    if not (_finite_num(tw.get("l2")) and tw.get("l2") == L2_LAMBDA) \
+            or not (isinstance(tw.get("horizons_months"), list) and tw["horizons_months"]
+                    and all(isinstance(h, int) and not isinstance(h, bool) and h > 0
+                            for h in tw["horizons_months"])):
+        raise ManifestError(f"training_window.l2 (must equal the canonical L2_LAMBDA={L2_LAMBDA}) / "
+                            "horizons_months are malformed")
     rb = m.get("risk_band_thresholds")
     if not isinstance(rb, dict) or set(rb) != {"elevated", "high"} \
             or not _finite_num(rb.get("elevated")) or not _finite_num(rb.get("high")):
