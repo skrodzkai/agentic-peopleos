@@ -128,6 +128,11 @@ class _TourRefParser(HTMLParser):
             v = (a.get(key) or "").split("#")[0].strip()
             if v and not v.startswith(("http://", "https://", "mailto:", "data:", "#")):
                 self.refs.add(v)
+        # srcset carries comma-separated "url [descriptor]" candidates — validate each local one too
+        for cand in (a.get("srcset") or "").split(","):
+            u = cand.strip().split()[0] if cand.strip() else ""
+            if u and not u.startswith(("http://", "https://", "data:")):
+                self.refs.add(u)
         if tag == "meta":
             content = (a.get("content") or "").strip()
             if content.startswith(_PAGES_BASE):
@@ -145,8 +150,14 @@ def _tour_errors():
         return ["tour page missing: docs/index.html"]
     parser = _TourRefParser()
     parser.feed(tour.read_text(encoding="utf-8"))
+    docs_root = (REPO / "docs").resolve()
     for ref in sorted(parser.refs):
-        if not (REPO / "docs" / ref).is_file():
+        target = (REPO / "docs" / ref).resolve()
+        # the live Pages site serves docs/ as its root — a ../-escaping ref can resolve to a real repo
+        # file locally yet 404 in production, so the boundary itself is enforced, not just existence
+        if docs_root != target and docs_root not in target.parents:
+            errors.append(f"tour reference escapes the Pages root (docs/): {ref}")
+        elif not target.is_file():
             errors.append(f"tour references a missing file: docs/{ref}")
     for svg in sorted((REPO / "docs" / "assets").glob("*.svg")):
         try:
