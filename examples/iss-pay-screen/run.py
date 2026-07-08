@@ -110,7 +110,7 @@ def _narrative(res, committee):
             f"<b class='c-{concern.lower()}'>{concern} concern</b>{driver_txt}.")
     body = (f" CEO pay is <b>{m['mom']['value']:.2f}× the peer median</b> (MOM) while sitting at the "
             f"<b>{ch.ordinal(m['rda']['pay_pctile'])} percentile</b> of pay vs the <b>{ch.ordinal(m['rda']['tsr_pctile'])}</b> "
-            f"of 5-year TSR — an alignment gap of <b>{m['rda']['value']:.0f}</b> points (RDA).")
+            f"of {res['policy']['rda_years']}-year TSR — an alignment gap of <b>{m['rda']['value']:.0f}</b> points (RDA).")
     if committee["available"]:
         body += (" This ISS demo runs on a <b>separate synthetic universe</b> from the peer-builder's real peer "
                  "group (disjoint by design, so no real company ever carries a fabricated pay/TSR figure).")
@@ -192,8 +192,12 @@ def render_html(report):
                 f"{_e(res['policy']['effective'])} — illustrative public-methodology reconstruction on "
                 "synthetic data; thresholds + WLS mechanics per ISS's Pay-for-Performance Mechanics doc; "
                 "the exact FPA threshold + qualitative outcome still need ISS/consultant review. Not ISS's "
-                f"actual output.<br><span class='delta'>2026 update reflected: {_e(res['policy']['delta_from_prior'])}</span>"
-                "</div></div></section>")
+                "actual output."
+                # the "what changed vs the prior season" line only exists for a season that HAS a delta (2026);
+                # a 2025 baseline render carries delta_from_prior=None, so it must show no "update reflected" line
+                + (f"<br><span class='delta'>2026 update reflected: {_e(res['policy']['delta_from_prior'])}</span>"
+                   if res['policy']['delta_from_prior'] else "")
+                + "</div></div></section>")
 
     # three measure gauges — every threshold comes from the engine's policy-year bands (never hard-coded),
     # so a policy change flows straight to the dashboard.

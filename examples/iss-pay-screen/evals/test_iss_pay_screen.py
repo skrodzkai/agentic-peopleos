@@ -72,6 +72,13 @@ ok(_rda_tick(-60.0) in page25 and _rda_tick(-60.0) not in page26,
 res25 = ISSUniverse().screen(policy_year=2025)
 ok(res25["bands"]["rda"]["high"] == -60.0 and report["res"]["bands"]["rda"]["high"] == -64.0,
    "2025 vs 2026 RDA-high thresholds differ in the engine the dashboard reads from")
+# the 2025 render's COPY must track its own policy: a 3-year RDA window, and NO "2026 update" delta line
+ok("3-year TSR" in page25 and "5-year TSR" not in page25,
+   "the 2025 narrative states its own 3-year RDA/TSR window (not a hard-coded 5-year)")
+ok("of 5-year TSR" in page26, "the 2026 narrative states its 5-year RDA/TSR window")
+ok("2026 update reflected" not in page25 and "reflected: None" not in page25,
+   "the 2025 baseline render carries no '2026 update reflected' delta line (delta_from_prior is None)")
+ok("2026 update reflected" in page26, "the 2026 render still shows the concrete season delta")
 ok("overlap committee core" in page and str(len(report["committee"]["overlap"])) in page,
    "the ISS-vs-committee peer overlap is shown (the two-peer-object point)")
 
