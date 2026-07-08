@@ -185,6 +185,26 @@ raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "financials.csv",
        lambda h, rows: (h, rows[:-1])))),
        "a financials spine that no longer aligns with the shares spine fails closed")
 
+# REFERENTIAL INTEGRITY: a grant to a non-existent recipient / unknown award type or group fails closed
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda h, rows: (h, [_set(h, row, "emp_id", "GHOST-9") for row in rows])))),
+       "a grant to an emp_id in neither workers.csv nor directors.csv fails closed")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda h, rows: (h, [_set(h, row, "award_type", "bogus") for row in rows])))),
+       "a grant with an unknown award_type fails closed")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda h, rows: (h, [_set(h, row, "participant_group", "bogus") for row in rows])))),
+       "a grant with an unknown participant_group fails closed")
+# a director grant (recipient in directors.csv, not workers.csv) is ACCEPTED — this must not over-reject
+_ok_dir = S.compute()  # the committed data has 40 director grants; if referential integrity were too strict
+ok(_ok_dir["locked_in"]["backlog_unrecognized_usd"] > 0, "director grants (in directors.csv) are valid recipients")
+
+# TTM must be exactly four consecutive calendar quarters ending at the fiscal close
+raises(lambda: S.compute(_tmp_with(lambda d: (
+       _rewrite(d / "shares_outstanding.csv", lambda h, rows: (h, rows[-3:])),
+       _rewrite(d / "financials.csv", lambda h, rows: (h, rows[-3:]))))),
+       "fewer than four quarterly financials rows fails closed (cannot form a clean TTM)")
+
 print(f"OK — {passed} SBC-forecast checks passed "
       f"(as of {r['as_of']}; backlog ${li['backlog_unrecognized_usd']:,.0f} reconciles to equity-spend; "
       f"runoff FY{li['schedule'][0]['fy']} ${li['schedule'][0]['gross_expense']:,.0f} -> "

@@ -53,6 +53,10 @@ _WORKER_COLS = ("emp_id", "worker_type", "status", "hire_date", "term_date", "te
                 "ethnicity_group", "promotion_eligible", "promoted_this_period", "level_entry_date",
                 "potential")
 
+_DIRECTOR_COLS = ("director_id", "independent", "committee")
+_AWARD_TYPES = ("rsu", "option", "psu")    # every grant must declare a known award type
+_PARTICIPANT_GROUPS = ("ceo", "section16", "management", "staff", "director")
+
 HORIZON_FYS = 5                            # forecast at most this many fiscal years forward
 NEW_GRANT_VEST_MONTHS = 48                 # illustrative straight-line vesting for the modeled new-grant run-rate
 ILLUSTRATIVE_FORFEITURE_RATE = 0.06        # illustrative estimated annual forfeiture rate on future unvested cost
@@ -144,23 +148,42 @@ def _cum_expense(g, at: date, term) -> float:
 
 
 def _load(data_dir):
-    grants = _rows(data_dir / "equity_grants.csv", _GRANT_COLS)
-    gid_seen = set()
-    for g in grants:                                          # validate economics once, fail closed at load
-        if g["grant_id"] in gid_seen:
-            raise SBCDataError(f"duplicate grant_id: {g['grant_id']}")
-        gid_seen.add(g["grant_id"])
-        _grant_fv(g)                                          # positive whole shares + positive fair value
-        _int_num(g["vest_months_total"], f"{g['grant_id']}.vest_months_total", positive=True)
-        _int_num(g["cliff_months"], f"{g['grant_id']}.cliff_months")
-        _pdate(g["grant_date"], f"{g['grant_id']}.grant_date")
-        _pdate(g["vest_start_date"], f"{g['grant_id']}.vest_start_date")
     worker_rows = _rows(data_dir / "workers.csv", _WORKER_COLS)   # pinned schema (never self-accepted)
     workers = {}
     for w in worker_rows:
         if w["emp_id"] in workers:
             raise SBCDataError(f"duplicate emp_id in workers.csv: {w['emp_id']}")
         workers[w["emp_id"]] = w
+    # directors receive grants too and live in a separate roster; a grant recipient must exist in one of them
+    director_ids = {d["director_id"] for d in _rows(data_dir / "directors.csv", _DIRECTOR_COLS)}
+    valid_recipients = set(workers) | director_ids
+    grants = _rows(data_dir / "equity_grants.csv", _GRANT_COLS)
+    gid_seen = set()
+    for g in grants:                                          # validate economics once, fail closed at load
+        gid = g["grant_id"]
+        if gid in gid_seen:
+            raise SBCDataError(f"duplicate grant_id: {gid}")
+        gid_seen.add(gid)
+        _grant_fv(g)                                          # positive whole shares + positive fair value
+        _int_num(g["vest_months_total"], f"{gid}.vest_months_total", positive=True)
+        _int_num(g["cliff_months"], f"{gid}.cliff_months")
+        gd = _pdate(g["grant_date"], f"{gid}.grant_date")
+        _pdate(g["vest_start_date"], f"{gid}.vest_start_date")
+        # REFERENTIAL INTEGRITY: a grant must belong to a known employee, and declare a known award type +
+        # participant group — otherwise an orphan/typo grant silently flows into the backlog and the forecast.
+        if gid.strip() == "":
+            raise SBCDataError("a grant has a blank grant_id")
+        if g["emp_id"] not in valid_recipients:
+            raise SBCDataError(f"{gid}: grant belongs to unknown recipient {g['emp_id']!r} "
+                               "(not in workers.csv or directors.csv)")
+        w = workers.get(g["emp_id"])                          # None for a director (no service-condition term)
+        if g["award_type"] not in _AWARD_TYPES:
+            raise SBCDataError(f"{gid}: unknown award_type {g['award_type']!r}")
+        if g["participant_group"] not in _PARTICIPANT_GROUPS:
+            raise SBCDataError(f"{gid}: unknown participant_group {g['participant_group']!r}")
+        # a grant dated after the holder already left is incoherent (you can't grant to a departed employee)
+        if w is not None and w.get("term_date") and gd > _pdate(w["term_date"], f"{g['emp_id']}.term_date"):
+            raise SBCDataError(f"{gid}: grant_date {gd} is after the holder's term_date {w['term_date']}")
     shares = _rows(data_dir / "shares_outstanding.csv", _SHARE_COLS)
     fin = _rows(data_dir / "financials.csv", _FIN_COLS)
     for f in fin:                                            # EVERY revenue row must be a positive number,
@@ -289,7 +312,22 @@ def compute(data_dir=None):
     total_forecast = []
     # every revenue row must be a POSITIVE number, and the TTM denominator must be > 0 — otherwise the % line
     # is a divide-by-zero (or a nonsensical negative), and it is rendered. Fail closed here.
-    rev_rows = fin[-4:] if len(fin) >= 4 else fin[-1:]
+    # TTM revenue is the sum of the FOUR quarterly rows ending at the anchor — require exactly that: at least
+    # four rows, each of the trailing four a consecutive quarter-end (3 months apart) ending at the fiscal
+    # close. Fewer than four quarters, or a non-quarterly cadence, would mislabel a partial figure as "TTM".
+    if len(fin) < 4:
+        raise SBCDataError("need at least four quarterly financials rows to form a trailing-twelve-months "
+                           f"revenue figure (got {len(fin)})")
+    rev_rows = fin[-4:]
+    _qends = [_pdate(r["period_end"], "financials.period_end") for r in rev_rows]
+
+    def _qord(d):                                            # calendar-quarter ordinal (Q1..Q4 -> 0..3 per year)
+        return d.year * 4 + (d.month - 1) // 3
+    if (_qends[-1] != as_of
+            or any(d.month not in (3, 6, 9, 12) for d in _qends)          # each row is a calendar quarter-end
+            or any(_qord(_qends[i + 1]) - _qord(_qends[i]) != 1 for i in range(3))):   # and consecutive, no gap
+        raise SBCDataError("the trailing four financials rows are not four consecutive calendar-quarter-ends "
+                           f"ending at the fiscal close {as_of} — cannot form a clean TTM revenue")
     last_ttm_rev = sum(_num(r["revenue_usd"], "financials.revenue_usd", positive=True) for r in rev_rows)
     if last_ttm_rev <= 0:
         raise SBCDataError("trailing-twelve-months revenue must be > 0 to express SBC as a % of revenue")

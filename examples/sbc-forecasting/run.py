@@ -109,6 +109,19 @@ def build_report(result):
         if _c(s["cumulative_gross"]) != run_c:
             raise ReportError(f"FY{s['fy']}: cumulative is not the running sum of gross expense")
 
+    # the dashboard SAYS the backlog "reconciles to the equity-spend arm" — so verify that AT RUNTIME, not
+    # just in a test: import the equity-spend engine, compute its unamortized-SBC backlog over the committed
+    # data, and fail closed on any drift. (The committed dashboard renders the default dataset, which both
+    # engines read; the engine's own reconciliation test exercises custom data dirs directly.)
+    try:
+        from foundation.compute import equity_spend as _E
+        es_backlog = _E.compute()["unamortized_sbc"]
+    except Exception as exc:
+        raise ReportError(f"could not cross-check the equity-spend backlog at build time: {exc}")
+    if _c(es_backlog) != _c(li["backlog_unrecognized_usd"]):
+        raise ReportError(f"backlog does not reconcile to the equity-spend arm at runtime "
+                          f"(sbc {_c(li['backlog_unrecognized_usd'])} != equity-spend {_c(es_backlog)} cents)")
+
     tf = result["total_forecast"]
     for t in tf:
         if not _finite(t["locked_in"], t["new_grants"], t["total"], t["pct_ttm_revenue"]):
@@ -189,7 +202,7 @@ def render_html(report):
     body.append(ch.dual_axis_line(labels, totals, pcts,
                                   left_fmt=lambda v: f"${v}M", right_fmt=lambda v: f"{v}%", uid="sbc_total"))
     body.append(dash.data_table(
-        ["Fiscal year", "Locked-in", "New grants (illus.)", "Total SBC", "% of TTM rev"],
+        ["Fiscal year", "Locked-in (forf-adj)", "New grants (illus.)", "Total SBC", "% of TTM rev"],
         [[f"FY{t['fy']}", _m(t["locked_in"]), _m(t["new_grants"]), _m(t["total"]),
           f"{t['pct_ttm_revenue']:.1f}%" if t["pct_ttm_revenue"] is not None else "—"] for t in tf],
         center_from=1))
