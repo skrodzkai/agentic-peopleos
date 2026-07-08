@@ -484,4 +484,63 @@ by_mismatch = _restamped({"ts": "t", "actor": _m("hr.business-partner"), "channe
 ok(any("attribution laundering" in v for v in validate_log(by_mismatch, registry=reg)),
    "an approval.by disagreeing with the event actor is caught on replay")
 
+# --- head-count anchor: the suffix-truncation defense the forward chain can't provide ---
+from core.event_log import write_anchor, compute_anchor, verify_anchor, GENESIS  # noqa: E402
+
+pa = fresh()
+la = EventLog(pa)
+for n in range(4):
+    la.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c",
+               "type": "fyi", "case_ref": "A", "correlation_id": "A", "payload": {"n": n}})
+anchor = compute_anchor(la.events())
+ok(anchor["count"] == 4 and anchor["head_hash"] == la.last_hash(), "anchor records count + head hash")
+ok(compute_anchor([])["head_hash"] == GENESIS, "empty-ledger anchor head is GENESIS")
+
+# baseline: a valid ledger passes with its anchor; the chain ALONE cannot detect truncation
+ok(not validate_log(pa, anchor=anchor), "valid ledger validates against its anchor")
+full_lines = pa.read_text(encoding="utf-8").strip().splitlines()
+pa.write_text("\n".join(full_lines[:-1]) + "\n", encoding="utf-8")   # drop the last row
+ok(not validate_log(pa), "chain-only validation does NOT catch suffix truncation (the gap this closes)")
+trunc = validate_log(pa, anchor=anchor)
+ok(any("truncated" in v.lower() for v in trunc), "the anchor CATCHES suffix truncation (count mismatch)")
+
+# truncating a trailing DENIAL would reinstate a revoked approval — the anchor blocks exactly that
+pa.write_text("\n".join(full_lines) + "\n", encoding="utf-8")        # restore
+pa.write_text("\n".join(full_lines[:2]) + "\n", encoding="utf-8")    # aggressive truncation
+ok(any("ANCHOR MISMATCH" in v for v in validate_log(pa, anchor=anchor)), "deeper truncation is caught too")
+pa.write_text("\n".join(full_lines) + "\n", encoding="utf-8")        # restore full
+
+# a signed anchor: an attacker who truncates the ledger AND rewrites an (unsigned) sidecar still fails HMAC
+KEY2 = b"kms-checkpoint-key"
+signed = compute_anchor(la.events(), secret=KEY2)
+ok("hmac" in signed, "a secret produces an HMAC-signed anchor")
+ok(not verify_anchor(la.events(), signed, secret=KEY2), "signed anchor verifies with the right key")
+forged = compute_anchor(la.events()[:3])                              # unsigned anchor for a 3-row prefix
+ok(any("HMAC invalid" in v for v in verify_anchor(la.events()[:3], forged, secret=KEY2)),
+   "under a secret, an unsigned/forged anchor is rejected before the count even matches")
+ok(any("wrong key" in v or "HMAC invalid" in v
+       for v in verify_anchor(la.events(), compute_anchor(la.events(), secret=b"other"), secret=KEY2)),
+   "an anchor signed with the wrong key is rejected")
+
+# a malformed anchor fails closed (never silently passes)
+for bad, why in ((None, "non-dict"), ({"count": 4, "head_hash": "x"}, "missing schema_version"),
+                 ({"schema_version": "1.0", "count": -1, "head_hash": "x"}, "negative count"),
+                 ({"schema_version": "1.0", "count": 4, "head_hash": ""}, "empty head_hash")):
+    ok(verify_anchor(la.events(), bad) != [], f"malformed anchor rejected: {why}")
+
+# an EXTENDED ledger (rows appended past the anchor) is caught as well
+la.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+           "case_ref": "A", "correlation_id": "A", "payload": {"n": 99}})
+ok(any("extended" in v for v in verify_anchor(la.events(), anchor)), "appending past the anchor is caught")
+
+# write_anchor round-trips through a file, and validate_log accepts an anchor PATH
+pw = fresh()
+lw = EventLog(pw)
+lw.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+           "case_ref": "A", "correlation_id": "A", "payload": {}})
+ap = write_anchor(pw)
+ok(ap.exists() and not validate_log(pw, anchor=ap), "write_anchor sidecar validates by path")
+ok(any("anchor not found" in v for v in validate_log(pw, anchor=pw.with_suffix(".missing"))),
+   "a missing anchor file fails closed")
+
 print(f"OK — {passed} ledger checks passed.")

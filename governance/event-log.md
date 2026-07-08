@@ -111,11 +111,23 @@ ledger still **validates**; it just records a denial + escalation instead of an 
 
 ## Integrity vs non-repudiation (be honest)
 
-The SHA-256 hash chain proves **internal consistency / no in-place edit**. It does **not**
-prove non-repudiation: an attacker who rewrites the whole file can recompute every hash.
-Construct `EventLog(path, secret=...)` to sign each event (HMAC) — a wholesale rewrite then
-fails verification (`validate_log(path, secret=...)`). **Production** anchors the head hash in
-a KMS-signed checkpoint and stores the ledger on WORM/append-only media.
+The SHA-256 hash chain proves **internal consistency / no in-place edit**. On its own it does
+**not** prove non-repudiation (an attacker who rewrites the whole file can recompute every hash)
+and it does **not** detect **suffix truncation** — dropping the last N rows leaves a consistent
+prefix that validates clean, which would silently reinstate a decision a later "denied" had revoked.
+Two controls close those gaps:
+
+- **HMAC signatures.** Construct `EventLog(path, secret=...)` to sign each event — a wholesale
+  rewrite then fails `validate_log(path, secret=...)` for anyone without the key.
+- **Head-count anchor.** `EventLog.checkpoint()` (CLI: `python3 -m core.event_log checkpoint
+  <log>`) writes a small sidecar `{schema_version, count, head_hash}` — itself HMAC-signable when
+  the log carries a secret. `validate_log(path, anchor=<sidecar>)` fails a truncated (fewer rows),
+  extended (more rows), or head-rewritten ledger. The visible-handoff example commits an anchor
+  beside every sample ledger, and CI regenerates them byte-for-byte AND proves a truncated ledger
+  is rejected against its anchor.
+
+**Production** stores that anchor as a KMS-signed checkpoint on WORM / append-only media; the
+mechanism here is the reference shape of exactly that control.
 
 ## Scale
 

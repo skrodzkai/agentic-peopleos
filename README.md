@@ -52,7 +52,10 @@ transcript, ledger, and evals:
 
 - **A tamper-evident decision ledger** ([`core/event_log.py`](core/event_log.py)) — a
   hash-chained, replayable JSONL ledger that detects edits, gaps, duplicates, out-of-order or
-  **forged** approvals, and **decision laundering** (an action with no genuine approval).
+  **forged** approvals, and **decision laundering** (an action with no genuine approval). The forward
+  chain cannot, on its own, catch **suffix truncation** (dropping the last N rows leaves a consistent
+  prefix), so the ledger also takes a signed **head-count anchor** — `validate_log(..., anchor=…)`
+  fails a truncated (or extended, or head-rewritten) ledger; CI proves a truncated sample is rejected.
 - **Approval registry** ([`core/approval_registry.py`](core/approval_registry.py)) — role-scoped, satisfied by
   a *pool*: any one entitled HR human can approve, so PTO/illness never blocks a decision.
   Entitlement is re-derived on replay; the logged flag is never trusted.

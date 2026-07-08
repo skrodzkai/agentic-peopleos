@@ -78,6 +78,10 @@ REQUIRED_OUTPUTS = [
     "examples/visible-handoff/output/approved.transcript.sample.md",
     "examples/visible-handoff/output/denied.events.sample.jsonl",
     "examples/visible-handoff/output/denied.transcript.sample.md",
+    # head-count anchors committed beside each ledger — the suffix-truncation defense
+    "examples/visible-handoff/output/events.jsonl.anchor.json",
+    "examples/visible-handoff/output/approved.events.sample.jsonl.anchor.json",
+    "examples/visible-handoff/output/denied.events.sample.jsonl.anchor.json",
 ]
 
 

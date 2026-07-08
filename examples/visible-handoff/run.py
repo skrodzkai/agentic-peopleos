@@ -146,9 +146,13 @@ def run_handoff(out_dir=OUT, *, approver_id="hr.business-partner", inject=False,
         action_taken = False
 
     (out_dir / "transcript.md").write_text(chat.transcript(CHANNEL), encoding="utf-8")
-    return {"ledger_path": ledger_path, "action_taken": action_taken, "decision": decision,
-            "violations": validate_log(ledger_path, registry=reg), "events": log.events(),
-            "transcript": chat.transcript(CHANNEL)}
+    # Take a head-count anchor next to the ledger so a later validate can detect suffix truncation
+    # (deterministic: {count, head_hash}, no wall-clock — the committed anchor is byte-stable).
+    anchor_path = log.checkpoint()
+    return {"ledger_path": ledger_path, "anchor_path": anchor_path,
+            "action_taken": action_taken, "decision": decision,
+            "violations": validate_log(ledger_path, registry=reg, anchor=anchor_path),
+            "events": log.events(), "transcript": chat.transcript(CHANNEL)}
 
 
 def main() -> int:

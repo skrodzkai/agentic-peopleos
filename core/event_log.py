@@ -16,10 +16,15 @@ into an audit log:
 
 Integrity note (be honest in interviews): a bare hash chain proves *internal
 consistency / no in-place edit*. It does NOT prove non-repudiation — an attacker
-who rewrites the whole file can recompute every hash. Pass a `secret` to sign each
-event (HMAC); production anchors the head hash in a KMS-signed checkpoint and stores
-the ledger on WORM/append-only media. The chat surface is the source of truth for the
-*conversation*; this ledger for *decisions/actions/approvals*; the HRIS/ATS for *data*.
+who rewrites the whole file can recompute every hash — and, on its own, it does NOT
+detect SUFFIX TRUNCATION: dropping the last N rows leaves a consistent prefix that
+validates clean. Two controls close those gaps: pass a `secret` to HMAC-sign each
+event (detects a wholesale rewrite by anyone without the key), and take a head-count
+`anchor` (checkpoint) — {count, head_hash}, itself HMAC-signable — that
+validate_log(..., anchor=...) checks so a truncated (or extended, or head-rewritten)
+ledger fails. Production stores that anchor on WORM / a KMS-signed checkpoint. The chat
+surface is the source of truth for the *conversation*; this ledger for
+*decisions/actions/approvals*; the HRIS/ATS for *data*.
 
 CLI:
     python3 -m core.event_log validate <log.jsonl> [--registry registry.json]
@@ -103,6 +108,15 @@ class EventLog:
     def last_hash(self):
         return self._events[-1]["event_hash"] if self._events else GENESIS
 
+    def anchor(self) -> dict:
+        """This ledger's current head-count anchor (HMAC-signed when the log carries a secret)."""
+        return compute_anchor(self._events, secret=self.secret)
+
+    def checkpoint(self, anchor_path=None) -> Path:
+        """Write this ledger's anchor sidecar (default `<log>.anchor.json`), signed with the log's
+        secret if it has one. A subsequent validate_log(..., anchor=<path>) then detects truncation."""
+        return write_anchor(self.path, anchor_path=anchor_path, secret=self.secret)
+
     def append(self, event: dict) -> dict:
         ev = dict(event)
         for field in _INPUT_REQUIRED:
@@ -169,12 +183,15 @@ class EventLog:
 #  Validation / replay
 # ---------------------------------------------------------------------------
 
-def validate_log(path, registry=None, secret: bytes = None) -> list:
+def validate_log(path, registry=None, secret: bytes = None, anchor=None) -> list:
     """Replay a ledger and return violations ([] == valid).
 
     If `registry` (an ApprovalRegistry) is given, approvals are re-verified against it (the
     logged `entitled` flag is never trusted). If `secret` is given, HMAC signatures are
-    verified (detects a wholesale rewrite).
+    verified (detects a wholesale rewrite). If `anchor` is given (a checkpoint dict or a path to
+    one), the ledger's length and head hash are checked against it — this is what detects SUFFIX
+    TRUNCATION (deleting the last N rows), which the forward hash chain alone cannot: a truncated
+    prefix is internally consistent, so nothing but an external head-count anchor catches it.
     """
     path = Path(path)
     if not path.exists():
@@ -353,24 +370,134 @@ def validate_log(path, registry=None, secret: bytes = None) -> list:
 
         prev_hash = ev.get("event_hash")
 
+    if anchor is not None:
+        violations.extend(verify_anchor(events, anchor, secret=secret))
+
     return violations
 
 
+# ---------------------------------------------------------------------------
+#  Head-count anchor (truncation defense)
+# ---------------------------------------------------------------------------
+#
+# The forward hash chain proves no INTERIOR edit/insert/reorder, but a suffix-truncated ledger (drop
+# the last N rows) is a consistent prefix and validates clean — so deleting a trailing "denied" that
+# revoked an approval would silently reinstate it. The defense is an EXTERNAL anchor recording the
+# ledger's length and head hash; production stores it on WORM / a KMS-signed checkpoint. Here it is a
+# small sidecar committed alongside the ledger. Passing a `secret` HMAC-signs the anchor so an attacker
+# who also rewrites the sidecar cannot forge a matching one without the key.
+
+ANCHOR_SCHEMA_VERSION = "1.0"
+_ANCHOR_HMAC_EXCLUDE = ("hmac",)
+
+
+def head_state(events) -> tuple:
+    """(count, head_hash) for a list of events — head_hash is GENESIS for an empty ledger."""
+    count = len(events)
+    head = events[-1].get("event_hash", "") if events else GENESIS
+    return count, head
+
+
+def compute_anchor(events, secret: bytes = None) -> dict:
+    """Build a checkpoint dict {schema_version, count, head_hash[, hmac]} for `events` (a list of event
+    dicts, or a ledger path). Deterministic: no wall-clock — the same ledger yields the same anchor, so a
+    committed anchor is byte-stable and CI-diffable."""
+    if isinstance(events, (str, Path)):
+        events = _read_events(Path(events))
+    count, head = head_state(events)
+    anchor = {"schema_version": ANCHOR_SCHEMA_VERSION, "count": count, "head_hash": head}
+    if secret is not None:
+        anchor["hmac"] = _hmac(secret, canonical(anchor))    # signs {schema_version, count, head_hash}
+    return anchor
+
+
+def write_anchor(log_path, anchor_path=None, secret: bytes = None) -> Path:
+    """Checkpoint a ledger: write its anchor sidecar (default `<log>.anchor.json`). Returns the path."""
+    log_path = Path(log_path)
+    anchor_path = Path(anchor_path) if anchor_path else log_path.with_suffix(log_path.suffix + ".anchor.json")
+    anchor = compute_anchor(_read_events(log_path), secret=secret)
+    anchor_path.write_text(json.dumps(anchor, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    return anchor_path
+
+
+def _read_events(path: Path) -> list:
+    if not Path(path).exists():
+        raise LedgerError(f"ledger not found: {path}")
+    out = []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line:
+            out.append(json.loads(line, object_pairs_hook=_no_dup_keys))
+    return out
+
+
+def verify_anchor(events, anchor, secret: bytes = None) -> list:
+    """Return violations ([] == the ledger matches its anchor). `anchor` may be a dict or a path. Checks
+    the anchor's own shape + (if a secret is given) its HMAC first, THEN that the ledger's length and head
+    hash equal the anchored ones — so a truncated (or extended, or head-rewritten) ledger is caught."""
+    if isinstance(anchor, (str, Path)):
+        p = Path(anchor)
+        if not p.exists():
+            return [f"anchor not found: {p}"]
+        try:
+            anchor = json.loads(p.read_text(encoding="utf-8"), object_pairs_hook=_no_dup_keys)
+        except ValueError as exc:
+            return [f"anchor is not valid JSON: {exc}"]
+    if not isinstance(anchor, dict):
+        return ["anchor must be an object"]
+    if anchor.get("schema_version") != ANCHOR_SCHEMA_VERSION:
+        return [f"anchor schema_version != {ANCHOR_SCHEMA_VERSION}"]
+    if not isinstance(anchor.get("count"), int) or isinstance(anchor.get("count"), bool) or anchor["count"] < 0:
+        return ["anchor count must be a non-negative integer"]
+    if not (isinstance(anchor.get("head_hash"), str) and anchor["head_hash"]):
+        return ["anchor head_hash must be a non-empty string"]
+    problems = []
+    if secret is not None:
+        want = _hmac(secret, canonical(_subset(anchor, _ANCHOR_HMAC_EXCLUDE)))
+        if anchor.get("hmac") != want:
+            problems.append("anchor HMAC invalid (anchor forged or wrong key)")
+    count, head = head_state(events if not isinstance(events, (str, Path)) else _read_events(Path(events)))
+    if count != anchor["count"]:
+        problems.append(f"ANCHOR MISMATCH — ledger has {count} row(s), anchor expects {anchor['count']} "
+                        f"({'truncated' if count < anchor['count'] else 'extended'})")
+    if head != anchor["head_hash"]:
+        problems.append("ANCHOR MISMATCH — ledger head hash does not match the anchored head")
+    return problems
+
+
+_USAGE = ("usage: python3 -m core.event_log validate <log.jsonl> [--registry registry.json] [--anchor anchor.json]\n"
+          "       python3 -m core.event_log checkpoint <log.jsonl> [--anchor anchor.json]")
+
+
 def _main(argv) -> int:
-    reg_path, positional, i = None, [], 0
+    reg_path, anchor_path, positional, i = None, None, [], 0
     while i < len(argv):
         a = argv[i]
         if a == "--registry" and i + 1 < len(argv):
             reg_path = argv[i + 1]
             i += 2
             continue
+        if a == "--anchor" and i + 1 < len(argv):
+            anchor_path = argv[i + 1]
+            i += 2
+            continue
         if not a.startswith("--"):
             positional.append(a)
         i += 1
     args = positional
-    if len(args) != 2 or args[0] != "validate":
-        print("usage: python3 -m core.event_log validate <log.jsonl> [--registry registry.json]", file=sys.stderr)
+    if len(args) != 2 or args[0] not in ("validate", "checkpoint"):
+        print(_USAGE, file=sys.stderr)
         return 2
+
+    if args[0] == "checkpoint":
+        try:
+            written = write_anchor(args[1], anchor_path=anchor_path)   # CLI writes an UNSIGNED anchor
+        except Exception as exc:                                       # missing/unreadable ledger — fail closed
+            print(f"CHECKPOINT FAILED — {exc}", file=sys.stderr)
+            return 1
+        print(f"WROTE {written} (count + head hash; store on WORM/immutable media for truncation defense).")
+        return 0
+
     registry = None
     if reg_path:
         from core.approval_registry import ApprovalRegistry
@@ -379,17 +506,18 @@ def _main(argv) -> int:
         except Exception as exc:  # missing/unparseable/invalid registry — fail closed, no traceback
             print(f"LEDGER INVALID — registry unavailable: {exc}", file=sys.stderr)
             return 1
-    violations = validate_log(args[1], registry=registry)
+    violations = validate_log(args[1], registry=registry, anchor=anchor_path)
     if violations:
         print(f"LEDGER INVALID — {len(violations)} violation(s):", file=sys.stderr)
         for v in violations:
             print(f"  - {v}", file=sys.stderr)
         return 1
+    anchored = " + head-count anchor (truncation-checked)" if anchor_path else ""
     if registry:
-        print("LEDGER OK — chain intact, no gaps/dupes/laundered approvals + approval registry re-verified.")
+        print(f"LEDGER OK — chain intact, no gaps/dupes/laundered approvals + approval registry re-verified{anchored}.")
     else:
-        print("LEDGER OK — structural + chain checks only (DIAGNOSTIC). This does NOT verify approval\n"
-              "entitlement; pass --registry <registry.json> for the full integrity check.")
+        print("LEDGER OK — structural + chain checks only (DIAGNOSTIC)" + anchored + ". This does NOT verify\n"
+              "approval entitlement; pass --registry <registry.json> for the full integrity check.")
     return 0
 
 

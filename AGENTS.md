@@ -83,9 +83,15 @@ python3 skills/sec-proxy-extractor/scripts/extractor.py --demo >/dev/null
 # both handoff outcomes + ledger integrity (approved AND denied)
 (cd examples/visible-handoff && python3 scenarios.py)
 python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
-  --registry examples/visible-handoff/approval_registry.json
+  --registry examples/visible-handoff/approval_registry.json \
+  --anchor examples/visible-handoff/output/events.jsonl.anchor.json
 python3 -m core.event_log validate examples/visible-handoff/output/denied.events.sample.jsonl \
-  --registry examples/visible-handoff/approval_registry.json
+  --registry examples/visible-handoff/approval_registry.json \
+  --anchor examples/visible-handoff/output/denied.events.sample.jsonl.anchor.json
+# the head-count anchor catches suffix truncation (the chain alone cannot): a truncated ledger must FAIL
+head -n -1 examples/visible-handoff/output/events.jsonl > /tmp/truncated.jsonl && \
+  ! python3 -m core.event_log validate /tmp/truncated.jsonl \
+    --anchor examples/visible-handoff/output/events.jsonl.anchor.json
 python3 tools/vault_lint.py vault
 ```
 

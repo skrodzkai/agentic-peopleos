@@ -238,17 +238,33 @@ jobs:
         working-directory: examples/visible-handoff
         run: python3 evals/test_handoff.py
 
-      - name: Ledger validates on replay (approval registry re-verified)
+      - name: Ledger validates on replay (approval registry re-verified + head-count anchor)
         run: |
           (cd examples/visible-handoff && python3 run.py)
           python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
-            --registry examples/visible-handoff/approval_registry.json
+            --registry examples/visible-handoff/approval_registry.json \
+            --anchor examples/visible-handoff/output/events.jsonl.anchor.json
 
-      - name: Both handoff outcomes validate (approved + denied)
+      - name: Both handoff outcomes validate (approved + denied + their anchors)
         run: |
           (cd examples/visible-handoff && python3 scenarios.py)
           python3 -m core.event_log validate examples/visible-handoff/output/denied.events.sample.jsonl \
-            --registry examples/visible-handoff/approval_registry.json
+            --registry examples/visible-handoff/approval_registry.json \
+            --anchor examples/visible-handoff/output/denied.events.sample.jsonl.anchor.json
+
+      - name: Committed anchors are in sync (regenerated == committed) and catch truncation
+        run: |
+          # anchors regenerate byte-identically from run.py/scenarios.py above
+          git diff --exit-code -- examples/visible-handoff/output/events.jsonl.anchor.json \
+            examples/visible-handoff/output/approved.events.sample.jsonl.anchor.json \
+            examples/visible-handoff/output/denied.events.sample.jsonl.anchor.json \
+            || (echo "::error::a committed head-count anchor is stale — re-run run.py + scenarios.py and commit" && exit 1)
+          # a truncated ledger must FAIL against its committed anchor (the defense actually bites)
+          head -n -1 examples/visible-handoff/output/events.jsonl > /tmp/truncated.jsonl
+          if python3 -m core.event_log validate /tmp/truncated.jsonl \
+               --anchor examples/visible-handoff/output/events.jsonl.anchor.json; then
+            echo "::error::truncation defense did not trip — a truncated ledger validated against the anchor" && exit 1
+          fi
 
       - name: Rendered ledger view is in sync with the ledger
         run: |
