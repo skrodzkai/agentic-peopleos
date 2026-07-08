@@ -146,11 +146,16 @@ ok(r["concern"] == "Medium" and "High->Medium" in r["measures"]["fpa"]["note"],
 r = _screen(_subj(4_000_000, 190.0, 11.0))    # all Low, strong fin
 ok(r["concern"] == "Low", "strong FPA does not push a Low below Low / FPA never crosses Low<->High")
 
-# ---- MOM is a 50/50 blend of 1-yr and 3-yr ----
-r = _screen(_subj([2_000_000, 2_000_000, 18_000_000, 18_000_000, 18_000_000], 150.0, 5.0))
+# ---- MOM is a 50/50 blend of a 1-yr and a 3-yr multiple. Pay flat then spiking only in the latest year
+#      makes the 1-yr multiple genuinely exceed the 3-yr one, so the blend is a real average of two
+#      DIFFERENT numbers (not the degenerate case where both windows coincide) ----
+r = _screen(_subj([2_000_000, 2_000_000, 2_000_000, 2_000_000, 18_000_000], 150.0, 5.0))
 m = r["measures"]["mom"]
-ok(abs(m["value"] - 0.5 * (m["mom_1yr"] + m["mom_3yr"])) < 0.01, "MOM == 50/50 blend of 1-yr and 3-yr")
-ok(m["mom_1yr"] == m["mom_3yr"] or m["mom_1yr"] != m["mom_3yr"], "MOM exposes 1-yr and 3-yr components")
+ok(m["mom_1yr"] is not None and m["mom_3yr"] is not None, "MOM exposes both a 1-yr and a 3-yr component")
+ok(m["mom_1yr"] > m["mom_3yr"] + 0.5,
+   f"a latest-year pay spike lifts the 1-yr multiple ({m['mom_1yr']}) clearly above the 3-yr ({m['mom_3yr']})")
+ok(abs(m["value"] - 0.5 * (m["mom_1yr"] + m["mom_3yr"])) < 1.5e-3,
+   "reported MOM is exactly the 50/50 blend of its two (differing) components")
 
 # ---- PTA via weighted least squares: pay rising faster than flat TSR => negative PTA ----
 r = _screen(_subj([4_000_000, 5_000_000, 7_000_000, 10_000_000, 14_000_000], 150.0, 5.0))

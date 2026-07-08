@@ -455,7 +455,8 @@ class ISSUniverse:
         if rda <= bands["rda"]["fpa_eligible"]:
             flags.append("Pay-for-performance: pay percentile outruns TSR percentile vs the peer group.")
         if pta <= bands["pta"]["fpa_eligible"]:
-            flags.append("Trend: CEO pay has grown faster than indexed shareholder return over the RDA window.")
+            flags.append("Trend: CEO pay has grown faster than indexed shareholder return over the "
+                         "five-year pay-vs-TSR trend window (PTA is a 5-year WLS measure in every policy year).")
         if fpa < 0:
             flags.append("Financials: pay also outruns financial performance (EVA-style) — not just TSR.")
         # always-in-scope second-stage factors when any quantitative concern is raised

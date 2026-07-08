@@ -58,8 +58,17 @@ ok("non-S&amp;P-500 thresholds" in page, "the dashboard states the (non-S&P-500)
 b = report["res"]["bands"]
 ok(f"{b['mom']['high']:.2f}" in page or f"{b['mom']['high']}" in page, "MOM high threshold from the engine appears on the gauge")
 ok(str(int(b["rda"]["high"])) in page, "RDA high threshold from the engine appears on the gauge")
-# the gauge thresholds are engine-driven: swapping the policy year changes the rendered thresholds
-report25 = run.build_report(ISSUniverse())   # engine default is 2026; render a 2025 page directly from the engine
+# the gauge thresholds are engine-driven: swapping the policy year MOVES the rendered gauge geometry,
+# not just the engine bands or the delta prose. Render a real 2025 page and a real 2026 page and prove the
+# RDA concern-tick sits at a different x — X(threshold) on the shared -80..20 axis — in each.
+page26 = run.render_html(run.build_report(ISSUniverse(), None, policy_year=2026))
+page25 = run.render_html(run.build_report(ISSUniverse(), None, policy_year=2025))
+ok(page25 != page26, "rendering a different ISS policy year produces a different dashboard")
+_rda_tick = lambda hi: "x1='%.1f'" % (10 + (350 - 10) * (hi - (-80.0)) / (20.0 - (-80.0)))
+ok(_rda_tick(-64.0) in page26 and _rda_tick(-64.0) not in page25,
+   "the 2026 dashboard draws its RDA concern tick at the engine's -64 boundary (and 2025 does not)")
+ok(_rda_tick(-60.0) in page25 and _rda_tick(-60.0) not in page26,
+   "the 2025 dashboard draws its RDA concern tick at the engine's -60 boundary (and 2026 does not)")
 res25 = ISSUniverse().screen(policy_year=2025)
 ok(res25["bands"]["rda"]["high"] == -60.0 and report["res"]["bands"]["rda"]["high"] == -64.0,
    "2025 vs 2026 RDA-high thresholds differ in the engine the dashboard reads from")

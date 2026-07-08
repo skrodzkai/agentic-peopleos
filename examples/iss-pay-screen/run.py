@@ -74,8 +74,11 @@ def _e(v):
 
 
 # ---------------------------------------------------------------- compute (no screening math here)
-def build_report(iss_universe, peer_universe=None):
-    res = iss_universe.screen(policy_year=POLICY_YEAR)    # the screen decision is entirely iss_screen.py
+def build_report(iss_universe, peer_universe=None, policy_year=None):
+    # The committed dashboard renders POLICY_YEAR (2026); policy_year is injectable so a before/after
+    # (e.g. a 2025 render) drives every gauge/label straight off the engine's bands, never a constant.
+    policy_year = POLICY_YEAR if policy_year is None else policy_year
+    res = iss_universe.screen(policy_year=policy_year)    # the screen decision is entirely iss_screen.py
     cg = res["comparison_group"]
     iss_tickers = {m["ticker"] for m in cg["group"]}
 
