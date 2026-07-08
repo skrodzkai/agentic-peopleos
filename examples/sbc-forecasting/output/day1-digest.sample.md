@@ -5,6 +5,6 @@ _As of fiscal close 2025-12-31 · draft for review_
 - Locked-in runoff: $85.9M -> $58.3M -> $30.8M -> $4.8M (FY2026 onward), completing FY2029. Reconciles to the $179.8M equity-spend backlog.
 - Total forecast (locked-in + illustrative $127.2M/yr run-rate, 6% forfeiture): $117.7M -> $118.4M -> $122.6M -> $131.2M -> $127.2M.
 
-_Locked-in runoff is assumption-free amortization; forfeiture rate, new-grant run-rate, and flat revenue are illustrative. Not financial guidance._
+_Locked-in gross runoff is pure amortization of grants already made — it assumes continued service (full vesting) until the separate forfeiture overlay is applied; the forfeiture rate, new-grant run-rate, and flat revenue are illustrative. Not financial guidance._
 
 _Publish gate: a human (Finance / Total Rewards) must approve before distribution._

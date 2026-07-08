@@ -38,8 +38,14 @@ python3 run.py --publish --approved-by obs.engineering       # not entitled → 
 Verify the decision ledger:
 ```bash
 python3 -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
-  --registry examples/visible-handoff/approval_registry.json
+  --registry examples/visible-handoff/approval_registry.json \
+  --anchor examples/operating-review/output/decision.sample.events.jsonl.anchor.json --min-count 1
 ```
+
+`--anchor` binds the check to a committed checkpoint (`{count, head_hash}`) the ledger must **extend**, so a
+truncation below — or a head-rewrite at — the anchor fails closed; `--min-count N` also rejects a rollback
+to a shorter (still self-consistent) chain. The agent auto-enforces the co-located anchor on open; the flag
+makes that guard explicit here.
 
 ## Test it
 ```bash

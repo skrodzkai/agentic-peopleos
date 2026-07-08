@@ -18,11 +18,14 @@ The forecast **anchors at the fiscal close** — the last shares/financials `per
 fiscal year is a full year and the period-0 backlog is measured on the same books-close date the equity-spend
 arm uses.
 
-## 2. Methodology-faithful (assumption-free)
+## 2. Methodology-faithful (pure amortization — one stated service assumption)
 - **Locked-in runoff.** Each outstanding grant's remaining cost = grant-date fair value × (remaining service
   months ÷ total vesting months), recognized **straight-line** over the requisite service period — the same
   amortization convention as `foundation/compute/equity_spend.py`, down to the whole-month day-of-month
-  convention. Split across future fiscal years, the gross runoff **sums back exactly to the backlog**.
+  convention. Split across future fiscal years, the gross runoff **sums back exactly to the backlog**. It is
+  otherwise assumption-free EXCEPT for one, stated plainly: the **gross** runoff assumes **continued service
+  (full vesting)** — a forecast at the close cannot know a future termination — and the *separate* forfeiture
+  overlay (§3) is where estimated future forfeitures are applied.
 - **Backlog reconciliation.** The period-0 locked-in backlog equals `equity_spend.compute()["unamortized_sbc"]`
   **to the cent**, and the weighted-average remaining vesting years match. A drift is a bug and fails closed
   (enforced in the engine test and the agent's `build_report`).

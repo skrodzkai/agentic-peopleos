@@ -1082,6 +1082,13 @@ def segment_risk(rows, model, calibration, design, slices, dims=None, min_n=SEG_
         raise ModelError(f"segment_risk: unknown segment dimension(s) {unknown}")
     _validate_slices(design, slices)                       # canonical out-of-time slices only (no train-as-test, no empty)
     test = slices["test"]
+    _binary_labels([design["y"][i] for i in test])         # the empirical top-down KM trusts design["y"] — a
+    #                                                      # contaminated (non-0/1) label would silently corrupt
+    #                                                      # every top-down survival number, so fail closed first
+    months_observed = len({rows[i][INDEX_COL] for i in test})
+    if horizon > months_observed:                          # systemic short window: never truncate + mislabel
+        raise ModelError(f"segment_risk: horizon {horizon} exceeds the {months_observed} observed test months — "
+                         "the empirical top-down number would be truncated yet reported at the larger horizon")
     out = {}
     for dim in dims:
         groups = {}
@@ -1093,12 +1100,16 @@ def segment_risk(rows, model, calibration, design, slices, dims=None, min_n=SEG_
             if n_emp < min_n:                              # small-n: suppress the estimate AND coarsen the size
                 segs.append({"value": val, "suppressed": True, "size_band": _size_band(n_emp, min_n)})
                 continue
+            seg_months = len({rows[i][INDEX_COL] for i in idxs})   # this segment's OWN observed-month span
             entry = {"value": val, "n_employees": n_emp, "n_rows": len(idxs)}
             haz = {i: calibrated_probability(model, calibration, design["X"][i]) for i in idxs}
             bottom_up = round(_km_exit_probability(idxs, rows, lambda i: haz[i], horizon), 6)
             top_down = round(_km_exit_probability(idxs, rows, lambda i: design["y"][i], horizon), 6)
             gap = round(bottom_up - top_down, 6)           # gap is exactly the two displayed numbers' difference
-            entry.update({"suppressed": False, "horizon_months": horizon,
+            # a segment observed over fewer months than the horizon has a KM curve truncated to seg_months;
+            # surface that honestly (incomplete_window) rather than labeling a short number as full-horizon
+            entry.update({"suppressed": False, "horizon_months": horizon, "months_observed": seg_months,
+                          "incomplete_window": seg_months < horizon,
                           "bottom_up_6mo": bottom_up, "top_down_6mo": top_down,
                           "reconciliation_gap": gap, "gap_flagged": abs(gap) > RECONCILE_GAP})
             segs.append(entry)
@@ -1142,6 +1153,8 @@ def company_risk(rows, model, calibration, design, slices, horizon=6):
     if horizon > months_observed:                          # never silently truncate + mislabel the horizon
         raise ModelError(f"company_risk: horizon {horizon} exceeds the {months_observed} observed test months — "
                          "the empirical top-down number would be truncated yet reported at the larger horizon")
+    _binary_labels([design["y"][i] for i in test])         # top-down KM trusts design["y"] — fail closed on a
+    #                                                      # non-0/1 label rather than emit a bogus empirical curve
     haz = {i: calibrated_probability(model, calibration, design["X"][i]) for i in test}
     bottom_up = round(_km_exit_probability(test, rows, lambda i: haz[i], horizon), 6)
     top_down = round(_km_exit_probability(test, rows, lambda i: design["y"][i], horizon), 6)
@@ -1414,7 +1427,13 @@ def check_reproducible(manifest: dict = None, panel_path: Path = PANEL_PATH, tol
     """Re-fit the model and confirm the committed manifest's coefficients + calibration reproduce within
     `tol`. Fitted floats carry cross-platform ULP noise, so this tolerance check — NOT a byte-diff — is the
     manifest sync gate for the trained fields; it still catches real drift (a changed panel or model config)."""
-    m = manifest or load_manifest()
+    # a non-finite / non-positive tolerance would silently disable the gate (tol=inf passes anything; tol=nan
+    # makes every `> tol` comparison False, so drift reads as "reproduced") — fail closed on it
+    if not _finite_num(tol) or tol <= 0:
+        raise ManifestError(f"check_reproducible: tol must be a finite positive number (got {tol!r})")
+    # `manifest or load_manifest()` would silently swap an explicitly-passed EMPTY/falsy manifest for the
+    # committed one, so a malformed {} would pass the gate by loading the good file — bind to None only
+    m = load_manifest() if manifest is None else manifest
     validate_manifest(m)                                   # fail closed on a malformed manifest — this is a
     #                                                      # sync-gate API, so it must defend its own shape
     #                                                      # (raw KeyError/TypeError -> controlled ManifestError)
@@ -1626,7 +1645,9 @@ def main(argv):
             check_reproducible(m)                          # re-fit + confirm the trained model reproduces (sync gate)
             print(f"manifest OK — status={m['status']}, model {m['model_version']} reproduces within tolerance")
             return 0
-        except (PanelError, ManifestError) as e:
+        except (PanelError, ManifestError, ModelError) as e:
+            # check_reproducible re-fits (train_model), which can raise ModelError — catch it too so the CLI
+            # exits 1 fail-closed instead of dumping a raw traceback
             print(f"FAIL-CLOSED: {e}")
             return 1
     print(f"unknown command {cmd!r} (use: validate | build-manifest)")

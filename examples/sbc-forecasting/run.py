@@ -217,7 +217,7 @@ def render_html(report):
     # honesty + governance
     body.append(dash.section("What this is — and is not"))
     body.append("<div style='display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px'>"
-                + dash.chip("Locked-in runoff: assumption-free", "ok")
+                + dash.chip("Locked-in gross: pure amortization (assumes full vesting)", "ok")
                 + dash.chip("Reconciles to equity-spend backlog", "ok")
                 + dash.chip("Forfeiture rate: illustrative", "warn")
                 + dash.chip("New-grant run-rate: illustrative", "warn")
@@ -240,8 +240,9 @@ def render_digest(report):
              f"- Total forecast (locked-in + illustrative {_m(a['new_grant_run_rate_usd'])}/yr run-rate, "
              f"{a['forfeiture_rate_annual_pct']:.0f}% forfeiture): "
              f"{' -> '.join(_m(t['total']) for t in tf)}."]
-    lines += ["", "_Locked-in runoff is assumption-free amortization; forfeiture rate, new-grant run-rate, and "
-              "flat revenue are illustrative. Not financial guidance._",
+    lines += ["", "_Locked-in gross runoff is pure amortization of grants already made — it assumes continued "
+              "service (full vesting) until the separate forfeiture overlay is applied; the forfeiture rate, "
+              "new-grant run-rate, and flat revenue are illustrative. Not financial guidance._",
               "", "_Publish gate: a human (Finance / Total Rewards) must approve before distribution._"]
     return "\n".join(lines) + "\n"
 

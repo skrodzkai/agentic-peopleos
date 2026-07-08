@@ -109,6 +109,13 @@ _raises_report_error(lambda b: b["gl"]["say_on_pay"].__setitem__("engage_thresho
 _raises_report_error(lambda b: b["gl"]["say_on_pay"].__setitem__("below_threshold", True),
                      "a below_threshold flag inconsistent with the support-vs-threshold numbers refused "
                      "(would render a false, self-contradicting sentence)")
+# P3.4: the peer group behind the percentiles must be real, scorable, and match its rendered count
+_raises_report_error(lambda b: b["gl"]["peer_group"].__setitem__("scorable", False),
+                     "an unscorable peer group refused (its percentiles + KPI would have no basis)")
+_raises_report_error(lambda b: b["gl"]["peer_group"].__setitem__("n", 99),
+                     "a peer-group count that disagrees with its membership refused")
+_raises_report_error(lambda b: b["gl"]["peer_group"].__setitem__("members", []),
+                     "an empty peer group refused")
 
 # the digest must NEUTRALIZE Markdown in the engine's free-text driver (HTML-escaping alone wouldn't)
 _bad = copy.deepcopy(result)

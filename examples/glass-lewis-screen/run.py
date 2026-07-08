@@ -126,6 +126,11 @@ def build_report(result):
         len(gl["tests"]) == 5 and abs(sum(t["weight"] for t in gl["tests"]) - 1.0) < 1e-9,
         all(_plain_finite(t["score"]) and 0.0 <= t["score"] <= 100.0 and t["band"] for t in gl["tests"]),
         _plain_finite(*pcts) and all(0.0 <= p <= 100.0 for p in pcts),
+        # the peer group behind those percentiles must be real + scorable, and the rendered count must match its
+        # membership — an unscorable or miscounted group would render percentiles/an "N names" KPI with no basis
+        isinstance(gl["peer_group"]["members"], list) and gl["peer_group"]["n"] == len(gl["peer_group"]["members"])
+        and gl["peer_group"]["n"] > 0,
+        gl["peer_group"]["scorable"] is True,
         _plain_finite(gl["cap_excess_vs_median"]) and gl["cap_excess_vs_median"] >= 0.0,  # rendered as "N.NN×"
         _plain_finite(cf["tsr_only_score"], cf["financials_only_score"]),
         cf["tsr_only_score"] <= gl["composite_score"] <= cf["financials_only_score"] + 1e-9,  # divergence shape

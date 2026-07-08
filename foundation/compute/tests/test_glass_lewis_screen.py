@@ -120,6 +120,12 @@ ok(_none["qualitative"]["penalty"] == 0.0, "the P4P qualitative penalty is unaff
 ok(json.dumps(G.compute(), sort_keys=True, default=str) == json.dumps(r, sort_keys=True, default=str),
    "compute() is deterministic")
 
+# ---- the ISS side is PINNED to the GL model year (2026), not an implicit engine default -----------------
+ok(G.GL_ISS_POLICY_YEAR == 2026, "the GL reconciliation pins ISS to the 2026 policy year")
+ok(r["iss"]["policy"]["year"] == 2026, "compute() screens ISS at the 2026 policy year by default")
+ok(G.compute(iss_policy_year=2025)["iss"]["policy"]["year"] == 2025,
+   "the ISS policy year is injectable (a 2025 before/after screens the 2025 policy) — not hard-wired")
+
 
 # ---- advisor_synthesis verdict lattice (unit — no data needed) ------------------------------------------
 def _iss(concern, pay=80.0, tsr=30.0):

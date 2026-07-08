@@ -54,6 +54,9 @@ _WORKER_COLS = ("emp_id", "worker_type", "status", "hire_date", "term_date", "te
                 "potential")
 
 _DIRECTOR_COLS = ("director_id", "independent", "committee")
+_PLAN_COLS = ("plan_id", "plan_name", "adoption_date", "expiration_date", "shareholder_approved",
+              "initial_pool_shares", "evergreen", "share_recycling", "fungible_ratio", "min_vesting_months",
+              "permits_repricing", "dividends_on_unvested", "discretionary_acceleration")
 _AWARD_TYPES = ("rsu", "option", "psu")    # every grant must declare a known award type
 _PARTICIPANT_GROUPS = ("ceo", "section16", "management", "staff", "director")
 
@@ -157,6 +160,7 @@ def _load(data_dir):
     # directors receive grants too and live in a separate roster; a grant recipient must exist in one of them
     director_ids = {d["director_id"] for d in _rows(data_dir / "directors.csv", _DIRECTOR_COLS)}
     valid_recipients = set(workers) | director_ids
+    plan_ids = {p["plan_id"] for p in _rows(data_dir / "equity_plans.csv", _PLAN_COLS)}   # known equity plans
     grants = _rows(data_dir / "equity_grants.csv", _GRANT_COLS)
     gid_seen = set()
     for g in grants:                                          # validate economics once, fail closed at load
@@ -177,10 +181,17 @@ def _load(data_dir):
             raise SBCDataError(f"{gid}: grant belongs to unknown recipient {g['emp_id']!r} "
                                "(not in workers.csv or directors.csv)")
         w = workers.get(g["emp_id"])                          # None for a director (no service-condition term)
+        if g["plan_id"] not in plan_ids:
+            raise SBCDataError(f"{gid}: unknown plan_id {g['plan_id']!r} (not in equity_plans.csv)")
         if g["award_type"] not in _AWARD_TYPES:
             raise SBCDataError(f"{gid}: unknown award_type {g['award_type']!r}")
         if g["participant_group"] not in _PARTICIPANT_GROUPS:
             raise SBCDataError(f"{gid}: unknown participant_group {g['participant_group']!r}")
+        # the 'director' participant group and the directors roster must agree: a director's grant is labeled
+        # director, and no employee grant may borrow the director label (a mislabel would misroute the grant)
+        if (g["participant_group"] == "director") != (g["emp_id"] in director_ids):
+            raise SBCDataError(f"{gid}: participant_group 'director' must match a directors.csv recipient "
+                               f"(group={g['participant_group']!r}, recipient={g['emp_id']!r})")
         # a grant dated after the holder already left is incoherent (you can't grant to a departed employee)
         if w is not None and w.get("term_date") and gd > _pdate(w["term_date"], f"{g['emp_id']}.term_date"):
             raise SBCDataError(f"{gid}: grant_date {gd} is after the holder's term_date {w['term_date']}")
@@ -295,8 +306,11 @@ def compute(data_dir=None):
     # NEW-GRANT OVERLAY (illustrative steady-state): keep granting at the TTM run-rate, each vintage
     # straight-line over NEW_GRANT_VEST_MONTHS. A vintage granted at the start of FY y contributes 12/vm of
     # its value in each of the vm/12 following years.
+    # run-rate = grants made in the trailing fiscal year (the four quarters ending at the fiscal-close anchor),
+    # bounded by fiscal-year dates rather than a fuzzy 365-day window that could clip a boundary grant.
+    _fy_start = date(as_of.year, 1, 1)
     ttm_grant_fv = sum(_grant_fv(g) for g in grants
-                       if 0 <= (as_of - _pdate(g["grant_date"], "gd")).days < 365)
+                       if _fy_start <= _pdate(g["grant_date"], "gd") <= as_of)
     annual_new = ttm_grant_fv
     per_year_frac = 12.0 / NEW_GRANT_VEST_MONTHS
     new_overlay = []
@@ -323,8 +337,11 @@ def compute(data_dir=None):
 
     def _qord(d):                                            # calendar-quarter ordinal (Q1..Q4 -> 0..3 per year)
         return d.year * 4 + (d.month - 1) // 3
+
+    def _is_quarter_end(d):                                  # last calendar day of a quarter month (e.g. 3/31,
+        return d.month in (3, 6, 9, 12) and (d + timedelta(days=1)).month != d.month   # 6/30, 9/30, 12/31)
     if (_qends[-1] != as_of
-            or any(d.month not in (3, 6, 9, 12) for d in _qends)          # each row is a calendar quarter-end
+            or any(not _is_quarter_end(d) for d in _qends)                # each row is a real calendar quarter-END
             or any(_qord(_qends[i + 1]) - _qord(_qends[i]) != 1 for i in range(3))):   # and consecutive, no gap
         raise SBCDataError("the trailing four financials rows are not four consecutive calendar-quarter-ends "
                            f"ending at the fiscal close {as_of} — cannot form a clean TTM revenue")
@@ -353,7 +370,9 @@ def compute(data_dir=None):
             "new_grant_vest_months": NEW_GRANT_VEST_MONTHS,
             "revenue_basis": "last trailing-twelve-months revenue, held flat (illustrative)",
             "note": "Forfeiture rate, new-grant run-rate/attribution, and flat revenue are ILLUSTRATIVE "
-                    "assumptions — never guidance. The locked-in runoff itself is assumption-free.",
+                    "assumptions — never guidance. The locked-in GROSS runoff is pure amortization of grants "
+                    "already made, but it assumes continued service (full vesting) until the forfeiture "
+                    "overlay is applied.",
         },
         "locked_in": {
             "backlog_unrecognized_usd": round(backlog, _DP),
@@ -371,10 +390,11 @@ def compute(data_dir=None):
             "backlog_pct_market_cap": round(backlog / market_cap * 100.0, _DP) if market_cap else None,
             "last_ttm_revenue_usd": round(last_ttm_rev, _DP),
         },
-        "disclaimer": "Illustrative SBC-expense forecast on synthetic data. The locked-in runoff is pure "
-                      "amortization of grants already made (assumption-free, reconciles to the equity-spend "
-                      "backlog); the forfeiture rate, new-grant run-rate, and flat-revenue basis are labeled "
-                      "assumptions, not financial guidance. Presentation + governance only.",
+        "disclaimer": "Illustrative SBC-expense forecast on synthetic data. The locked-in GROSS runoff is pure "
+                      "amortization of grants already made (it reconciles to the equity-spend backlog, and "
+                      "assumes continued service / full vesting until the forfeiture overlay is applied); the "
+                      "forfeiture rate, new-grant run-rate, and flat-revenue basis are labeled assumptions, "
+                      "not financial guidance. Presentation + governance only.",
     }
 
 

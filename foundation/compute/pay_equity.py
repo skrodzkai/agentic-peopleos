@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-"""Pay-equity / EU Pay Transparency compute over the synthetic Acme workforce.
+"""Pay-equity readiness screen (illustrative, base-pay) for the EU Pay Transparency Directive, over the
+synthetic Acme workforce.
 
-Two questions a Total-Rewards leader has to answer for the board and, from 2026-27, for regulators under
-the EU Pay Transparency Directive (2023/970): "what is our pay gap?" and "how much of it survives once we
-account for legitimate, job-related factors?" This engine answers both from `workers.csv` — the single
-source of truth — with no hand-maintained derived file to drift.
+SCOPE — this is a READINESS SCREEN, NOT the filed Directive report. The EU Pay Transparency Directive
+(2023/970), Article 9, requires reporting on variable/complementary pay, the proportion of each group
+receiving those components, quartile pay bands, and full category breakdowns. This engine computes only the
+BASE-PAY mean/median gap and a like-for-like adjusted gap — a useful readiness/triage view a Total-Rewards
+leader reasons about ahead of filing, not the statutory report itself.
+
+Two questions it answers from `workers.csv` — the single source of truth, no hand-maintained derived file to
+drift: "what is our base-pay gap?" and "how much survives once we account for legitimate, job-related
+factors?"
 
 Two numbers, deliberately distinct:
-- UNADJUSTED gap — the raw mean and median difference in pay between protected-class groups. This is the
-  number the Directive requires an employer to publish; it reflects WORKFORCE COMPOSITION (who sits in which
-  level/role/country) as much as pay-setting.
+- UNADJUSTED gap — the raw mean and median difference in BASE pay between protected-class groups; it reflects
+  WORKFORCE COMPOSITION (who sits in which level/role/country) as much as pay-setting.
 - ADJUSTED gap — the difference that REMAINS after a regression controls for legitimate factors (job level,
   job family, country, tenure, performance rating, people-management). This is the "like-for-like" residual;
   it is the closest observable proxy for unequal pay for equal work, and it is what an equal-pay audit
@@ -55,15 +60,22 @@ INCLUDED_STATUSES = ("active", "on_leave")   # employed population; terminated w
 _LEVELS = ("L3", "L4", "L5", "L6", "L7")     # the ordered career ladder — also the EU "category of workers"
 _RATINGS = ("below", "meets", "exceeds", "outstanding")
 _EU_THRESHOLD_PCT = 5.0                    # EU Pay Transparency Directive (2023/970) joint-assessment trigger
+# A public dashboard must not disclose an individual's pay: a group/category smaller than this is not
+# reported as a gap (its aggregates could re-identify one person). This is illustrative synthetic data, but
+# the suppression rule ships anyway so the pattern is right.
+MIN_CELL_N = 5
 
 # Which protected-class dimensions the engine screens. gender_group is the Directive's primary lens; the
-# ethnicity lens is an additional, voluntary equity screen with the same machinery.
+# ethnicity lens is an additional, voluntary equity screen with the same machinery. `allowed` is a strict
+# PSEUDONYM allowlist per lens: the engine only ever ingests these opaque labels, so a real class label
+# (e.g. "Female", or a real ethnicity) fed in fails closed rather than leaking into a public artifact.
 _DIMENSIONS = (
-    {"key": "gender_group", "label": "Gender group", "eu_scope": True,
+    {"key": "gender_group", "label": "Gender group", "eu_scope": True, "allowed": ("A", "B"),
      "note": "Pseudonymised gender categories (A / B) — the EU Pay Transparency Directive's primary lens."},
-    {"key": "ethnicity_group", "label": "Ethnicity group", "eu_scope": False,
+    {"key": "ethnicity_group", "label": "Ethnicity group", "eu_scope": False, "allowed": ("grp1", "grp2", "grp3"),
      "note": "Pseudonymised ethnicity categories (grp1-3) — a voluntary equity screen, same methodology."},
 )
+_ALLOWED = {d["key"]: set(d["allowed"]) for d in _DIMENSIONS}
 
 _ADJ_DP = 6                                # rounding for a deterministic, byte-stable report
 
@@ -113,8 +125,15 @@ def _load_population(data_dir):
     # IS in scope — an employed employee with a recorded protected class — but carries malformed pay or a
     # malformed control is a DATA DEFECT, not a scope decision, and fails closed (it must never silently
     # shrink the analyzed population).
-    kept, excluded = [], {"not_employee": 0, "not_employed_status": 0, "missing_all_protected_class": 0}
+    kept, excluded, seen_ids = [], {"not_employee": 0, "not_employed_status": 0, "missing_all_protected_class": 0}, set()
     for r in raw:
+        # unique, non-blank emp_id across the whole file — a duplicate would double-count a person into a gap
+        eid = r["emp_id"].strip()
+        if not eid:
+            raise PayEquityDataError("workers.csv has a row with a blank emp_id")
+        if eid in seen_ids:
+            raise PayEquityDataError(f"workers.csv has a duplicate emp_id: {eid}")
+        seen_ids.add(eid)
         if r["worker_type"] != "employee":
             excluded["not_employee"] += 1
             continue
@@ -146,8 +165,17 @@ def _load_population(data_dir):
             raise PayEquityDataError(f"{ctx}: hire_date {hire} is after the as-of date {AS_OF}")
         # Protected class is PER-LENS: an employee with a gender feeds the gender (+ EU) lens; one with an
         # ethnicity feeds the ethnicity lens. Only an employee missing BOTH has no lens and is out of scope.
+        # PSEUDONYM ALLOWLIST: a present label must be one of the opaque pseudonyms — a real class label
+        # (e.g. "Female", or a real ethnicity name) fails closed rather than leaking into a public artifact.
         gender = r["gender_group"].strip() or None
         ethnicity = r["ethnicity_group"].strip() or None
+        if gender is not None and gender not in _ALLOWED["gender_group"]:
+            raise PayEquityDataError(f"{ctx}: gender_group {gender!r} is not a permitted pseudonym "
+                                     f"{sorted(_ALLOWED['gender_group'])} — real class labels must be mapped "
+                                     "to pseudonyms before ingestion (no real-label leakage)")
+        if ethnicity is not None and ethnicity not in _ALLOWED["ethnicity_group"]:
+            raise PayEquityDataError(f"{ctx}: ethnicity_group {ethnicity!r} is not a permitted pseudonym "
+                                     f"{sorted(_ALLOWED['ethnicity_group'])} — map real labels to pseudonyms first")
         if gender is None and ethnicity is None:
             excluded["missing_all_protected_class"] += 1
             continue
@@ -190,16 +218,22 @@ def _unadjusted(pop, key):
     groups = []
     for g in order:
         h = [r["hourly"] for r in pop if r[key] == g]
-        gmean, gmed = sum(h) / len(h), _median(h)
+        n = len(h)
+        if n < MIN_CELL_N:
+            # too few people to report without risking disclosure of an individual's pay — suppress the cell
+            groups.append({"group": g, "n": n, "suppressed": True, "mean_hourly": None, "median_hourly": None,
+                           "mean_gap_pct": None, "median_gap_pct": None, "is_reference": g == ref})
+            continue
+        gmean, gmed = sum(h) / n, _median(h)
         groups.append({
-            "group": g, "n": len(h),
+            "group": g, "n": n, "suppressed": False,
             "mean_hourly": round(gmean, _ADJ_DP), "median_hourly": round(gmed, _ADJ_DP),
             # gap vs reference, positive == this group earns LESS than the reference group
             "mean_gap_pct": round((1.0 - gmean / ref_mean) * 100.0, _ADJ_DP),
             "median_gap_pct": round((1.0 - gmed / ref_median) * 100.0, _ADJ_DP),
             "is_reference": g == ref,
         })
-    return {"reference_group": ref, "groups": groups}
+    return {"reference_group": ref, "min_cell_n": MIN_CELL_N, "groups": groups}
 
 
 # ---------------------------------------------------------------- adjusted (regression) gap
@@ -280,13 +314,18 @@ def _eu_assessment(pop, key):
     categories, n_flagged, n_median_watch = [], 0, 0
     for lv in _LEVELS:
         cell = [r for r in pop if r["level"] == lv]
-        stats = []
+        stats, small = [], False
         for g in groups:
             gh = [r["hourly"] for r in cell if r[key] == g]
-            if gh:
-                stats.append({"group": g, "n": len(gh), "mean_hourly": sum(gh) / len(gh), "median_hourly": _median(gh)})
-        if len(stats) < 2:            # 0 or 1 group present -> no in-category gap to assess; surfaced, never dropped
+            if not gh:
+                continue
+            if len(gh) < MIN_CELL_N:  # a small cell can't contribute a publishable gap without disclosure risk
+                small = True
+                continue
+            stats.append({"group": g, "n": len(gh), "mean_hourly": sum(gh) / len(gh), "median_hourly": _median(gh)})
+        if len(stats) < 2:            # <2 reportable groups -> no publishable in-category gap; surfaced, never dropped
             categories.append({"category": lv, "n": len(cell), "assessable": False,
+                               "suppressed_small_cell": small,
                                "groups": [{"group": s["group"], "n": s["n"]} for s in stats]})
             continue
         hi_mean = max(stats, key=lambda s: s["mean_hourly"])
@@ -377,10 +416,13 @@ def compute(data_dir=None):
                        "no bonus/equity/benefits)",
         "headline": headline,
         "dimensions": dimensions,
-        "disclaimer": "Illustrative reconstruction of the EU Pay Transparency Directive's reporting + "
-                      "joint-assessment mechanics on synthetic, pseudonymised data. The adjusted gap uses "
-                      "observable controls only; a surviving gap is a flag for a privileged equal-pay review, "
-                      "not a legal finding. Not legal advice.",
+        "disclaimer": "Illustrative BASE-PAY readiness screen for the EU Pay Transparency Directive's "
+                      "reporting + joint-assessment mechanics on synthetic, pseudonymised data — NOT the filed "
+                      "report, which also requires variable/complementary pay, the proportion receiving them, "
+                      "quartile pay bands, and full category breakdowns. Protected-class labels are a strict "
+                      "pseudonym allowlist; small cells are suppressed. The adjusted gap uses observable "
+                      "controls only; a surviving gap is a flag for a privileged equal-pay review, not a legal "
+                      "finding. Not legal advice.",
     }
 
 

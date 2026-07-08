@@ -26,7 +26,9 @@ html = run.render_html(report)
 digest = run.render_digest(report)
 
 # -- the view is coherent + renders --
-ok("Pay-Equity Assessment" in html and "Pay Equity" in html, "the title + kicker render")
+ok("Pay-Equity Readiness Screen" in html and "Pay Equity" in html, "the title + kicker render")
+ok("not the filed Directive report" in html,
+   "the dashboard states it is a readiness screen, NOT the filed Directive report (no EU-compliance overclaim)")
 ok(html.count("<svg") >= 2, "both forest plots (gender + ethnicity) render as SVG")
 ok("parity (0%)" in html, "the forest plot draws the parity reference")
 ok("joint-assessment screen" in html and "Article 10" in html, "the EU 5% screen + its legal basis render")

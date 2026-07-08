@@ -7,7 +7,7 @@
 Most of an HR back office is judgment applied to repeatable process — sourcing, screening, onboarding,
 comp analysis, performance paperwork, compliance. A well-governed fleet of AI agents can do that work;
 the hard part is running the fleet **safely and auditably**. Agentic PeopleOS is that operating layer: a
-working system for an agent-run People function — **sixteen dashboard-rendering reference agents** across
+working system for an agent-run People function — **eighteen dashboard-rendering reference agents** across
 People Analytics, Executive Compensation, Total Rewards, and retention-risk ML, every one built on the same governance
 spine — a **hash-chained decision ledger**, **role-scoped human approvals**, **injection-safe content**,
 and a **fail-closed compute engine**. The agents are the easy part. The spine is the point.
@@ -209,16 +209,18 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   lands), the locked-in SBC backlog, and where the equity goes — executives through broad-based staff.
   Benchmarks, the Plan-Cost overhang proxy, and the VABR price input are illustrative, never claimed as advisor output; the
   plan-feature tests are scored exactly from the plan.
-- **[Pay Equity & EU Pay Transparency](examples/pay-equity/)** — the two numbers a Total-Rewards leader must
-  defend to the board and file under the **EU Pay Transparency Directive (2023/970)**: the **raw** pay gap
-  (mean and median, as the Directive requires) and the **adjusted, like-for-like** gap that survives once job
-  level, family, country, tenure, rating and management are held equal — the latter as a forest plot of point
-  estimate **+ 95% CI** over the raw gap, from a dependency-free OLS. It then runs the Directive's **5%
-  joint-pay-assessment screen** per category of workers. On synthetic Acme a 3.1% raw median gender gap falls
-  to a non-significant +0.4% adjusted, while the EU screen still flags one senior level over 5%. Protected
-  classes are pseudonymised, pay is base only, controls are observable only — a surviving gap is a flag for a
-  privileged equal-pay review, not a legal finding. Provenance:
-  [`governance/pay-equity-methodology.md`](governance/pay-equity-methodology.md).
+- **[Pay Equity & EU Pay Transparency](examples/pay-equity/)** — an **illustrative base-pay readiness screen**
+  for the **EU Pay Transparency Directive (2023/970)** (a readiness view, *not* the filed report — that also
+  requires variable/complementary pay, the proportion receiving them, quartile pay bands, and full category
+  breakdowns). It surfaces the two numbers a Total-Rewards leader reasons about: the **raw** base-pay gap
+  (mean and median) and the **adjusted, like-for-like** gap that survives once job level, family, country,
+  tenure, rating and management are held equal — the latter as a forest plot of point estimate **+ 95% CI**
+  over the raw gap, from a dependency-free OLS. It then runs the Directive's **5% joint-pay-assessment screen**
+  per category of workers. On synthetic Acme a 3.1% raw median gender gap falls to a non-significant +0.4%
+  adjusted, while the EU screen still flags one senior level over 5%. Protected classes are pseudonymised (a
+  strict allowlist — a real class label fails closed), pay is base only, controls are observable only, small
+  cells are suppressed — a surviving gap is a flag for a privileged equal-pay review, not a legal finding.
+  Provenance: [`governance/pay-equity-methodology.md`](governance/pay-equity-methodology.md).
 - **[SBC Expense Forecast](examples/sbc-forecasting/)** — the forward **stock-based-compensation forecast** a
   Total-Rewards leader takes into the CFO guidance conversation. From the same grant ledger it projects the
   **locked-in SBC runoff** — the amortization of grants already made, rolling off by fiscal year — which ties
