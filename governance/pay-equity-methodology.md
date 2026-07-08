@@ -36,9 +36,10 @@ The engine is stdlib-only, deterministic, offline, and fails closed on any malfo
   any **category of workers** that is not justified by objective, gender-neutral criteria and is not remedied
   within six months. The engine computes, per category, the within-category gap between the advantaged and
   disadvantaged group on **both** the mean (the Article 10 trigger) and the median (also mandated for
-  reporting), flags a category whose mean gap exceeds 5%, and surfaces a mean-clean/median-over-5% category as
-  a watch rather than a trigger. Gaps are shown **before** objective-factor justification — the point at which
-  the trigger is evaluated.
+  reporting), flags a category whose mean gap **reaches or exceeds 5%** (Article 10 is "at least 5%", so the
+  comparison is `>=`), and surfaces a mean-clean/median-≥5% category as a watch rather than a trigger. Gaps
+  are shown **before** objective-factor justification — the point at which the trigger is evaluated. The
+  resulting flag is a **screen flag**, not a legal determination.
 
 ## 3. Illustrative (labeled, never claimed as legal output)
 - **Pseudonymised groups.** The tool reports gaps between groups and **never asserts** which real protected

@@ -73,10 +73,14 @@ def build_report(result):
     if gender is None or "eu_pay_transparency" not in gender:
         raise ReportError("engine result is missing the primary gender lens with its EU screen")
 
-    # every group's counts must partition the population, and every CI must bracket its point estimate
+    # every group's counts must partition the population; every RENDERED number must be finite (a NaN/Inf must
+    # fail closed, never reach the page); every CI must bracket its point estimate.
     for d in result["dimensions"]:
         if sum(g["n"] for g in d["unadjusted"]["groups"]) != n:
             raise ReportError(f"{d['key']}: group counts do not partition the analyzed population")
+        for g in d["unadjusted"]["groups"]:
+            if not _finite(g["mean_gap_pct"], g["median_gap_pct"], g["mean_hourly"], g["median_hourly"]):
+                raise ReportError(f"{d['key']}: non-finite raw-gap statistics for {g['group']}")
         for g in d["adjusted"]["groups"]:
             if not _finite(g["adjusted_gap_pct"], g["ci_lo_pct"], g["ci_hi_pct"], g["se"]):
                 raise ReportError(f"{d['key']}: non-finite adjusted-gap statistics for {g['group']}")
@@ -86,14 +90,20 @@ def build_report(result):
             raise ReportError(f"{d['key']}: R^2 out of range")
 
     eu = gender["eu_pay_transparency"]
-    # the flag must be internally consistent with the per-category mean gaps + the 5% threshold
+    # every assessable category's rendered gaps must be finite, and its flag consistent with the >=5% trigger
     for c in eu["categories"]:
-        if c.get("assessable") and c["exceeds_threshold"] != (c["mean_gap_pct"] > eu["threshold_pct"]):
+        if not c.get("assessable"):
+            continue
+        if not _finite(c["mean_gap_pct"], c["median_gap_pct"]):
+            raise ReportError(f"EU category {c['category']}: non-finite gap statistics")
+        if c["exceeds_threshold"] != (c["mean_gap_pct"] >= eu["threshold_pct"]):
             raise ReportError(f"EU category {c['category']}: flag inconsistent with its mean gap vs threshold")
     if eu["joint_assessment_required"] != (eu["n_flagged"] > 0):
         raise ReportError("EU joint-assessment flag inconsistent with the flagged-category count")
 
     h = result["headline"]
+    if not _finite(h["unadjusted_median_gap_pct"], h["unadjusted_mean_gap_pct"], h["adjusted_gap_pct"]):
+        raise ReportError("non-finite headline gap statistics")
     cards = [
         {"value": f"{h['unadjusted_median_gap_pct']:.1f}%", "label": "Raw median gap · gender",
          "tone": "warn" if h["unadjusted_median_gap_pct"] >= 5 else "neutral"},
@@ -102,8 +112,8 @@ def build_report(result):
          "tone": "bad" if h["adjusted_significant"] else "good"},
         {"value": f"{eu['n_flagged']}", "label": f"EU categories >5% (of {eu['n_categories']})",
          "tone": "bad" if eu["n_flagged"] else "good"},
-        {"value": "Required" if eu["joint_assessment_required"] else "Clear",
-         "label": "EU joint pay assessment", "tone": "bad" if eu["joint_assessment_required"] else "good"},
+        {"value": "Indicated" if eu["joint_assessment_required"] else "None",
+         "label": "EU joint assessment (screen)", "tone": "bad" if eu["joint_assessment_required"] else "good"},
         {"value": f"{n:,}", "label": "Employees analyzed"},
     ]
     return {"r": result, "gender": gender, "eu": eu, "cards": cards, "narrative": _narrative(result, gender, eu)}
@@ -146,7 +156,10 @@ def _forest_rows(dim):
     unadj = {g["group"]: g for g in dim["unadjusted"]["groups"]}
     rows = []
     for g in dim["adjusted"]["groups"]:
-        raw = round(unadj[g["group"]]["median_gap_pct"], 1)     # 1dp ghost label — the axis carries the detail
+        # ghost = raw MEAN gap vs the same (highest-mean) reference the adjusted coefficient is measured
+        # against, so point and ghost are apples-to-apples on one reference (and non-negative). The median gap
+        # is reported separately (headline KPI + EU screen); it can rank groups differently than the mean.
+        raw = round(unadj[g["group"]]["mean_gap_pct"], 1)
         rows.append({"group": f"Group {g['group']}", "adj": round(g["adjusted_gap_pct"], 1),
                      "ci_lo": g["ci_lo_pct"], "ci_hi": g["ci_hi_pct"], "raw": raw,
                      "sub": ("gap ≠ 0" if g["significant"] else "n.s.")})
@@ -172,7 +185,7 @@ def render_html(report):
                                ghost_label="raw", color_mode="significance",
                                value_fmt=lambda v: f"{v:+.1f}%"))
     body.append("<div style='font-size:11.5px;color:var(--soft);line-height:1.55;margin:8px 0 2px'>"
-                "The <b>ghost</b> marker is the raw median gap; the <b>point</b> is the "
+                "The <b>ghost</b> marker is the raw mean gap; the <b>point</b> is the "
                 "regression-adjusted residual with its 95% confidence interval. An interval that crosses "
                 "parity means the like-for-like gap is not statistically distinguishable from zero. "
                 f"Adjusted model: n={gender['adjusted']['n']}, R&sup2;={gender['adjusted']['r2']:.2f}, controls "
@@ -195,11 +208,12 @@ def render_html(report):
                                 trows, center_from=1))
     trigger = ", ".join(c["category"] for c in eu["categories"] if c.get("exceeds_threshold")) or "none"
     body.append("<div style='font-size:11.5px;color:var(--soft);line-height:1.55;margin:8px 0 2px'>"
-                f"Article 10 triggers a <b>joint pay assessment</b> when the <b>mean</b> gap "
-                f"in a category exceeds 5% and is not justified by objective, gender-neutral factors within six "
-                f"months. Triggered here: <b>{dash._esc(trigger)}</b>. The median gap is shown too (Article 9 "
-                f"mandates both); a category clean on the mean but over 5% on the median is a watch, not a "
-                f"trigger. Gaps are shown <b>before</b> objective-factor justification.</div>")
+                f"Article 10 flags a category for a <b>joint pay assessment</b> when its <b>mean</b> gap "
+                f"reaches 5% (\"at least 5%\") and is not justified by objective, gender-neutral factors within "
+                f"six months. Screen-flagged here: <b>{dash._esc(trigger)}</b>. The median gap is shown too "
+                f"(Article 9 mandates both); a category clean on the mean but ≥5% on the median is a watch, not "
+                f"a flag. Gaps are shown <b>before</b> objective-factor justification — this is a screen flag, "
+                f"not a legal determination.</div>")
 
     # 3) ethnicity — same machinery, a voluntary lens
     erows = _forest_rows(next(d for d in result["dimensions"] if d["key"] == "ethnicity_group"))

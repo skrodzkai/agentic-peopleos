@@ -102,8 +102,8 @@ ok(all("mean_gap_pct" in c and "median_gap_pct" in c for c in _assess),
    "every assessable category reports BOTH the mean and median gap (Article 9)")
 ok(all(c["mean_gap_pct"] >= 0 and c["median_gap_pct"] >= 0 for c in _assess),
    "the within-category gap is a magnitude (disadvantaged vs advantaged), never negative")
-ok(all(c["exceeds_threshold"] == (c["mean_gap_pct"] > 5.0) for c in _assess),
-   "a category is flagged iff its MEAN gap exceeds 5% (the Article 10 trigger)")
+ok(all(c["exceeds_threshold"] == (c["mean_gap_pct"] >= 5.0) for c in _assess),
+   "a category is flagged iff its MEAN gap is at least 5% (Article 10 >= trigger)")
 _l7 = next(c for c in _eu["categories"] if c["category"] == "L7")
 ok(_l7["exceeds_threshold"] is True and _l7["mean_gap_pct"] > 5.0, "L7 crosses the 5% mean trigger")
 ok(_eu["joint_assessment_required"] is True and _eu["n_flagged"] >= 1,

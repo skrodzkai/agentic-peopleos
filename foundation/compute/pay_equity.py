@@ -109,8 +109,11 @@ def _load_population(data_dir):
     """Return the in-scope employee records with a derived comparable FTE-hourly pay, plus an exclusion
     ledger (so the report can be honest about who is NOT in the analysis and why)."""
     raw = _rows(data_dir / "workers.csv", _WORKER_COLS)
-    kept, excluded = [], {"not_employee": 0, "not_employed_status": 0, "missing_protected_class": 0,
-                          "missing_or_bad_pay": 0, "missing_control": 0}
+    # The excluded ledger records only legitimate SCOPE decisions (who the analysis is not about). A row that
+    # IS in scope — an employed employee with a recorded protected class — but carries malformed pay or a
+    # malformed control is a DATA DEFECT, not a scope decision, and fails closed (it must never silently
+    # shrink the analyzed population).
+    kept, excluded = [], {"not_employee": 0, "not_employed_status": 0, "missing_protected_class": 0}
     for r in raw:
         if r["worker_type"] != "employee":
             excluded["not_employee"] += 1
@@ -122,15 +125,15 @@ def _load_population(data_dir):
             excluded["missing_protected_class"] += 1
             continue
         ctx = f"workers.csv {r['emp_id']}"
-        try:
-            base = _num(r["base_salary"], f"{ctx} base_salary", positive=True)
-            std_ft = _num(r["standard_full_time_hours"], f"{ctx} standard_full_time_hours", positive=True)
-        except PayEquityDataError:
-            excluded["missing_or_bad_pay"] += 1
-            continue
-        if r["level"] not in _LEVELS or r["rating"] not in _RATINGS or r["is_people_manager"] not in ("yes", "no"):
-            excluded["missing_control"] += 1
-            continue
+        base = _num(r["base_salary"], f"{ctx} base_salary", positive=True)
+        std_ft = _num(r["standard_full_time_hours"], f"{ctx} standard_full_time_hours", positive=True)
+        if r["level"] not in _LEVELS:
+            raise PayEquityDataError(f"{ctx}: in-scope employee has an unknown level {r['level']!r}")
+        if r["rating"] not in _RATINGS:
+            raise PayEquityDataError(f"{ctx}: in-scope employee has an unknown rating {r['rating']!r}")
+        if r["is_people_manager"] not in ("yes", "no"):
+            raise PayEquityDataError(f"{ctx}: in-scope employee has a malformed is_people_manager "
+                                     f"{r['is_people_manager']!r}")
         hire = _pdate(r["hire_date"], f"{ctx} hire_date")
         tenure_years = (AS_OF - hire).days / 365.25
         if tenure_years < 0:
@@ -269,10 +272,9 @@ def _eu_assessment(pop, key):
             gh = [r["hourly"] for r in cell if r[key] == g]
             if gh:
                 stats.append({"group": g, "n": len(gh), "mean_hourly": sum(gh) / len(gh), "median_hourly": _median(gh)})
-        if len(stats) < 2:            # a category with only one group present has no in-category gap to assess
-            if stats:
-                categories.append({"category": lv, "n": len(cell), "assessable": False,
-                                   "groups": [{"group": s["group"], "n": s["n"]} for s in stats]})
+        if len(stats) < 2:            # 0 or 1 group present -> no in-category gap to assess; surfaced, never dropped
+            categories.append({"category": lv, "n": len(cell), "assessable": False,
+                               "groups": [{"group": s["group"], "n": s["n"]} for s in stats]})
             continue
         hi_mean = max(stats, key=lambda s: s["mean_hourly"])
         lo_mean = min(stats, key=lambda s: s["mean_hourly"])
@@ -280,8 +282,9 @@ def _eu_assessment(pop, key):
         lo_med = min(stats, key=lambda s: s["median_hourly"])
         mean_gap = (1.0 - lo_mean["mean_hourly"] / hi_mean["mean_hourly"]) * 100.0
         median_gap = (1.0 - lo_med["median_hourly"] / hi_med["median_hourly"]) * 100.0
-        exceeds = mean_gap > _EU_THRESHOLD_PCT
-        median_watch = (not exceeds) and median_gap > _EU_THRESHOLD_PCT
+        # Article 10(1) is "at least 5%" — an exactly-5.00% gap TRIGGERS, so the comparison is >=, not >.
+        exceeds = mean_gap >= _EU_THRESHOLD_PCT
+        median_watch = (not exceeds) and median_gap >= _EU_THRESHOLD_PCT
         if exceeds:
             n_flagged += 1
         if median_watch:

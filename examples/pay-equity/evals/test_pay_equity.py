@@ -36,7 +36,7 @@ ok(f"{h['unadjusted_median_gap_pct']:.1f}%" in html, "the raw median gap headlin
 ok("pay-equity" in digest.lower() or "Pay-equity" in digest, "the digest names the arm")
 # the EU trigger surfaced by the engine is reflected in the render
 if report["eu"]["joint_assessment_required"]:
-    ok("assessment" in html.lower() and "Required" in html, "a triggered joint assessment is shown")
+    ok("assessment" in html.lower() and "Indicated" in html, "a triggered joint assessment is shown (as a screen flag)")
 
 # -- honest labeling --
 low = (html + digest).lower()
@@ -72,10 +72,19 @@ def _flip_joint(r):
     eu["joint_assessment_required"] = not eu["joint_assessment_required"]
 
 
+def _nan_eu(r):
+    eu = next(d for d in r["dimensions"] if d["key"] == "gender_group")["eu_pay_transparency"]
+    next(c for c in eu["categories"] if c.get("assessable"))["mean_gap_pct"] = float("nan")
+
+
 _bad(lambda r: r["dimensions"][0]["unadjusted"]["groups"][0].update(n=999999),
      "group counts that don't partition the population")
 _bad(lambda r: r["dimensions"][0]["adjusted"]["groups"][0].update(adjusted_gap_pct=float("nan")),
      "a non-finite adjusted gap")
+_bad(lambda r: r["dimensions"][0]["unadjusted"]["groups"][1].update(mean_gap_pct=float("inf")),
+     "a non-finite RAW mean gap (every rendered number is finite-checked, not just adjusted)")
+_bad(_nan_eu, "a non-finite EU category mean gap")
+_bad(lambda r: r["headline"].update(unadjusted_median_gap_pct=float("nan")), "a non-finite headline gap")
 _bad(lambda r: r["dimensions"][0]["adjusted"]["groups"][0].update(ci_lo_pct=99.0),
      "a CI that doesn't bracket its point estimate")
 _bad(lambda r: r["dimensions"][0]["adjusted"].update(r2=2.0), "an out-of-range R^2")
