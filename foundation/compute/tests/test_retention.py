@@ -750,6 +750,29 @@ raises(R.ModelError, lambda: R.coefficient_intervals(model, None, slices),
 raises(R.ModelError, lambda: R.coefficient_intervals(model, design, slices, z=-1),
        "coefficient_intervals rejects a non-positive z")
 
+# --- fail-closed on forged labels + mismatched artifacts (diagnostics must not emit nonsense) ---
+_forge_test = {**design, "y": list(design["y"])}
+_forge_test["y"][slices["test"][0]] = 999                    # a non-binary label in the TEST slice
+raises(R.ModelError, lambda: R.reliability_curve(model, calib, _forge_test, slices),
+       "reliability_curve fails closed on a forged/non-binary test label (no nonsense obs_freq/ECE)")
+_forge_train = {**design, "y": list(design["y"])}
+_forge_train["y"][slices["train"][0]] = 999                  # a non-binary label in the TRAIN slice
+raises(R.ModelError, lambda: R.coefficient_intervals(model, _forge_train, slices),
+       "coefficient_intervals fails closed on a forged/non-binary train label")
+_bad_pw = {**model, "pos_weight": model["pos_weight"] * 2.0}  # structurally valid but wrong class weighting
+raises(R.ModelError, lambda: R.coefficient_intervals(_bad_pw, design, slices),
+       "coefficient_intervals rejects a model whose pos_weight != the train slice class balance")
+ok("l2" in model and abs(model["l2"] - R.L2_LAMBDA) < 1e-12, "the fitted model carries its own l2 (ridge) value")
+raises(R.ModelError, lambda: R._validate_model({k: v for k, v in model.items() if k != "l2"}),
+       "_validate_model requires l2 on the model artifact")
+raises(R.ModelError, lambda: R._validate_model({**model, "l2": -1.0}),
+       "_validate_model rejects a negative l2")
+# the interval Hessian uses the MODEL's l2, not the module global: a model fit under a different ridge shifts SEs
+_m_hi_l2 = R.fit_hazard(design, slices, l2=50.0)
+ok(_m_hi_l2["l2"] == 50.0 and R.coefficient_intervals(_m_hi_l2, design, slices) !=
+   R.coefficient_intervals(model, design, slices),
+   "coefficient_intervals reads l2 from the model artifact (heavier ridge -> different intervals)")
+
 print(f"OK — {CHECKS} retention Increment 0+1+2+3+4 checks passed "
       f"(contract + feature builder + glass-box hazard + eval/realism-guard + segment layer + diagnostics; {len(rows)} "
       f"person-months, {len(names)} design features, voluntary={ev['voluntary']}; test AUC={E['roc_auc']:.3f}, "

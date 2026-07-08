@@ -483,7 +483,7 @@ def fit_hazard(design, slices=None, l2=L2_LAMBDA, iters=IRLS_ITERS):
     if last_step > 1e-3:            # the last Newton step must be tiny; a large one means we didn't converge
         raise ModelError(f"IRLS did not converge in {iters} iterations (last step {last_step:.2e})")
     return {"intercept": beta[0], "coef": {names[j]: beta[j + 1] for j in range(len(names))},
-            "mean": mean, "std": std, "feature_names": list(names), "pos_weight": pos_w}
+            "mean": mean, "std": std, "feature_names": list(names), "pos_weight": pos_w, "l2": l2}
 
 
 def _validate_model(model):
@@ -493,7 +493,7 @@ def _validate_model(model):
     feature_names to the canonical DESIGN_FEATURES order (a reordering is a different, wrong model)."""
     if not isinstance(model, dict):
         raise ModelError("model must be a dict")
-    missing = {"intercept", "coef", "mean", "std", "feature_names", "pos_weight"} - set(model)
+    missing = {"intercept", "coef", "mean", "std", "feature_names", "pos_weight", "l2"} - set(model)
     if missing:
         raise ModelError(f"model missing keys: {sorted(missing)}")
     fn = model["feature_names"]
@@ -513,6 +513,8 @@ def _validate_model(model):
         raise ModelError("model intercept must be a finite number")
     if not (_finite_num(model["pos_weight"]) and model["pos_weight"] > 0):
         raise ModelError("model pos_weight must be a finite positive number")
+    if not (_finite_num(model["l2"]) and model["l2"] >= 0):
+        raise ModelError("model l2 (ridge penalty) must be a finite non-negative number")
 
 
 def _validate_calibration(cal):
@@ -751,7 +753,8 @@ def model_from_manifest(manifest=None, manifest_path: Path = MANIFEST_PATH, pane
         raise ModelError("manifest coefficient / standardizer / design-feature name sets disagree")
     model = {"intercept": pc["intercept"], "coef": {n: coef[n] for n in names},
              "mean": [mean_d[n] for n in names], "std": [std_d[n] for n in names],
-             "feature_names": names, "pos_weight": pc["pos_weight"]}
+             "feature_names": names, "pos_weight": pc["pos_weight"],
+             "l2": m["training_window"]["l2"]}                    # the ridge the model was actually fit under
     _validate_model(model)                                        # structural soundness gate (fails closed)
     cal = m["primary_calibration"]
     if not _finite_num(cal.get("a")) or not _finite_num(cal.get("b")):
@@ -1230,6 +1233,7 @@ def reliability_curve(model=None, calibration=None, design=None, slices=None, n_
     test = slices["test"]
     probs = [calibrated_probability(model, calibration, design["X"][i]) for i in test]
     y = [design["y"][i] for i in test]
+    _binary_labels(y)                          # fail closed on a forged/non-binary label, exactly like evaluate()
     n = len(test)
     if n < n_bins:
         raise ModelError(f"reliability_curve: {n} test rows < {n_bins} bins")
@@ -1271,8 +1275,19 @@ def coefficient_intervals(model=None, design=None, slices=None, z=1.96, panel_pa
     names = model["feature_names"]
     p = len(names) + 1                                            # + intercept column
     tr = slices["train"]
-    beta = [model["intercept"]] + [model["coef"][nm] for nm in names]
+    yt = [design["y"][i] for i in tr]
+    _binary_labels(yt)                                           # fail closed on forged/non-binary labels
+    npos = sum(yt)
+    if npos == 0 or npos == len(yt):
+        raise ModelError("coefficient_intervals: train slice has a single class")
     pos_w = model["pos_weight"]
+    # the sandwich re-derives the class weighting, so it must be the SAME weighting the model was fit under;
+    # a mismatched pos_weight would silently produce wrong SEs. Manifest stores it rounded (COEF_DP), so allow
+    # a rounding-scale tolerance around the exact rare-class up-weight (n - npos)/npos.
+    if abs(pos_w - (len(yt) - npos) / npos) > 1e-6:
+        raise ModelError("coefficient_intervals: model pos_weight does not match the train slice class balance "
+                         f"(model {pos_w!r} vs {(len(yt) - npos) / npos!r}) — mismatched model/slice")
+    beta = [model["intercept"]] + [model["coef"][nm] for nm in names]
     H = [[0.0] * p for _ in range(p)]                            # information (Hessian) at beta
     meat = [[0.0] * p for _ in range(p)]                         # Σ (weighted score)_i (weighted score)_i^T
     for i in tr:
@@ -1292,7 +1307,7 @@ def coefficient_intervals(model=None, design=None, slices=None, z=1.96, panel_pa
             H[a][b] = H[b][a]
             meat[a][b] = meat[b][a]
         if a > 0:
-            H[a][a] += L2_LAMBDA
+            H[a][a] += model["l2"]                               # the ridge the model was fit under, not a global
     Hinv = _matrix_inverse(H)
     # cov = Hinv @ meat @ Hinv  (symmetric); we only need the diagonal
     HM = [[sum(Hinv[i][k] * meat[k][j] for k in range(p)) for j in range(p)] for i in range(p)]

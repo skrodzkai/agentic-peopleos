@@ -528,14 +528,15 @@ def _drivers_panel(report):
                       ("raise/promo drought", "top push factor", ch.RED),
                       ("manager team churn", "a leading driver", ch.RED)])
     cap = (f"Exact additive log-odds per feature (contributions + intercept {report['intercept']:.2f} = the score "
-           "— no approximation, nothing hidden), each with its <b>95% robust (sandwich) confidence interval</b> "
-           "as a whisker. <b>Associational, not causal</b>: this linear model's decomposition, not 'the reason' "
+           "— no approximation, nothing hidden), each with a whisker showing its <b>95% robust (sandwich) "
+           "stability interval — evaluated at the published pinned coefficients, no re-fit; synthetic-validation "
+           "only</b>. <b>Associational, not causal</b>: this linear model's decomposition, not 'the reason' "
            "anyone leaves. The top of this chart is the comp arms' home turf — equity vesting and band position.")
     note = (f"3 planted decoy (pure-noise) features rank #{report['decoy_ranks'][0]}, #{report['decoy_ranks'][1]}, "
             f"#{report['decoy_ranks'][2]} of {len(report['coef_ranked'])} — and every decoy's interval "
             "<b>spans 0</b> (indistinguishable from no effect), the leakage tripwire confirmed twice over.")
     return (f"<div class='tile'><div class='t-head'><div><h3>Why people leave — the glass-box drivers</h3>"
-            "<div class='t-sub'>Top-12 coefficients · additive log-odds per +1 SD · 95% CI whiskers · protective (green) vs risk (red)</div></div>"
+            "<div class='t-sub'>Top-12 coefficients · additive log-odds per +1 SD · 95% stability whiskers (pinned coeffs, no re-fit) · protective (green) vs risk (red)</div></div>"
             "<span class='t-scope'>Model internals</span></div>"
             f"<div class='chart'>{heads}{forest}</div>{stats}"
             f"<div class='foot-note'>{cap}</div><div class='foot-note'>{note}</div></div>")
