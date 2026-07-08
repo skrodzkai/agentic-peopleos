@@ -20,9 +20,10 @@ python3 run.py --publish --approved-by "Compensation Committee Chair"
   full itemized ledger beside the waterfall. The build fails closed if the bridge does not tie to CAP.
 - **The 402(v) table** — five covered fiscal years: PEO SCT + CAP, average non-PEO SCT + CAP, company
   TSR ($100 indexed), peer TSR, net income, and the company-selected measure.
-- **The three required relationship views** — both CAP columns the rule requires (PEO CAP and the
+- **The required CAP relationship views** — both CAP columns the rule requires (PEO CAP and the
   average non-PEO CAP) against company TSR, against net income, and against the company-selected
-  measure.
+  measure; the company-versus-peer-TSR comparison the rule also calls for is carried in the table's
+  two indexed TSR columns.
 
 ## How it works
 

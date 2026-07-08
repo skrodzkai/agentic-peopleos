@@ -32,12 +32,12 @@
        radial-gradient(900px 480px at 82% 18%,rgba(67,212,119,.045),transparent 60%),var(--bg);
        background-repeat:no-repeat;color:var(--text);font-family:var(--sans);margin:0;
        -webkit-font-smoothing:antialiased;line-height:1.55;overflow-x:hidden}
-  img{max-width:100%;display:block}
+  img{max-width:100%;height:auto;display:block}
   a{color:var(--cyan);text-decoration:none}
   a:hover{text-decoration:underline}
   .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
   ::selection{background:rgba(27,167,255,.28);color:#eaf3fb}
-  a:focus-visible,.btn:focus-visible,.viewfull:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:4px}
+  a:focus-visible,.btn:focus-visible,.viewfull:focus-visible,.lb-close:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:4px}
   section{scroll-margin-top:72px}
   @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition-duration:.01ms!important}}
 
@@ -191,6 +191,11 @@
             backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
             padding:32px;overflow:auto;cursor:zoom-out}
   #lightbox.open{display:block}
+  #lightbox .lb-close{position:fixed;top:18px;right:18px;z-index:101;width:44px;height:44px;
+    border-radius:999px;border:1px solid var(--line-bright);background:rgba(10,27,41,.92);
+    color:var(--text-bright);font-size:24px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center}
+  #lightbox .lb-close:hover{color:var(--cyan2);border-color:var(--cyan)}
   /* clamp to the lightbox's own content box so a phone sees the whole dashboard width, not a
      1000px pan-zoom — 100% (not 100vw) also stays correct beside a classic desktop scrollbar */
   #lightbox img{max-width:min(1000px,100%);margin:0 auto;border-radius:var(--r-md);
@@ -254,7 +259,7 @@
     <h2>One spine under every arm</h2>
     <p class="lead">Every arm produces recommendations, never actions. Everything routes through the spine; nothing consequential runs until an entitled human approves — and the ledger can prove, later, that it really happened that way.</p>
     <div class="card diagram-card">
-      <img src="assets/system-diagram.svg" alt="How Agentic PeopleOS stays governed: the arms recommend, the governance spine mediates, an entitled human approves, and only then does the gated action run — every step written to a hash-chained ledger.">
+      <img src="assets/system-diagram.svg" alt="How Agentic PeopleOS stays governed: the arms recommend, the governance spine mediates, an entitled human approves, and only then does the gated action run — every step written to a hash-chained ledger." width="1200" height="800">
     </div>
   </section>
 
@@ -305,7 +310,7 @@
     <div class="card proof">
       <div>
         <a href="assets/ledger-proof.png" target="_blank" rel="noopener" data-lightbox>
-          <img src="assets/ledger-proof.png" alt="The rendered decision ledger: request, recommendation, human approval, and gated action as a verified hash chain." loading="lazy">
+          <img src="assets/ledger-proof.png" alt="The rendered decision ledger: request, recommendation, human approval, and gated action as a verified hash chain." loading="lazy" width="2000" height="1103">
         </a>
         <p class="cap">the actual ledger render: request → recommendation → human approval → gated action, chain verified.</p>
       </div>
@@ -337,7 +342,7 @@ python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl 
       <p class="shot-cap">The one page a CEO actually reads: Revenue per FTE against the SaaS market, the headcount bridge, operating leverage, pay positioning, attrition hotspots, org shape, and the 9-box — every number computed once in the shared engine and cited to the metric registry. Top-right corner: DRAFT · AWAITING PUBLISH APPROVAL. It stays a draft until a human owns it.</p>
       <div class="shot">
         <a href="assets/people-intelligence.png" target="_blank" rel="noopener" data-lightbox>
-          <img src="assets/people-intelligence.png" alt="People Intelligence executive dashboard" loading="lazy">
+          <img src="assets/people-intelligence.png" alt="People Intelligence executive dashboard" loading="lazy" width="2400" height="11855">
         </a>
         <a class="viewfull" href="assets/people-intelligence.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
       </div>
@@ -353,7 +358,7 @@ python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl 
       <p class="shot-cap">Two proxy-advisor reconstructions scoring the same pay — and disagreeing. Glass Lewis's five-test scorecard reads Low; ISS's TSR-centric lens reads Medium: an ISS-only flag. The two-pole counterfactual (pay-vs-TSR-only ≈ Severe, financials-only ≈ Negligible) shows exactly why the lenses diverge — the read a comp committee needs before the vote.</p>
       <div class="shot">
         <a href="assets/glass-lewis-war-room.png" target="_blank" rel="noopener" data-lightbox>
-          <img src="assets/glass-lewis-war-room.png" alt="ISS vs Glass Lewis say-on-pay war room dashboard" loading="lazy">
+          <img src="assets/glass-lewis-war-room.png" alt="ISS vs Glass Lewis say-on-pay war room dashboard" loading="lazy" width="2400" height="3599">
         </a>
         <a class="viewfull" href="assets/glass-lewis-war-room.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
       </div>
@@ -369,7 +374,7 @@ python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl 
       <p class="shot-cap">The board deliverable a VP of Total Rewards owns every quarter: SBC as a share of revenue, value-adjusted burn against the industry cap, overhang, pool longevity — the pool funds ~2.8 more years — and where the equity actually goes, executives through broad-based staff.</p>
       <div class="shot">
         <a href="assets/equity-spend.png" target="_blank" rel="noopener" data-lightbox>
-          <img src="assets/equity-spend.png" alt="Company-wide equity spend and burn dashboard" loading="lazy">
+          <img src="assets/equity-spend.png" alt="Company-wide equity spend and burn dashboard" loading="lazy" width="2400" height="4459">
         </a>
         <a class="viewfull" href="assets/equity-spend.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
       </div>
@@ -383,10 +388,10 @@ python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl 
         <span class="armchip">Executive Comp Arm</span>
         <span class="armchip amber">★ the mandatory table</span>
       </div>
-      <p class="shot-cap">The SEC disclosure a comp committee can't opt out of, rebuilt in the open: Compensation Actually Paid reconciled from the Summary Compensation Table through the full <a href="https://github.com/skrodzkai/agentic-peopleos/blob/main/governance/pay-versus-performance-methodology.md" target="_blank" rel="noopener">402(v)(2)(iii) fair-value roll-forward</a> — self-checked to the cent or the build fails — beside the five-year table and the required CAP-vs-TSR, net-income, and company-selected-measure views, both CAP columns in every chart. Fair values are re-measured, not assumed; a closed PSU period requires the committee-certified earned payout, never a silent target assumption.</p>
+      <p class="shot-cap">The SEC disclosure required of every registrant subject to Item 402(v), rebuilt in the open: Compensation Actually Paid reconciled from the Summary Compensation Table through the full <a href="https://github.com/skrodzkai/agentic-peopleos/blob/main/governance/pay-versus-performance-methodology.md" target="_blank" rel="noopener">402(v)(2)(iii) fair-value roll-forward</a> — self-checked to the cent or the build fails — beside the five-year table and the required CAP-vs-TSR, net-income, and company-selected-measure views, both CAP columns in every chart. Fair values are re-measured, not assumed; a closed PSU period requires the committee-certified earned payout, never a silent target assumption.</p>
       <div class="shot">
         <a href="assets/pay-versus-performance.png" target="_blank" rel="noopener" data-lightbox>
-          <img src="assets/pay-versus-performance.png" alt="Pay-versus-Performance dashboard — the SCT-to-CAP reconciliation bridge with its itemized 402(v) ledger, the five-year table, and CAP-versus-performance relationship views" loading="lazy">
+          <img src="assets/pay-versus-performance.png" alt="Pay-versus-Performance dashboard — the SCT-to-CAP reconciliation bridge with its itemized 402(v) ledger, the five-year table, and CAP-versus-performance relationship views" loading="lazy" width="2560" height="5054">
         </a>
         <a class="viewfull" href="assets/pay-versus-performance.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
       </div>
@@ -402,7 +407,7 @@ python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl 
       <p class="shot-cap">The annual cycle, rendered: a merit budget allocated through a performance × compa-ratio matrix, the bonus pool, promotions, and equity refreshers. The loop closes: refreshers are emitted as append-valid rows in the equity ledger's schema, so next quarter's board burn already carries this cycle's grants.</p>
       <div class="shot">
         <a href="assets/merit-comp.png" target="_blank" rel="noopener" data-lightbox>
-          <img src="assets/merit-comp.png" alt="Merit and comp-cycle planning dashboard" loading="lazy">
+          <img src="assets/merit-comp.png" alt="Merit and comp-cycle planning dashboard" loading="lazy" width="2400" height="2951">
         </a>
         <a class="viewfull" href="assets/merit-comp.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
       </div>
@@ -419,7 +424,7 @@ python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl 
       <p class="shot-cap">A segment-first hazard model that <em>performs</em> its own trustworthiness: model-vs-observed disagreement plotted in red (never averaged away), every metric printed beside its no-skill baseline, three planted decoy features ranked #15/#17/#23 as a leakage tripwire, and fairness shipped as a visibly unchecked checklist. Governance-first — the <a href="https://github.com/skrodzkai/agentic-peopleos/blob/main/governance/retention-risk-model-card.md" target="_blank" rel="noopener">model card</a> sets the prohibited uses (never an input to termination or individual pay) before the dashboard renders. No individual score is ever surfaced or published.</p>
       <div class="shot">
         <a href="assets/retention-risk.png" target="_blank" rel="noopener" data-lightbox>
-          <img src="assets/retention-risk.png" alt="Retention Risk committee dashboard — a segment-first glass-box hazard model" loading="lazy">
+          <img src="assets/retention-risk.png" alt="Retention Risk committee dashboard — a segment-first glass-box hazard model" loading="lazy" width="2400" height="8971">
         </a>
         <a class="viewfull" href="assets/retention-risk.png" target="_blank" rel="noopener">View the full dashboard ↗</a>
       </div>
@@ -460,18 +465,27 @@ python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl 
 </div>
 
 <!-- optional image lightbox — the page is fully functional without this -->
-<div id="lightbox" aria-hidden="true"><img alt=""></div>
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Dashboard image viewer" aria-hidden="true" tabindex="-1"><button class="lb-close" type="button" aria-label="Close image viewer">×</button><img alt=""></div>
 <script>
   (function(){
-    var lb=document.getElementById('lightbox'),img=lb.querySelector('img');
-    function close(){lb.classList.remove('open');lb.setAttribute('aria-hidden','true');img.src='';}
+    var lb=document.getElementById('lightbox'),img=lb.querySelector('img'),
+        btn=lb.querySelector('.lb-close'),opener=null;
+    function close(){
+      lb.classList.remove('open');lb.setAttribute('aria-hidden','true');img.src='';
+      if(opener){opener.focus();opener=null;}          // restore focus to the card that opened the dialog
+    }
     document.querySelectorAll('[data-lightbox]').forEach(function(a){
       a.addEventListener('click',function(e){
-        e.preventDefault();img.src=a.getAttribute('href');img.alt=a.querySelector('img')?a.querySelector('img').alt:'';
-        lb.classList.add('open');lb.setAttribute('aria-hidden','false');
+        e.preventDefault();opener=a;
+        img.src=a.getAttribute('href');img.alt=a.querySelector('img')?a.querySelector('img').alt:'';
+        lb.classList.add('open');lb.setAttribute('aria-hidden','false');btn.focus();
       });
     });
-    lb.addEventListener('click',close);
-    document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+    lb.addEventListener('click',close);                 // backdrop, image, or the close button all dismiss
+    document.addEventListener('keydown',function(e){
+      if(!lb.classList.contains('open'))return;
+      if(e.key==='Escape')close();
+      else if(e.key==='Tab'){e.preventDefault();btn.focus();}   // one focusable control: trap Tab on it
+    });
   })();
 </script>

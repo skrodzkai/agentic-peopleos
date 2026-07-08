@@ -9,12 +9,18 @@ Checks:
   2. Every relative link in the top-level README resolves.
   3. (When the repo already has commits) no required file is untracked — the "pushed repo is
      missing core/ or vault/" failure mode. Skipped in an all-untracked draft.
+  4. The GitHub Pages tour (docs/index.html): every local src/href/poster reference and every
+     Pages-absolute meta image (og:image / twitter:image) resolves to a file under docs/, and
+     every docs/assets/*.svg parses as XML — a broken tour image/link or malformed diagram
+     fails preflight instead of shipping to the live site.
 
 Catches the case where local runs pass but the pushed repo is missing files.
 """
 import re
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -52,7 +58,7 @@ REQUIRED_OUTPUTS = [
     for ex in ("headcount-reporting", "attrition-reporting", "people-ops-reporting", "operating-review",
                "people-intelligence", "executive-comp-peer-builder", "executive-comp-benchmarking",
                "rtsr-psu-valuation", "iss-pay-screen", "equity-spend", "glass-lewis-screen",
-               "merit-comp-planning", "ta-reporting", "comp-reporting")
+               "pay-versus-performance", "merit-comp-planning", "ta-reporting", "comp-reporting")
     for a in _STD_OUTPUTS
 ] + [
     # retention-risk uses a committee-digest (not the day1-digest tuple above) — enumerate it explicitly so a
@@ -104,6 +110,63 @@ def _tracked():
         return None
 
 
+# The Pages site serves docs/ as its root; a Pages-absolute URL in a meta tag maps back onto docs/.
+_PAGES_BASE = "https://skrodzkai.github.io/agentic-peopleos/"
+
+
+class _TourRefParser(HTMLParser):
+    """Collect every local file reference the tour page makes: src/href/poster attributes plus the
+    og:image / twitter:image meta contents (which are Pages-absolute by necessity)."""
+
+    def __init__(self):
+        super().__init__()
+        self.refs = set()
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        for key in ("src", "href", "poster"):
+            v = (a.get(key) or "").split("#")[0].strip()
+            if v and not v.startswith(("http://", "https://", "mailto:", "data:", "#")):
+                self.refs.add(v)
+        # srcset carries comma-separated "url [descriptor]" candidates — validate each local one too
+        for cand in (a.get("srcset") or "").split(","):
+            u = cand.strip().split()[0] if cand.strip() else ""
+            if u and not u.startswith(("http://", "https://", "data:")):
+                self.refs.add(u)
+        if tag == "meta":
+            content = (a.get("content") or "").strip()
+            if content.startswith(_PAGES_BASE):
+                rest = content[len(_PAGES_BASE):]
+                if rest:                       # og:url IS the bare Pages base — that's the site, not a file
+                    self.refs.add(rest)
+
+
+def _tour_errors():
+    """Tour-surface integrity: local refs in docs/index.html resolve under docs/, and every committed
+    SVG asset parses as XML (a malformed diagram would ship as a broken image on the live site)."""
+    errors = []
+    tour = REPO / "docs" / "index.html"
+    if not tour.is_file():
+        return ["tour page missing: docs/index.html"]
+    parser = _TourRefParser()
+    parser.feed(tour.read_text(encoding="utf-8"))
+    docs_root = (REPO / "docs").resolve()
+    for ref in sorted(parser.refs):
+        target = (REPO / "docs" / ref).resolve()
+        # the live Pages site serves docs/ as its root — a ../-escaping ref can resolve to a real repo
+        # file locally yet 404 in production, so the boundary itself is enforced, not just existence
+        if docs_root != target and docs_root not in target.parents:
+            errors.append(f"tour reference escapes the Pages root (docs/): {ref}")
+        elif not target.is_file():
+            errors.append(f"tour references a missing file: docs/{ref}")
+    for svg in sorted((REPO / "docs" / "assets").glob("*.svg")):
+        try:
+            ET.parse(svg)
+        except ET.ParseError as exc:
+            errors.append(f"malformed SVG asset: {svg.relative_to(REPO)} ({exc})")
+    return errors
+
+
 def main():
     errors = []
 
@@ -130,6 +193,9 @@ def main():
     for h in bad_links:
         errors.append(f"README links a missing path: {h}")
 
+    # 2b. tour surface: local refs resolve + SVG assets parse
+    errors.extend(_tour_errors())
+
     # 3. nothing required is untracked (only meaningful once the repo has commits)
     tracked = _tracked()
     untracked = sorted(rel for rel in required if rel not in tracked) if tracked else []
@@ -142,7 +208,8 @@ def main():
         print(f"preflight FAILED — {len(errors)} issue(s); {len(required)} required files checked", file=sys.stderr)
         return 1
     note = "all required files tracked" if tracked else "draft (nothing committed yet — re-run before push)"
-    print(f"preflight OK — {len(required)} required files present, README links resolve; {note}.")
+    print(f"preflight OK — {len(required)} required files present, README + tour links resolve, "
+          f"SVG assets parse; {note}.")
     return 0
 
 
