@@ -196,6 +196,16 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   lands), the locked-in SBC backlog, and where the equity goes — executives through broad-based staff.
   Benchmarks, the Plan-Cost overhang proxy, and the VABR price input are illustrative, never claimed as advisor output; the
   plan-feature tests are scored exactly from the plan.
+- **[Pay Equity & EU Pay Transparency](examples/pay-equity/)** — the two numbers a Total-Rewards leader must
+  defend to the board and file under the **EU Pay Transparency Directive (2023/970)**: the **raw** pay gap
+  (mean and median, as the Directive requires) and the **adjusted, like-for-like** gap that survives once job
+  level, family, country, tenure, rating and management are held equal — the latter as a forest plot of point
+  estimate **+ 95% CI** over the raw gap, from a dependency-free OLS. It then runs the Directive's **5%
+  joint-pay-assessment screen** per category of workers. On synthetic Acme a 3.1% raw median gender gap falls
+  to a non-significant +0.4% adjusted, while the EU screen still flags one senior level over 5%. Protected
+  classes are pseudonymised, pay is base only, controls are observable only — a surviving gap is a flag for a
+  privileged equal-pay review, not a legal finding. Provenance:
+  [`governance/pay-equity-methodology.md`](governance/pay-equity-methodology.md).
 - **[ISS vs Glass Lewis — Say-on-Pay War Room](examples/glass-lewis-screen/)** — the two-proxy-advisor view a
   committee needs before the vote: an illustrative reconstruction of **Glass Lewis's current (2026)
   pay-for-performance scorecard** — a 0–100 composite across five quantitative tests (granted CEO/NEO pay vs

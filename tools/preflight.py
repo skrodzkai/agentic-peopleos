@@ -58,7 +58,8 @@ REQUIRED_OUTPUTS = [
     for ex in ("headcount-reporting", "attrition-reporting", "people-ops-reporting", "operating-review",
                "people-intelligence", "executive-comp-peer-builder", "executive-comp-benchmarking",
                "rtsr-psu-valuation", "iss-pay-screen", "equity-spend", "glass-lewis-screen",
-               "pay-versus-performance", "merit-comp-planning", "ta-reporting", "comp-reporting")
+               "pay-versus-performance", "merit-comp-planning", "ta-reporting", "comp-reporting",
+               "pay-equity")
     for a in _STD_OUTPUTS
 ] + [
     # retention-risk uses a committee-digest (not the day1-digest tuple above) — enumerate it explicitly so a
