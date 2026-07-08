@@ -126,6 +126,10 @@ raises(lambda: PE.compute(_tmp_with(lambda h, rows: (h, [_set(h, r, "base_salary
        "a non-numeric base_salary is caught only if it reaches an in-scope row")  # see helper note below
 raises(lambda: PE.compute(_tmp_with(lambda h, rows: (h, [_set(h, r, "hire_date", "2099-01-01") for r in rows]))),
        "a hire_date after the as-of date fails closed")
+raises(lambda: PE.compute(_tmp_with(lambda h, rows: (h, [_set(h, r, "job_family", "") for r in rows]))),
+       "a blank job_family on an in-scope employee fails closed (it is a regression control)")
+raises(lambda: PE.compute(_tmp_with(lambda h, rows: (h, [_set(h, r, "location", "") for r in rows]))),
+       "a blank location on an in-scope employee fails closed (it is a regression control)")
 
 # a single-group population is degenerate-but-valid: it computes no gap rather than crashing
 _one = PE.compute(_tmp_with(lambda h, rows: (h, [_set(h, r, "gender_group", "A") for r in rows if r])))

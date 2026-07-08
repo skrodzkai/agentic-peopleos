@@ -134,6 +134,12 @@ def _load_population(data_dir):
         if r["is_people_manager"] not in ("yes", "no"):
             raise PayEquityDataError(f"{ctx}: in-scope employee has a malformed is_people_manager "
                                      f"{r['is_people_manager']!r}")
+        # job_family + location are regression controls too; a blank one on an in-scope employee would
+        # silently become its own dummy category and distort the adjusted gap — fail closed.
+        if not r["job_family"].strip():
+            raise PayEquityDataError(f"{ctx}: in-scope employee has a blank job_family")
+        if not r["location"].strip():
+            raise PayEquityDataError(f"{ctx}: in-scope employee has a blank location")
         hire = _pdate(r["hire_date"], f"{ctx} hire_date")
         tenure_years = (AS_OF - hire).days / 365.25
         if tenure_years < 0:

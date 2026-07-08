@@ -61,9 +61,12 @@ def _bad(mut, why):
         passed += 1
 
 
+def _eu(r):
+    return next(d for d in r["dimensions"] if d["key"] == "gender_group")["eu_pay_transparency"]
+
+
 def _flip_eu_flag(r):
-    eu = next(d for d in r["dimensions"] if d["key"] == "gender_group")["eu_pay_transparency"]
-    c = next(c for c in eu["categories"] if c.get("assessable"))
+    c = next(c for c in _eu(r)["categories"] if c.get("assessable"))
     c["exceeds_threshold"] = not c["exceeds_threshold"]
 
 
@@ -91,6 +94,10 @@ _bad(lambda r: r["dimensions"][0]["adjusted"].update(r2=2.0), "an out-of-range R
 _bad(_flip_eu_flag, "an EU category flag inconsistent with its own mean gap vs 5%")
 _bad(_flip_joint, "a joint-assessment flag inconsistent with the flagged-category count")
 _bad(lambda r: r.pop("headline"), "a result missing the headline block")
+# the rendered COUNTERS + model n are validated too (not just the gap fields)
+_bad(lambda r: _eu(r).update(n_flagged=_eu(r)["n_flagged"] + 5), "an EU n_flagged that disagrees with the category list")
+_bad(lambda r: _eu(r).update(n_categories=999), "an EU n_categories that disagrees with the category list")
+_bad(lambda r: r["dimensions"][0]["adjusted"].update(n=float("inf")), "a non-finite / non-int adjusted model n")
 
 # -- publish gate --
 ok(run.main(["--publish"]) == 2, "publish without an approver is refused (rc 2)")

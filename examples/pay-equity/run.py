@@ -100,6 +100,20 @@ def build_report(result):
             raise ReportError(f"EU category {c['category']}: flag inconsistent with its mean gap vs threshold")
     if eu["joint_assessment_required"] != (eu["n_flagged"] > 0):
         raise ReportError("EU joint-assessment flag inconsistent with the flagged-category count")
+    # the RENDERED counters + threshold + model n must be sound too — a forged inf/wrong count would otherwise
+    # reach the page. Validate them and cross-check the counts against the category list.
+    if not (isinstance(eu["n_categories"], int) and not isinstance(eu["n_categories"], bool)
+            and eu["n_categories"] == len(eu["categories"])):
+        raise ReportError("EU n_categories inconsistent with the category list")
+    if not (isinstance(eu["n_flagged"], int) and not isinstance(eu["n_flagged"], bool)
+            and eu["n_flagged"] == sum(1 for c in eu["categories"] if c.get("exceeds_threshold"))):
+        raise ReportError("EU n_flagged inconsistent with the flagged categories")
+    if not (_finite(eu["threshold_pct"]) and eu["threshold_pct"] > 0):
+        raise ReportError("EU threshold must be a positive finite percent")
+    for d in result["dimensions"]:
+        if not (isinstance(d["adjusted"]["n"], int) and not isinstance(d["adjusted"]["n"], bool)
+                and d["adjusted"]["n"] > 0):
+            raise ReportError(f"{d['key']}: adjusted model n must be a positive int")
 
     h = result["headline"]
     if not _finite(h["unadjusted_median_gap_pct"], h["unadjusted_mean_gap_pct"], h["adjusted_gap_pct"]):
@@ -110,7 +124,7 @@ def build_report(result):
         {"value": f"{h['unadjusted_mean_gap_pct']:.1f}%", "label": "Raw mean gap · gender"},
         {"value": f"{h['adjusted_gap_pct']:+.1f}%", "label": "Adjusted (like-for-like)",
          "tone": "bad" if h["adjusted_significant"] else "good"},
-        {"value": f"{eu['n_flagged']}", "label": f"EU categories >5% (of {eu['n_categories']})",
+        {"value": f"{eu['n_flagged']}", "label": f"EU categories ≥ 5% (of {eu['n_categories']})",
          "tone": "bad" if eu["n_flagged"] else "good"},
         {"value": "Indicated" if eu["joint_assessment_required"] else "None",
          "label": "EU joint assessment (screen)", "tone": "bad" if eu["joint_assessment_required"] else "good"},
@@ -131,9 +145,10 @@ def _narrative(result, gender, eu):
     ]
     if eu["joint_assessment_required"]:
         flagged = [c["category"] for c in eu["categories"] if c.get("exceeds_threshold")]
-        parts.append(f"But the EU Pay Transparency 5% screen fires in {eu['n_flagged']} category "
-                     f"({', '.join(flagged)}): a joint pay assessment is owed there unless the gap is justified "
-                     f"by objective, gender-neutral factors within six months.")
+        parts.append(f"But the EU Pay Transparency 5% screen flags {eu['n_flagged']} category "
+                     f"({', '.join(flagged)}): the screen indicates a potential joint-pay-assessment obligation "
+                     f"there, pending objective-factor justification and legal review (Article 10 allows six "
+                     f"months to justify or remediate).")
     else:
         parts.append("No category crosses the EU 5% joint-assessment trigger on the mean.")
     return " ".join(parts)
@@ -248,8 +263,9 @@ def render_digest(report):
              f"R²={gender['adjusted']['r2']:.2f}, n={gender['adjusted']['n']})."]
     if eu["joint_assessment_required"]:
         flagged = ", ".join(c["category"] for c in eu["categories"] if c.get("exceeds_threshold"))
-        lines.append(f"- **EU 5% trigger fires** in {eu['n_flagged']} category ({flagged}) — a joint pay "
-                     f"assessment is owed unless objectively justified within six months.")
+        lines.append(f"- **EU 5% screen flags** {eu['n_flagged']} category ({flagged}) — the screen indicates a "
+                     f"potential joint-pay-assessment obligation, pending objective-factor justification / legal "
+                     f"review (Article 10 allows six months).")
     else:
         lines.append("- No EU 5% category trigger on the mean.")
     lines += ["", "_Numbers computed by foundation/compute/pay_equity.py on synthetic, pseudonymised data; "
