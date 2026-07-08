@@ -26,9 +26,9 @@ jobs:
           python3 -m py_compile
           core/*.py core/tests/*.py tools/*.py
           foundation/data/generate.py
-          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py foundation/compute/retention.py foundation/compute/benchmarking.py foundation/compute/equity_spend.py foundation/compute/glass_lewis_screen.py foundation/compute/merit_comp.py foundation/compute/pvp.py foundation/compute/pay_equity.py
+          foundation/compute/engine.py foundation/compute/regression.py foundation/compute/peers.py foundation/compute/rtsr.py foundation/compute/iss_screen.py foundation/compute/retention.py foundation/compute/benchmarking.py foundation/compute/equity_spend.py foundation/compute/glass_lewis_screen.py foundation/compute/merit_comp.py foundation/compute/pvp.py foundation/compute/pay_equity.py foundation/compute/sbc_forecast.py
           foundation/compute/tests/test_engine.py foundation/compute/tests/test_regression.py
-          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py foundation/compute/tests/test_retention.py foundation/compute/tests/test_benchmarking.py foundation/compute/tests/test_equity_spend.py foundation/compute/tests/test_glass_lewis_screen.py foundation/compute/tests/test_merit_comp.py foundation/compute/tests/test_pvp.py foundation/compute/tests/test_pay_equity.py
+          foundation/compute/tests/test_peers.py foundation/compute/tests/test_rtsr.py foundation/compute/tests/test_iss_screen.py foundation/compute/tests/test_retention.py foundation/compute/tests/test_benchmarking.py foundation/compute/tests/test_equity_spend.py foundation/compute/tests/test_glass_lewis_screen.py foundation/compute/tests/test_merit_comp.py foundation/compute/tests/test_pvp.py foundation/compute/tests/test_pay_equity.py foundation/compute/tests/test_sbc_forecast.py
           foundation/render/dashboard.py foundation/render/charts.py
           foundation/render/tests/test_dashboard.py foundation/render/tests/test_charts.py
           examples/headcount-reporting/run.py examples/headcount-reporting/evals/test_headcount.py
@@ -42,6 +42,7 @@ jobs:
           examples/iss-pay-screen/run.py examples/iss-pay-screen/evals/test_iss_pay_screen.py
           examples/equity-spend/run.py examples/equity-spend/evals/test_equity_spend_agent.py
           examples/pay-equity/run.py examples/pay-equity/evals/test_pay_equity.py
+          examples/sbc-forecasting/run.py examples/sbc-forecasting/evals/test_sbc_forecast_agent.py
           examples/glass-lewis-screen/run.py examples/glass-lewis-screen/evals/test_glass_lewis_agent.py
           examples/pay-versus-performance/run.py examples/pay-versus-performance/evals/test_pvp_agent.py
           examples/merit-comp-planning/run.py examples/merit-comp-planning/evals/test_merit_comp_agent.py
@@ -93,6 +94,7 @@ jobs:
           python3 foundation/compute/tests/test_merit_comp.py
           python3 foundation/compute/tests/test_pvp.py
           python3 foundation/compute/tests/test_pay_equity.py
+          python3 foundation/compute/tests/test_sbc_forecast.py
 
       - name: Retention model manifest reproduces (tolerance sync gate — fitted floats aren't byte-diffed)
         run: python3 foundation/compute/retention.py validate   # re-fits + checks coefficients/calibration reproduce within tol (+ panel_data_hash, schema)
@@ -190,6 +192,14 @@ jobs:
           python3 run.py
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
             || (echo "::error::pay-equity output is stale — run examples/pay-equity/run.py and commit" && exit 1)
+
+      - name: Executive comp arm — SBC expense forecast dashboard eval
+        working-directory: examples/sbc-forecasting
+        run: |
+          python3 evals/test_sbc_forecast_agent.py
+          python3 run.py
+          git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            || (echo "::error::sbc-forecasting output is stale — run examples/sbc-forecasting/run.py and commit" && exit 1)
 
       - name: Executive comp arm — ISS vs Glass Lewis say-on-pay war room eval
         working-directory: examples/glass-lewis-screen
@@ -295,6 +305,7 @@ jobs:
             examples/iss-pay-screen/output \
             examples/equity-spend/output \
             examples/pay-equity/output \
+            examples/sbc-forecasting/output \
             examples/glass-lewis-screen/output \
             examples/merit-comp-planning/output \
             examples/executive-comp-benchmarking/output \

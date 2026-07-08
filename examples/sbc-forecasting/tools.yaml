@@ -1,0 +1,24 @@
+# Tools the sbc-forecasting agent is allowed to use.
+# Note what's ABSENT: no guidance/accrual writer, no grant-sizing tool, no assumption editor,
+# and no "send"/"publish" tool.
+
+tools:
+  - name: sbc_forecast_read
+    access: read-only
+    description: >
+      Reads the forward SBC-expense forecast (locked-in runoff by fiscal year, forfeiture-adjusted line,
+      new-grant overlay, total and % of revenue, backlog reconciliation) from the shared engine
+      (foundation/compute/sbc_forecast.py), itself read-only over the synthetic grant ledger + financials.
+      The agent performs no math of its own.
+
+  - name: report_writer
+    access: write-local
+    description: >
+      Renders the SBC-forecast dashboard (HTML) and the digest (Markdown) to the local output/ directory.
+      Produces drafts only; distribution requires the human publish gate.
+
+# Intentionally NOT granted:
+#   - any guidance / accrual / journal-entry writer — the agent forecasts a view, Finance owns the number
+#   - grant-sizing / pool / issuance tool — no equity-plan mutation, ever
+#   - any tool that edits the forfeiture rate, run-rate, or revenue assumptions (they are engine constants)
+#   - email / Slack / "publish" — Finance / Total Rewards owns distribution (publish gate)

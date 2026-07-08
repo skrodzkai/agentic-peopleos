@@ -59,7 +59,7 @@ REQUIRED_OUTPUTS = [
                "people-intelligence", "executive-comp-peer-builder", "executive-comp-benchmarking",
                "rtsr-psu-valuation", "iss-pay-screen", "equity-spend", "glass-lewis-screen",
                "pay-versus-performance", "merit-comp-planning", "ta-reporting", "comp-reporting",
-               "pay-equity")
+               "pay-equity", "sbc-forecasting")
     for a in _STD_OUTPUTS
 ] + [
     # retention-risk uses a committee-digest (not the day1-digest tuple above) — enumerate it explicitly so a

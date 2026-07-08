@@ -219,6 +219,14 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   classes are pseudonymised, pay is base only, controls are observable only — a surviving gap is a flag for a
   privileged equal-pay review, not a legal finding. Provenance:
   [`governance/pay-equity-methodology.md`](governance/pay-equity-methodology.md).
+- **[SBC Expense Forecast](examples/sbc-forecasting/)** — the forward **stock-based-compensation forecast** a
+  Total-Rewards leader takes into the CFO guidance conversation. From the same grant ledger it projects the
+  **locked-in SBC runoff** — the amortization of grants already made, rolling off by fiscal year — which ties
+  **to the cent** to the equity-spend arm's unamortized-SBC backlog (same amortization, split by year). It then
+  layers an **illustrative** steady-state new-grant run-rate and estimated forfeiture rate for a total go-forward
+  run-rate. On synthetic Acme, $179.8M rolls off from $85.9M in FY2026 to near zero by FY2029; the locked-in
+  runoff is assumption-free, everything forward is labeled illustrative — never guidance. Provenance:
+  [`governance/sbc-forecast-methodology.md`](governance/sbc-forecast-methodology.md).
 - **[ISS vs Glass Lewis — Say-on-Pay War Room](examples/glass-lewis-screen/)** — the two-proxy-advisor view a
   committee needs before the vote: an illustrative reconstruction of **Glass Lewis's current (2026)
   pay-for-performance scorecard** — a 0–100 composite across five quantitative tests (granted CEO/NEO pay vs
