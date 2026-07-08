@@ -717,8 +717,41 @@ _bad_pc = _c9.deepcopy(_mani); del _bad_pc["primary_coefficients"]["pos_weight"]
 raises((R.ModelError, R.ManifestError), lambda: R.model_from_manifest(_bad_pc, panel_path=None),
        "model_from_manifest fails closed when the fitted primary model is missing a required field")
 
+# --- diagnostics (Increment 4b): reliability curve + robust coefficient intervals, from the pinned model ---
+_rel = R.reliability_curve(model, calib, design, slices)
+ok(_rel["n_bins"] == 10 and sum(b["n"] for b in _rel["bins"]) == len(slices["test"]),
+   "reliability_curve bins the whole test slice into equal-count deciles")
+ok(all(abs(b["gap"] - (b["mean_pred"] - b["obs_freq"])) < 1.5e-6 for b in _rel["bins"]),
+   "each reliability bin's gap equals its two displayed numbers' difference (to display precision)")
+ok(0.0 <= _rel["ece"] <= 1.0 and _rel["ece"] < 0.05,
+   "the ECE is a valid, small calibration error on the honest synthetic model")
+ok(_rel["base_rate"] == round(E["base_rate"], 6), "reliability base rate is the eval base rate (to display precision)")
+ok(R.reliability_curve(model, calib, design, slices) == _rel, "reliability_curve is deterministic")
+raises(R.ModelError, lambda: R.reliability_curve(model, calib, design, slices, n_bins=1),
+       "reliability_curve rejects n_bins < 2")
+raises(R.ModelError, lambda: R.reliability_curve(model, None, design, slices),
+       "reliability_curve rejects a partial bundle")
+
+_ci = R.coefficient_intervals(model, design, slices)
+ok(len(_ci["coefficients"]) == len(model["feature_names"]), "an interval per design feature")
+ok(all(c["ci_lo"] <= c["coef"] <= c["ci_hi"] and c["se"] >= 0 for c in _ci["coefficients"]),
+   "every coefficient interval brackets its point estimate with a non-negative SE")
+ok(all(c["excludes_zero"] == (c["ci_lo"] > 0 or c["ci_hi"] < 0) for c in _ci["coefficients"]),
+   "excludes_zero is consistent with the interval bounds")
+_dec = [c for c in _ci["coefficients"] if c["is_decoy"]]
+ok(len(_dec) == len(R.DECOY_FEATURES) and all(not c["excludes_zero"] for c in _dec),
+   "every planted decoy's coefficient interval spans 0 (noise, not a real driver)")
+_real_top = [c for c in _ci["coefficients"] if c["feature"] in ("unvested_equity_pct_comp", "comp_ratio")]
+ok(_real_top and all(c["excludes_zero"] for c in _real_top),
+   "the top protective drivers (equity, comp-ratio) have intervals that exclude 0")
+ok(R.coefficient_intervals(model, design, slices) == _ci, "coefficient_intervals is deterministic")
+raises(R.ModelError, lambda: R.coefficient_intervals(model, None, slices),
+       "coefficient_intervals rejects a partial bundle")
+raises(R.ModelError, lambda: R.coefficient_intervals(model, design, slices, z=-1),
+       "coefficient_intervals rejects a non-positive z")
+
 print(f"OK — {CHECKS} retention Increment 0+1+2+3+4 checks passed "
-      f"(contract + feature builder + glass-box hazard + eval/realism-guard + segment layer; {len(rows)} "
+      f"(contract + feature builder + glass-box hazard + eval/realism-guard + segment layer + diagnostics; {len(rows)} "
       f"person-months, {len(names)} design features, voluntary={ev['voluntary']}; test AUC={E['roc_auc']:.3f}, "
       f"concordance={E['horizon_concordance']:.3f}; {_recon['n_segments']} segments reconciled, "
       f"{_recon['n_flagged']} gaps surfaced, max gap {_recon['max_abs_gap']:.3f}; realism-guarded, reproducible).")

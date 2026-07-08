@@ -226,6 +226,16 @@ def build_report():
         if name not in DRIVER_LABELS:
             raise ReportError(f"driver '{name}' has no committee label — refusing to render an unlabeled coefficient")
 
+    # diagnostics on the PUBLISHED model (no re-fit): decile calibration + robust coefficient intervals
+    reliability = R.reliability_curve(model, calibration, design, slices)
+    coef_ci = R.coefficient_intervals(model, design, slices)
+    ci_by_feature = {c["feature"]: c for c in coef_ci["coefficients"]}
+    # every decoy's stability interval must span 0 (it's noise) — fail the build if a decoy reads significant
+    for c in coef_ci["coefficients"]:
+        if c["is_decoy"] and c["excludes_zero"]:
+            raise ReportError(f"a planted decoy ({c['feature']}) has a coefficient interval excluding 0 — "
+                              "the stability diagnostic contradicts the leakage tripwire")
+
     lift = pk["precision"] / metrics["base_rate"]
     n_flagged = pk["n_flagged"]
     n_exits = round(pk["precision"] * n_flagged)
@@ -239,7 +249,8 @@ def build_report():
         "comp": comp, "top_tenure": top_tenure, "ratio_below_above": ratio_below_above,
         "worst": {"dim": worst_dim, "seg": worst_seg}, "lo": {"dim": lo_dim, "seg": lo_seg},
         "hi": {"dim": hi_dim, "seg": hi_seg}, "lift": lift, "n_flagged": n_flagged, "n_exits": n_exits,
-        "slice_sizes": slice_sizes,
+        "slice_sizes": slice_sizes, "reliability": reliability, "coef_ci": coef_ci,
+        "ci_by_feature": ci_by_feature,
     }
     report["narrative"] = _narrative(report)
     return report
@@ -427,6 +438,9 @@ def render_html(report):
     # P8 — trust panel
     grid.append("<div class='col-5'>" + _trust_panel(report) + "</div>")
 
+    # P8b — reliability diagram (does the calibrated probability match reality?)
+    grid.append("<div class='col-12'>" + _reliability_panel(report) + "</div>")
+
     # P9 — survival outlook
     grid.append("<div class='col-6'>" + _survival_panel(report) + "</div>")
 
@@ -493,8 +507,20 @@ def _ledger(report):
 
 
 def _drivers_panel(report):
-    rows = [{"group": DRIVER_LABELS[n], "adj": round(v, 2)} for n, v in report["drivers"]]
-    forest = ch.forest_plot(rows, -0.8, 0.6, unit="", zero_label="no effect (0)", color_mode="direction",
+    # each driver carries its 95% robust (sandwich) coefficient interval as a whisker — so the chart shows
+    # not just the point estimate but how tightly the data pins it (a wide bar crossing 0 = not distinguishable
+    # from no effect). The axis widens to hold the widest interval so no whisker renders off-canvas.
+    cif = report["ci_by_feature"]
+    rows = []
+    for n, v in report["drivers"]:
+        e = cif[n]
+        rows.append({"group": DRIVER_LABELS[n], "adj": round(v, 2),
+                     "ci_lo": round(e["ci_lo"], 2), "ci_hi": round(e["ci_hi"], 2)})
+    lo = min([r["ci_lo"] for r in rows] + [-0.8])
+    hi = max([r["ci_hi"] for r in rows] + [0.6])
+    axis_lo = math.floor(lo * 5) / 5.0                          # snap to the 0.2 tick grid, with headroom
+    axis_hi = math.ceil(hi * 5) / 5.0
+    forest = ch.forest_plot(rows, axis_lo, axis_hi, unit="", zero_label="no effect (0)", color_mode="direction",
                             tick_step=0.2, label_w=210, value_fmt=lambda v: f"{v:+.2f}")
     heads = ("<div class='drv-heads'><span class='prot'>← Protects (keeps people)</span>"
              "<span class='risk'>Raises risk (pushes people out) →</span></div>")
@@ -502,16 +528,56 @@ def _drivers_panel(report):
                       ("raise/promo drought", "top push factor", ch.RED),
                       ("manager team churn", "a leading driver", ch.RED)])
     cap = (f"Exact additive log-odds per feature (contributions + intercept {report['intercept']:.2f} = the score "
-           "— no approximation, nothing hidden). <b>Associational, not causal</b>: this linear model's "
-           "decomposition, not 'the reason' anyone leaves. The top of this chart is the comp arms' home turf — "
-           "equity vesting and band position — which is why the levers below route there.")
+           "— no approximation, nothing hidden), each with its <b>95% robust (sandwich) confidence interval</b> "
+           "as a whisker. <b>Associational, not causal</b>: this linear model's decomposition, not 'the reason' "
+           "anyone leaves. The top of this chart is the comp arms' home turf — equity vesting and band position.")
     note = (f"3 planted decoy (pure-noise) features rank #{report['decoy_ranks'][0]}, #{report['decoy_ranks'][1]}, "
-            f"#{report['decoy_ranks'][2]} of {len(report['coef_ranked'])} — see the trust panel.")
+            f"#{report['decoy_ranks'][2]} of {len(report['coef_ranked'])} — and every decoy's interval "
+            "<b>spans 0</b> (indistinguishable from no effect), the leakage tripwire confirmed twice over.")
     return (f"<div class='tile'><div class='t-head'><div><h3>Why people leave — the glass-box drivers</h3>"
-            "<div class='t-sub'>Top-12 coefficients · additive log-odds per +1 SD · protective (green) vs risk (red)</div></div>"
+            "<div class='t-sub'>Top-12 coefficients · additive log-odds per +1 SD · 95% CI whiskers · protective (green) vs risk (red)</div></div>"
             "<span class='t-scope'>Model internals</span></div>"
             f"<div class='chart'>{heads}{forest}</div>{stats}"
-            f"<div class='foot-note'>{cap}</div><div class='foot-note'>{_e(note)}</div></div>")
+            f"<div class='foot-note'>{cap}</div><div class='foot-note'>{note}</div></div>")
+
+
+def _reliability_panel(report):
+    """Decile reliability diagram: predicted vs observed voluntary-exit rate per equal-count bin, on the
+    calibration diagonal, with the Expected Calibration Error. The single sharpest 'is it calibrated?' chart."""
+    rel = report["reliability"]
+    bins = rel["bins"]
+    w, h = 560, 300
+    mL, mR, mT, mB = 52, 16, 20, 44
+    pw, ph = w - mL - mR, h - mT - mB
+    hi = max([b["mean_pred"] for b in bins] + [b["obs_freq"] for b in bins]) * 1.08 or 1.0
+    X = lambda v: mL + (v / hi) * pw
+    Y = lambda v: mT + ph - (v / hi) * ph
+    b = [f"<line x1='{mL}' y1='{Y(0):.1f}' x2='{X(hi):.1f}' y2='{Y(hi):.1f}' stroke='{ch.SOFT}' "
+         f"stroke-dasharray='4 4' opacity='.7'/>",
+         f"<text x='{X(hi):.1f}' y='{Y(hi)-6:.1f}' text-anchor='end' font-family=\"{ch.MONO}\" "
+         f"font-size='9' fill='{ch.SOFT}'>perfect calibration</text>"]
+    for t in range(5):
+        gv = hi * t / 4
+        b.append(f"<line x1='{mL}' y1='{Y(gv):.1f}' x2='{X(hi):.1f}' y2='{Y(gv):.1f}' stroke='{ch.GRID}'/>")
+        b.append(f"<text x='{mL-6}' y='{Y(gv)+3:.1f}' text-anchor='end' font-family=\"{ch.MONO}\" "
+                 f"font-size='8.5' fill='{ch.SOFT}'>{gv*100:.0f}%</text>")
+        b.append(f"<text x='{X(gv):.1f}' y='{h-16:.1f}' text-anchor='middle' font-family=\"{ch.MONO}\" "
+                 f"font-size='8.5' fill='{ch.SOFT}'>{gv*100:.0f}%</text>")
+    pts = "".join(f"<circle cx='{X(bn['mean_pred']):.1f}' cy='{Y(bn['obs_freq']):.1f}' r='4' "
+                  f"fill='{ch.RED if abs(bn['gap'])>0.01 else ch.CYAN2}' stroke='{ch.BG}' stroke-width='1'/>"
+                  for bn in bins)
+    b.append(f"<text x='{(mL+X(hi))/2:.1f}' y='{h-4}' text-anchor='middle' font-family=\"{ch.MONO}\" "
+             f"font-size='9' fill='{ch.MUTED}'>predicted monthly exit probability →</text>")
+    b.append(pts)
+    svg = ch._svg(w, h, "".join(b)).replace("<svg ", "<svg data-chart='reliability' ", 1)
+    return (f"<div class='tile'><div class='t-head'><div><h3>Is it calibrated? — reliability by decile</h3>"
+            f"<div class='t-sub'>Predicted vs observed exit rate per equal-count bin · on the diagonal = honest</div></div>"
+            "<span class='t-scope'>Calibration</span></div>"
+            f"<div class='chart'>{svg}</div>"
+            f"<div class='foot-note'>Expected Calibration Error <b>{rel['ece']*100:.2f}%</b> across {rel['n_bins']} "
+            f"deciles of {rel['n']:,} test person-months (base rate {rel['base_rate']*100:.2f}%/mo). Points on the "
+            "dashed diagonal mean the calibrated probability matches reality; a red point is a bin that misses by "
+            "&gt;1pp. Computed on the out-of-time test slice from the published model — no re-fit.</div></div>")
 
 
 def _trust_panel(report):

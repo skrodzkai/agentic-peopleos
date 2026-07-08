@@ -1196,6 +1196,123 @@ def company_survival(model, calibration, design, slices, max_h=12, median_h=18):
             "median_horizon": median_h, "max_h": max_h}
 
 
+# --------------------------------------------------- calibration + coefficient-stability diagnostics (Increment 4b)
+# Two model-diagnostic panels a real people-analytics reviewer asks for first, both computed from the PINNED
+# model (no re-fit) so they reproduce in CI and add no manifest surface:
+#   * reliability_curve  — decile observed-vs-predicted + expected calibration error (is it calibrated?)
+#   * coefficient_intervals — robust (sandwich) SEs at the fitted coefficients (how stable is each driver?)
+
+def _matrix_inverse(A):
+    """Inverse of a small dense square matrix via `_solve` on each unit column. Raises ModelError (via
+    _solve) on a singular system — the diagnostic fails closed rather than emit a bogus covariance."""
+    n = len(A)
+    cols = [_solve(A, [1.0 if r == c else 0.0 for r in range(n)]) for c in range(n)]
+    return [[cols[c][r] for c in range(n)] for r in range(n)]
+
+
+def reliability_curve(model=None, calibration=None, design=None, slices=None, n_bins=10, panel_path=PANEL_PATH):
+    """Out-of-time calibration diagnostic: bin the TEST-slice rows into `n_bins` EQUAL-COUNT groups by the
+    model's calibrated probability, and report each bin's mean predicted probability vs its observed
+    voluntary-exit frequency. Equal-count (not equal-width) bins because the event is rare (~1.8%/mo), so
+    equal-width bins would pile every row into one. The Expected Calibration Error (ECE) is the
+    frequency-weighted mean |predicted - observed| across bins. Everything is SYNTHETIC-VALIDATION only.
+    Same all-or-nothing bundle contract as evaluate(): pass NO bundle (train from panel) or a COMPLETE one."""
+    if not (isinstance(n_bins, int) and not isinstance(n_bins, bool) and 2 <= n_bins <= 50):
+        raise ModelError(f"reliability_curve: n_bins must be an int in [2,50] (got {n_bins!r})")
+    bundle = (model, calibration, design, slices)
+    if all(v is None for v in bundle):
+        model, calibration, design, slices = train_model(panel_path)
+    elif any(v is None for v in bundle):
+        raise ModelError("reliability_curve: pass NO bundle or a COMPLETE (model, calibration, design, slices)")
+    _validate_model(model)
+    _validate_calibration(calibration)
+    _validate_slices(design, slices)
+    test = slices["test"]
+    probs = [calibrated_probability(model, calibration, design["X"][i]) for i in test]
+    y = [design["y"][i] for i in test]
+    n = len(test)
+    if n < n_bins:
+        raise ModelError(f"reliability_curve: {n} test rows < {n_bins} bins")
+    order = sorted(range(n), key=lambda i: (probs[i], i))       # stable: ties break by index, deterministic
+    bins, ece = [], 0.0
+    for b in range(n_bins):
+        lo = b * n // n_bins
+        hi = (b + 1) * n // n_bins
+        idx = order[lo:hi]
+        if not idx:
+            continue
+        mp = sum(probs[i] for i in idx) / len(idx)
+        of = sum(y[i] for i in idx) / len(idx)
+        bins.append({"bin": b + 1, "n": len(idx), "mean_pred": round(mp, 6),
+                     "obs_freq": round(of, 6), "gap": round(mp - of, 6)})
+        ece += (len(idx) / n) * abs(mp - of)
+    return {"bins": bins, "ece": round(ece, 6), "n": n, "n_bins": len(bins),
+            "base_rate": round(sum(y) / n, 6), "validation": SYNTHETIC_VALIDATION}
+
+
+def coefficient_intervals(model=None, design=None, slices=None, z=1.96, panel_path=PANEL_PATH):
+    """Coefficient-stability diagnostic: ROBUST (Huber-White sandwich) standard errors + Wald intervals for
+    each standardized coefficient, evaluated AT the pinned coefficients over the TRAIN slice — no re-fit.
+    The sandwich (not the naive inverse-information) is used because the fit is CLASS-WEIGHTED, so the
+    weights are not frequency weights and the naive covariance would be wrong. cov = H^-1 (Σ r_i^2 x_i x_i^T)
+    H^-1, with H = Σ s_i x_i x_i^T + ridge(on coefficients, not the intercept), s_i = w_i p_i(1-p_i),
+    r_i = w_i(y_i - p_i). These are legibility intervals on a synthetic fit (mechanics, not external
+    inference); a decoy coefficient's interval should comfortably span 0. Returns per DESIGN feature (the
+    intercept is reported separately, never as a 'driver')."""
+    if not (_finite_num(z) and z > 0):
+        raise ModelError(f"coefficient_intervals: z must be a positive finite number (got {z!r})")
+    bundle = (model, design, slices)
+    if all(v is None for v in bundle):
+        model, _cal, design, slices = train_model(panel_path)
+    elif any(v is None for v in bundle):
+        raise ModelError("coefficient_intervals: pass NO bundle or a COMPLETE (model, design, slices)")
+    _validate_model(model)
+    _validate_slices(design, slices)
+    names = model["feature_names"]
+    p = len(names) + 1                                            # + intercept column
+    tr = slices["train"]
+    beta = [model["intercept"]] + [model["coef"][nm] for nm in names]
+    pos_w = model["pos_weight"]
+    H = [[0.0] * p for _ in range(p)]                            # information (Hessian) at beta
+    meat = [[0.0] * p for _ in range(p)]                         # Σ (weighted score)_i (weighted score)_i^T
+    for i in tr:
+        row = [1.0] + _apply_std(design["X"][i], model["mean"], model["std"])
+        yi = float(design["y"][i])
+        w = pos_w if yi == 1.0 else 1.0
+        pi = _sigmoid(_logit(model, design["X"][i]))
+        s = w * pi * (1.0 - pi)
+        r = w * (yi - pi)
+        for a in range(p):
+            ra = row[a]
+            for b in range(a, p):
+                H[a][b] += s * ra * row[b]
+                meat[a][b] += (r * r) * ra * row[b]
+    for a in range(p):                                           # mirror + ridge on coefficients (not intercept)
+        for b in range(a):
+            H[a][b] = H[b][a]
+            meat[a][b] = meat[b][a]
+        if a > 0:
+            H[a][a] += L2_LAMBDA
+    Hinv = _matrix_inverse(H)
+    # cov = Hinv @ meat @ Hinv  (symmetric); we only need the diagonal
+    HM = [[sum(Hinv[i][k] * meat[k][j] for k in range(p)) for j in range(p)] for i in range(p)]
+    var = [sum(HM[i][k] * Hinv[k][i] for k in range(p)) for i in range(p)]
+    for v in var:
+        if not _finite_num(v) or v < 0:
+            raise ModelError("coefficient_intervals: non-finite/negative variance (degenerate information)")
+    se = [math.sqrt(v) for v in var]
+    out = []
+    for j, nm in enumerate(names, start=1):
+        c = beta[j]
+        lo, hi = c - z * se[j], c + z * se[j]
+        out.append({"feature": nm, "coef": round(c, COEF_DP), "se": round(se[j], COEF_DP),
+                    "ci_lo": round(lo, COEF_DP), "ci_hi": round(hi, COEF_DP),
+                    "excludes_zero": (lo > 0 or hi < 0), "is_decoy": nm in DECOY_FEATURES})
+    return {"z": z, "intercept": {"coef": round(beta[0], COEF_DP), "se": round(se[0], COEF_DP)},
+            "coefficients": out, "n_train": len(tr), "note": "robust (sandwich) SE on the class-weighted, "
+            "standardized ridge fit; standardized log-odds units; synthetic-validation only"}
+
+
 # --------------------------------------------------------------------------- model manifest (scaffold)
 
 _MANIFEST_KEYS = {
