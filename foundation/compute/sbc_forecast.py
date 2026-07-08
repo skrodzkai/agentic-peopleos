@@ -165,6 +165,17 @@ def _load(data_dir):
     fin = _rows(data_dir / "financials.csv", _FIN_COLS)
     for f in fin:                                            # EVERY revenue row must be a positive number,
         _num(f["revenue_usd"], "financials.revenue_usd", positive=True)   # not only the trailing-TTM window
+    # the TTM math trusts row ORDER (fin[-4:], shares[-1]); a reordered/duplicated/mismatched period row would
+    # silently change the rendered revenue percentages. Require both period spines to be strictly increasing
+    # (sorted, no duplicates) and to cover the SAME periods, so [-1]/[-4:] slicing is meaningful.
+    sh_periods = [_pdate(s["period_end"], "shares_outstanding.period_end") for s in shares]
+    fn_periods = [_pdate(f["period_end"], "financials.period_end") for f in fin]
+    for name, ps in (("shares_outstanding", sh_periods), ("financials", fn_periods)):
+        if any(ps[i] >= ps[i + 1] for i in range(len(ps) - 1)):
+            raise SBCDataError(f"{name}.csv period_end must be strictly increasing (sorted, no duplicates)")
+    if sh_periods != fn_periods:
+        raise SBCDataError("shares_outstanding and financials cover different period spines — "
+                           "cannot align revenue to the share/price series")
     return grants, workers, shares, fin
 
 

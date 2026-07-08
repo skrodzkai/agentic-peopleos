@@ -170,6 +170,21 @@ raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "financials.csv",
        lambda h, rows: (h, [_set(h, rows[0], "revenue_usd", "-5")] + rows[1:])))),
        "a negative revenue row outside the TTM window fails closed")
 
+# the period SPINES must be strictly increasing + duplicate-free + aligned — otherwise fin[-4:]/shares[-1]
+# (which trust row order) would silently pick the wrong TTM window
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "financials.csv",
+       lambda h, rows: (h, [rows[1], rows[0]] + rows[2:])))),
+       "a REORDERED financials period spine fails closed (row order is trusted by the TTM slice)")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "financials.csv",
+       lambda h, rows: (h, [rows[0]] + rows)))),
+       "a DUPLICATE financials period fails closed")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "shares_outstanding.csv",
+       lambda h, rows: (h, [rows[1], rows[0]] + rows[2:])))),
+       "a REORDERED shares period spine fails closed")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "financials.csv",
+       lambda h, rows: (h, rows[:-1])))),
+       "a financials spine that no longer aligns with the shares spine fails closed")
+
 print(f"OK — {passed} SBC-forecast checks passed "
       f"(as of {r['as_of']}; backlog ${li['backlog_unrecognized_usd']:,.0f} reconciles to equity-spend; "
       f"runoff FY{li['schedule'][0]['fy']} ${li['schedule'][0]['gross_expense']:,.0f} -> "
