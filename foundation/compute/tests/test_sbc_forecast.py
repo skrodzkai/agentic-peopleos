@@ -126,6 +126,44 @@ raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
        lambda h, rows: (h, [_set(h, row, "vest_start_date", "2000-01-01") for row in rows])))),
        "no outstanding unvested grants fails closed")
 
+# malformed grant economics fail closed (not a silent truncation or a raw ValueError):
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda h, rows: (h, [_set(h, row, "shares_granted", "10.9") for row in rows])))),
+       "a fractional shares_granted fails closed (no silent int truncation)")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda h, rows: (h, [_set(h, row, "grant_date_fv_per_share_usd", "-1") for row in rows])))),
+       "a negative grant-date fair value fails closed")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda h, rows: (h, [_set(h, row, "grant_date_fv_per_share_usd", "0") for row in rows])))),
+       "a zero grant-date fair value fails closed (0 cost is a defect, not a fact)")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda h, rows: (h, [_set(h, row, "vest_months_total", "oops") for row in rows])))),
+       "a non-numeric vest_months_total fails closed (SBCDataError, not a raw ValueError)")
+
+# workers.csv schema is pinned, not self-accepted: dropping the term_date column fails closed
+def _drop_col(h, rows, col):
+    i = h.index(col)
+    return ([c for j, c in enumerate(h) if j != i],
+            [[c for j, c in enumerate(row) if j != i] for row in rows])
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "workers.csv",
+       lambda h, rows: _drop_col(h, rows, "term_date")))),
+       "a workers.csv missing the term_date column fails closed (schema pinned, forfeitures not silently zeroed)")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "workers.csv", lambda h, rows: (h, rows + [rows[0]])))),
+       "a duplicate emp_id in workers.csv fails closed")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda h, rows: (h, rows + [rows[0]])))), "a duplicate grant_id fails closed")
+
+# the anchor must be a Dec-31 fiscal close (both shares + financials), else the current FY is mis-bucketed
+raises(lambda: S.compute(_tmp_with(lambda d: (
+       _rewrite(d / "shares_outstanding.csv", lambda h, rows: (h, rows[:-1] + [_set(h, rows[-1], "period_end", "2025-06-30")])),
+       _rewrite(d / "financials.csv", lambda h, rows: (h, rows[:-1] + [_set(h, rows[-1], "period_end", "2025-06-30")]))))),
+       "a mid-year (non Dec-31) fiscal anchor fails closed")
+
+# revenue must be positive: a zero/negative TTM revenue would divide-by-zero / render an absurd % -> fail closed
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "financials.csv",
+       lambda h, rows: (h, [_set(h, row, "revenue_usd", "0") for row in rows])))),
+       "a zero revenue row fails closed (the % -of-revenue denominator)")
+
 print(f"OK — {passed} SBC-forecast checks passed "
       f"(as of {r['as_of']}; backlog ${li['backlog_unrecognized_usd']:,.0f} reconciles to equity-spend; "
       f"runoff FY{li['schedule'][0]['fy']} ${li['schedule'][0]['gross_expense']:,.0f} -> "

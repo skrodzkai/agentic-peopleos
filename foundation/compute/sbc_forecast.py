@@ -45,6 +45,13 @@ _GRANT_COLS = ("grant_id", "plan_id", "emp_id", "participant_group", "grant_type
 _SHARE_COLS = ("period_end", "common_shares_outstanding", "waso_basic", "waso_diluted", "close_price_usd",
                "annualized_volatility", "risk_free_rate", "dividend_yield")
 _FIN_COLS = ("period_end", "revenue_usd")
+# pin the FULL workers.csv header (we only read a few columns, but a schema change must fail closed here
+# rather than silently shift a column or drop term_date — which would mis-state forfeitures)
+_WORKER_COLS = ("emp_id", "worker_type", "status", "hire_date", "term_date", "term_type", "regrettable",
+                "level", "job_family", "location", "manager_id", "is_people_manager", "scheduled_hours",
+                "standard_full_time_hours", "base_salary", "band_id", "rating", "gender_group",
+                "ethnicity_group", "promotion_eligible", "promoted_this_period", "level_entry_date",
+                "potential")
 
 HORIZON_FYS = 5                            # forecast at most this many fiscal years forward
 NEW_GRANT_VEST_MONTHS = 48                 # illustrative straight-line vesting for the modeled new-grant run-rate
@@ -82,6 +89,22 @@ def _num(v, ctx, positive=False):
     return f
 
 
+def _int_num(v, ctx, positive=False, allow_zero=True):
+    """Parse a whole number, failing closed (SBCDataError, never a raw ValueError) on a non-integer or a
+    fractional value like '10.9' that int(float(...)) would silently truncate."""
+    f = _num(v, ctx)
+    if not f.is_integer():
+        raise SBCDataError(f"{ctx}: must be a whole number ({v!r})")
+    n = int(f)
+    if positive and n <= 0:
+        raise SBCDataError(f"{ctx}: must be a positive whole number ({v!r})")
+    if not allow_zero and n == 0:
+        raise SBCDataError(f"{ctx}: must be non-zero ({v!r})")
+    if n < 0:
+        raise SBCDataError(f"{ctx}: must not be negative ({v!r})")
+    return n
+
+
 def _pdate(v, ctx):
     try:
         return datetime.strptime(v, "%Y-%m-%d").date()
@@ -97,22 +120,23 @@ def _months(a: date, b: date) -> int:
 
 # ---------------------------------------------------------------- amortization (same convention as equity_spend)
 def _grant_fv(g) -> float:
-    return int(float(g["shares_granted"])) * _num(g["grant_date_fv_per_share_usd"], f"{g['grant_id']}.fv")
+    # shares must be a positive WHOLE number (int(float('10.9')) would silently truncate) and the grant-date
+    # fair value must be positive — a zero/negative FV is a data defect, not $0 of cost.
+    return _int_num(g["shares_granted"], f"{g['grant_id']}.shares_granted", positive=True) \
+        * _num(g["grant_date_fv_per_share_usd"], f"{g['grant_id']}.grant_date_fv_per_share_usd", positive=True)
 
 
 def _cum_expense(g, at: date, term) -> float:
     """Cumulative SBC recognized for a grant at `at`: straight-line over the service period (vest_start ..
     vest_start+vest_months), trued up to the vested value once the holder has terminated (service-condition
     forfeiture reverses unvested cost). Identical convention to foundation/compute/equity_spend.py."""
-    gd = _pdate(g["vest_start_date"], "vs")
+    gd = _pdate(g["vest_start_date"], f"{g['grant_id']}.vest_start_date")
     if at < gd:
         return 0.0
-    vm = int(float(g["vest_months_total"]))
-    if vm <= 0:
-        raise SBCDataError(f"{g['grant_id']}: vest_months_total must be > 0")
+    vm = _int_num(g["vest_months_total"], f"{g['grant_id']}.vest_months_total", positive=True)
     total = _grant_fv(g)
     if term is not None and term <= at:
-        cliff = int(float(g["cliff_months"]))
+        cliff = _int_num(g["cliff_months"], f"{g['grant_id']}.cliff_months")   # non-negative whole
         el = _months(gd, term)
         frac = 0.0 if el < cliff else min(1.0, el / vm)
         return frac * total                                   # forfeit unvested -> trued up to the vested value
@@ -121,8 +145,22 @@ def _cum_expense(g, at: date, term) -> float:
 
 def _load(data_dir):
     grants = _rows(data_dir / "equity_grants.csv", _GRANT_COLS)
-    workers = {w["emp_id"]: w for w in _rows(data_dir / "workers.csv",
-               tuple(csv.DictReader(open(data_dir / "workers.csv", encoding="utf-8")).fieldnames))}
+    gid_seen = set()
+    for g in grants:                                          # validate economics once, fail closed at load
+        if g["grant_id"] in gid_seen:
+            raise SBCDataError(f"duplicate grant_id: {g['grant_id']}")
+        gid_seen.add(g["grant_id"])
+        _grant_fv(g)                                          # positive whole shares + positive fair value
+        _int_num(g["vest_months_total"], f"{g['grant_id']}.vest_months_total", positive=True)
+        _int_num(g["cliff_months"], f"{g['grant_id']}.cliff_months")
+        _pdate(g["grant_date"], f"{g['grant_id']}.grant_date")
+        _pdate(g["vest_start_date"], f"{g['grant_id']}.vest_start_date")
+    worker_rows = _rows(data_dir / "workers.csv", _WORKER_COLS)   # pinned schema (never self-accepted)
+    workers = {}
+    for w in worker_rows:
+        if w["emp_id"] in workers:
+            raise SBCDataError(f"duplicate emp_id in workers.csv: {w['emp_id']}")
+        workers[w["emp_id"]] = w
     shares = _rows(data_dir / "shares_outstanding.csv", _SHARE_COLS)
     fin = _rows(data_dir / "financials.csv", _FIN_COLS)
     return grants, workers, shares, fin
@@ -152,6 +190,12 @@ def compute(data_dir=None):
     as_of = _pdate(shares[-1]["period_end"], "shares.period_end")
     if _pdate(fin[-1]["period_end"], "financials.period_end") != as_of:
         raise SBCDataError("shares and financials disagree on the latest period_end — cannot anchor the forecast")
+    # the runoff is bucketed by FULL calendar fiscal years and the dashboard says "as of fiscal close", so the
+    # anchor must actually BE a Dec-31 fiscal close — otherwise the current FY would be a partial-year bucket
+    # silently presented as a full year. Fail closed on a mid-year anchor (calendar fiscal year).
+    if (as_of.month, as_of.day) != (12, 31):
+        raise SBCDataError(f"forecast anchor {as_of} is not a Dec-31 fiscal close — this engine assumes a "
+                           "calendar fiscal year; a mid-year anchor would mis-bucket the current fiscal year")
 
     # outstanding = granted on/before the as-of date, holder not terminated before it, still recognizing
     live = []
@@ -180,27 +224,37 @@ def compute(data_dir=None):
         weighted_months += rem_fv * rem_m
     wavg_years = (weighted_months / backlog / 12.0) if backlog else 0.0
 
-    # LOCKED-IN RUNOFF by fiscal year, anchored at the fiscal close. The forfeiture-adjusted line haircuts
-    # each future FY by (1-rate)^k.
+    # LOCKED-IN RUNOFF by fiscal year, anchored at the fiscal close.
     first_fy = (as_of + timedelta(days=1)).year          # the first FY not yet closed at the anchor
     horizon = list(range(first_fy, first_fy + HORIZON_FYS))
-    schedule, prev_anchor, cum_gross = [], as_of, 0.0
-    for k, fy in enumerate(horizon):
+    # First pass: the UNROUNDED gross incremental recognition per FY. GROSS assumes full vesting (term=None):
+    # a forecast as of the close cannot know a future termination, so it recognizes the whole remaining cost
+    # and ties exactly to the gross backlog. Estimated future forfeitures are the SEPARATE (1-rate)^k overlay.
+    gross_raw, prev_anchor = [], as_of
+    for fy in horizon:
         end = _fy_end(fy)
-        # GROSS assumes full vesting (term=None): a forecast as of the close cannot know a future termination,
-        # so the locked-in runoff recognizes the whole remaining cost and ties exactly to the gross backlog.
-        # Estimated future forfeitures are the SEPARATE (1-rate)^k overlay, never double-counted here.
-        gross = sum(_cum_expense(g, end, None) - _cum_expense(g, prev_anchor, None) for g, _term in live)
-        gross = max(0.0, gross)
-        adj = gross * (1.0 - ILLUSTRATIVE_FORFEITURE_RATE) ** k
-        cum_gross += gross
-        schedule.append({"fy": fy, "gross_expense": round(gross, _DP),
-                         "forfeiture_adj_expense": round(adj, _DP), "cumulative_gross": round(cum_gross, _DP)})
+        g = max(0.0, sum(_cum_expense(gr, end, None) - _cum_expense(gr, prev_anchor, None) for gr, _t in live))
+        gross_raw.append(g)
         prev_anchor = end
-    # any expense recognized beyond the horizon (long-dated grants) — disclosed, not hidden
-    beyond = round(max(0.0, backlog - cum_gross), _DP)
+    beyond_raw = max(0.0, backlog - sum(gross_raw))
+    # Quantize to INTEGER CENTS with largest-remainder residual assignment, so the DISPLAYED gross figures +
+    # the displayed beyond-horizon tail sum to the displayed backlog EXACTLY (to the penny) — the dashboard
+    # claims an exact reconciliation, so build_report can enforce it with zero tolerance in integer cents.
+    backlog_c = round(backlog * 100)
+    beyond_c = round(beyond_raw * 100)
+    gross_c = [round(g * 100) for g in gross_raw]
+    residual = backlog_c - beyond_c - sum(gross_c)
+    if gross_c:                                          # push any rounding residual into the largest bucket
+        gross_c[max(range(len(gross_c)), key=lambda i: gross_c[i])] += residual
+    schedule, cum_c = [], 0
+    for k, fy in enumerate(horizon):
+        cum_c += gross_c[k]
+        adj = (gross_c[k] / 100.0) * (1.0 - ILLUSTRATIVE_FORFEITURE_RATE) ** k
+        schedule.append({"fy": fy, "gross_expense": round(gross_c[k] / 100.0, _DP),
+                         "forfeiture_adj_expense": round(adj, _DP), "cumulative_gross": round(cum_c / 100.0, _DP)})
+    beyond = round(beyond_c / 100.0, _DP)
     runoff_complete_fy = next((r["fy"] for r in schedule
-                               if abs(r["cumulative_gross"] - backlog) < 1.0), None)
+                               if abs(r["cumulative_gross"] - backlog) < 0.01), None)
 
     # NEW-GRANT OVERLAY (illustrative steady-state): keep granting at the TTM run-rate, each vintage
     # straight-line over NEW_GRANT_VEST_MONTHS. A vintage granted at the start of FY y contributes 12/vm of
@@ -220,15 +274,19 @@ def compute(data_dir=None):
         new_overlay.append({"fy": fy, "expense": round(exp, _DP)})
 
     total_forecast = []
-    last_ttm_rev = sum(_num(r["revenue_usd"], "rev") for r in fin[-4:]) if len(fin) >= 4 else \
-        _num(fin[-1]["revenue_usd"], "rev")
+    # every revenue row must be a POSITIVE number, and the TTM denominator must be > 0 — otherwise the % line
+    # is a divide-by-zero (or a nonsensical negative), and it is rendered. Fail closed here.
+    rev_rows = fin[-4:] if len(fin) >= 4 else fin[-1:]
+    last_ttm_rev = sum(_num(r["revenue_usd"], "financials.revenue_usd", positive=True) for r in rev_rows)
+    if last_ttm_rev <= 0:
+        raise SBCDataError("trailing-twelve-months revenue must be > 0 to express SBC as a % of revenue")
     for k, fy in enumerate(horizon):
         locked = schedule[k]["forfeiture_adj_expense"]
         newg = new_overlay[k]["expense"]
         total = locked + newg
         total_forecast.append({"fy": fy, "locked_in": locked, "new_grants": newg,
                                "total": round(total, _DP),
-                               "pct_ttm_revenue": round(total / last_ttm_rev * 100.0, _DP) if last_ttm_rev else None})
+                               "pct_ttm_revenue": round(total / last_ttm_rev * 100.0, _DP)})
 
     last_share = shares[-1]
     cso = _num(last_share["common_shares_outstanding"], "cso", positive=True)

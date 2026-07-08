@@ -93,19 +93,25 @@ def build_report(result):
         if s["forfeiture_adj_expense"] > s["gross_expense"] + 1e-6:
             raise ReportError(f"FY{s['fy']}: forfeiture-adjusted exceeds gross (haircut must not add expense)")
 
-    # the runoff must reconcile: the gross fiscal-year expenses sum back to the backlog (the schedule only
-    # splits it by year). A drift here means the projection invented or lost expense — refuse to render.
-    gross_sum = sum(s["gross_expense"] for s in sched)
-    if abs(gross_sum + li["beyond_horizon_usd"] - li["backlog_unrecognized_usd"]) > max(1.0, li["backlog_unrecognized_usd"] * 1e-6):
-        raise ReportError("locked-in runoff does not reconcile to the backlog (gross sum + tail != backlog)")
-
-    cums = [s["cumulative_gross"] for s in sched]
-    if cums != sorted(cums):
-        raise ReportError("cumulative recognized expense is not monotonic")
+    # the runoff must reconcile EXACTLY (to the penny) — the dashboard claims the gross figures "sum exactly"
+    # to the backlog. Compare in integer cents with zero tolerance, so any drift (even a cent) fails closed.
+    def _c(x):
+        return round(x * 100)
+    gross_c = sum(_c(s["gross_expense"]) for s in sched)
+    if gross_c + _c(li["beyond_horizon_usd"]) != _c(li["backlog_unrecognized_usd"]):
+        raise ReportError("locked-in runoff does not reconcile to the backlog to the penny "
+                          f"(gross {gross_c} + tail {_c(li['beyond_horizon_usd'])} != backlog "
+                          f"{_c(li['backlog_unrecognized_usd'])} cents)")
+    # and each cumulative must be the EXACT running sum of the displayed gross (not merely monotonic)
+    run_c = 0
+    for s in sched:
+        run_c += _c(s["gross_expense"])
+        if _c(s["cumulative_gross"]) != run_c:
+            raise ReportError(f"FY{s['fy']}: cumulative is not the running sum of gross expense")
 
     tf = result["total_forecast"]
     for t in tf:
-        if not _finite(t["locked_in"], t["new_grants"], t["total"]):
+        if not _finite(t["locked_in"], t["new_grants"], t["total"], t["pct_ttm_revenue"]):
             raise ReportError(f"FY{t['fy']}: non-finite total-forecast statistics")
         if abs(t["total"] - (t["locked_in"] + t["new_grants"])) > 0.01:
             raise ReportError(f"FY{t['fy']}: total != locked-in + new-grant overlay")

@@ -60,6 +60,10 @@ def _bad(mut, why):
 
 _bad(lambda r: r["locked_in"]["schedule"][0].update(gross_expense=r["locked_in"]["schedule"][0]["gross_expense"] * 2),
      "a runoff that no longer sums to the backlog")
+_bad(lambda r: r["locked_in"]["schedule"][0].update(gross_expense=round(r["locked_in"]["schedule"][0]["gross_expense"] + 0.02, 2)),
+     "even a TWO-CENT runoff drift is caught (exact-penny reconciliation, not a loose tolerance)")
+_bad(lambda r: [s.update(cumulative_gross=round(s["cumulative_gross"] + 100.0, 2)) for s in r["locked_in"]["schedule"]],
+     "a cumulative that stays monotonic but is not the running sum of gross")
 _bad(lambda r: r["locked_in"]["schedule"][0].update(forfeiture_adj_expense=1e15),
      "a forfeiture-adjusted figure above its gross (a haircut can't add expense)")
 _bad(lambda r: r["locked_in"]["schedule"][1].update(gross_expense=float("nan")), "a non-finite runoff figure")
