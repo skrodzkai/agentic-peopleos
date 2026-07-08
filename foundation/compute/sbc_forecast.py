@@ -163,6 +163,8 @@ def _load(data_dir):
         workers[w["emp_id"]] = w
     shares = _rows(data_dir / "shares_outstanding.csv", _SHARE_COLS)
     fin = _rows(data_dir / "financials.csv", _FIN_COLS)
+    for f in fin:                                            # EVERY revenue row must be a positive number,
+        _num(f["revenue_usd"], "financials.revenue_usd", positive=True)   # not only the trailing-TTM window
     return grants, workers, shares, fin
 
 

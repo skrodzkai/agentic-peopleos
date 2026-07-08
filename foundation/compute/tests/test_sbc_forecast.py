@@ -163,6 +163,12 @@ raises(lambda: S.compute(_tmp_with(lambda d: (
 raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "financials.csv",
        lambda h, rows: (h, [_set(h, row, "revenue_usd", "0") for row in rows])))),
        "a zero revenue row fails closed (the % -of-revenue denominator)")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "financials.csv",
+       lambda h, rows: (h, [_set(h, rows[0], "revenue_usd", "0")] + rows[1:])))),
+       "a zero revenue row OUTSIDE the trailing-TTM window also fails closed (every row validated)")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "financials.csv",
+       lambda h, rows: (h, [_set(h, rows[0], "revenue_usd", "-5")] + rows[1:])))),
+       "a negative revenue row outside the TTM window fails closed")
 
 print(f"OK — {passed} SBC-forecast checks passed "
       f"(as of {r['as_of']}; backlog ${li['backlog_unrecognized_usd']:,.0f} reconciles to equity-spend; "
