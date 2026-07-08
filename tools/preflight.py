@@ -69,6 +69,7 @@ REQUIRED_OUTPUTS = [
     "examples/retention-risk/output/committee-digest.sample.md",
     "examples/merit-comp-planning/output/equity_refresh_grants.sample.csv",   # the equity-handoff artifact
     "examples/operating-review/output/decision.sample.events.jsonl",
+    "examples/operating-review/output/decision.sample.events.jsonl.anchor.json",
     "examples/visible-handoff/output/ledger.sample.html",
     "examples/visible-handoff/output/ledger.sample.png",
     "examples/visible-handoff/output/events.jsonl",

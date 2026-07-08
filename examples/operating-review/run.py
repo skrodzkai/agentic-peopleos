@@ -33,6 +33,7 @@ OUT = HERE / "output"
 REPORT = OUT / "report.sample.html"
 DIGEST = OUT / "day1-digest.sample.md"
 LEDGER = OUT / "decision.sample.events.jsonl"
+ANCHOR = OUT / "decision.sample.events.jsonl.anchor.json"
 COMPANY = "Acme Corp"
 AS_OF = "Jan 2026"
 AGENT = "operating-review"
@@ -168,7 +169,7 @@ def publish_decision(approver_id, commit_fn):
     dropped. Returns (decision, published, violations); ``commit_fn`` may raise OSError on write
     failure, leaving a truthful recommendation+approval (no action) trail.
     """
-    from core.event_log import EventLog, validate_log
+    from core.event_log import EventLog, validate_log, write_anchor
     from core.approval_registry import ApprovalRegistry, ACME
     reg = ApprovalRegistry(ACME)
 
@@ -177,8 +178,13 @@ def publish_decision(approver_id, commit_fn):
         return a
 
     OUT.mkdir(exist_ok=True)
+    # derive the anchor path FROM the ledger path (not a fixed global) so overriding LEDGER in a test also
+    # moves its anchor — the two must never diverge.
+    anchor_path = LEDGER.with_suffix(LEDGER.suffix + ".anchor.json")
     if LEDGER.exists():
         LEDGER.unlink()
+    if anchor_path.exists():
+        anchor_path.unlink()     # a from-scratch rebuild clears the prior anchor (the sanctioned reset path)
     log = EventLog(LEDGER)
     rec = log.append({"ts": T[0], "actor": actor("agent.coordinator"), "channel": CHANNEL,
                       "type": "recommendation", "case_ref": CASE, "correlation_id": CASE,
@@ -215,7 +221,10 @@ def publish_decision(approver_id, commit_fn):
         log.append({"ts": T[2], "actor": actor("agent.coordinator"), "channel": CHANNEL, "type": "escalation",
                     "case_ref": CASE, "correlation_id": CASE, "causation_id": rec["event_id"],
                     "payload": {"reason": reason}})
-    return decision, decision == "approved", validate_log(LEDGER, registry=reg)
+    # checkpoint the finished ledger so its committed sidecar anchor catches suffix truncation — the same
+    # defense the visible-handoff ledger ships; validate against it, not just the chain.
+    write_anchor(LEDGER)
+    return decision, decision == "approved", validate_log(LEDGER, registry=reg, anchor=str(anchor_path))
 
 
 # ---------- fail-closed + entrypoint ----------
