@@ -16,6 +16,7 @@ from core.event_log import validate_log  # noqa: E402
 from core.approval_registry import ApprovalRegistry  # noqa: E402
 
 LEDGER = HERE / "output" / "events.jsonl"
+ANCHOR = HERE / "output" / "events.jsonl.anchor.json"
 OUT = HERE / "output" / "ledger.sample.html"
 
 BADGE = {"request": "#8db1ce", "recommendation": "#1ba7ff", "approval": "#43d477",
@@ -60,7 +61,11 @@ def _txt(ev):
 
 def main():
     events = [json.loads(l) for l in LEDGER.read_text().splitlines() if l.strip()]
-    violations = validate_log(LEDGER, registry=ApprovalRegistry.from_json(HERE / "approval_registry.json"))
+    # validate against the committed head-count anchor too (not just the chain) — the whole point of the
+    # anchor is that a renderer's "LEDGER OK" verdict should also mean "not truncated".
+    anchor = str(ANCHOR) if ANCHOR.exists() else None
+    violations = validate_log(LEDGER, registry=ApprovalRegistry.from_json(HERE / "approval_registry.json"),
+                              anchor=anchor)
     verdict = ('<span class="ok">LEDGER OK · chain verified</span>' if not violations
                else f'<span class="ok" style="color:#ff4d4f">{len(violations)} violation(s)</span>')
     rows = []
@@ -83,8 +88,9 @@ def main():
             f"<div class='sub'>The audit record of decisions, actions, and approvals · synthetic data</div>"
             f"{''.join(rows)}"
             f"<div class='foot'>Every action binds to an entitled approval by causation + scope. "
-            f"Re-derive entitlement and detect tampering: "
-            f"<code style='color:#8db1ce'>python3 -m core.event_log validate output/events.jsonl --registry …</code></div>"
+            f"Re-derive entitlement, detect tampering, AND catch truncation: "
+            f"<code style='color:#8db1ce'>python3 -m core.event_log validate output/events.jsonl "
+            f"--registry … --anchor output/events.jsonl.anchor.json</code></div>"
             f"</div></body></html>")
     OUT.write_text(doc, encoding="utf-8")
     print(f"wrote {OUT.name} ({'valid' if not violations else 'INVALID'})")

@@ -20,6 +20,15 @@ def ok(cond, label):
     passed += 1
 
 
+def raises_msg(exc, fn, substr):
+    """True iff fn() raises `exc` with `substr` in its message (fail-closed assertion helper)."""
+    try:
+        fn()
+        return False
+    except exc as e:
+        return substr in str(e)
+
+
 def actor(kind="agent", id="agent.x", role="reporter"):
     return {"id": id, "display": id, "kind": kind, "role": role}
 
@@ -597,6 +606,31 @@ for _bad in (True, 4.5, "4", -1):
        f"verify_anchor fails closed on a non-integer/negative min_count ({_bad!r})")
 ok(any("without an anchor" in v for v in validate_log(_pf, secret=b"k3", min_count=4)),
    "validate_log flags min_count supplied with no anchor (a freshness bound with nothing to check)")
+
+# WRITE-side monotonicity: an attacker can't truncate the ledger and simply re-checkpoint to bless it. The
+# committed anchor's height is a floor; write_anchor refuses to lower it (or rewrite the head) without an
+# explicit reset, and EventLog(path) refuses to even OPEN a ledger truncated below its committed anchor.
+pn = fresh(); ln = EventLog(pn, secret=b"kw")
+for n in range(4):
+    ln.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+               "case_ref": "A", "correlation_id": "A", "payload": {"n": n}})
+ap = ln.checkpoint()                                       # committed anchor at count 4
+ok(Path(ap).exists() and compute_anchor(ln.events())["count"] == 4, "checkpoint wrote a count-4 anchor")
+_all = pn.read_text(encoding="utf-8").strip().splitlines()
+pn.write_text("\n".join(_all[:3]) + "\n", encoding="utf-8")   # truncate 4 -> 3 on disk
+ok(raises_msg(LedgerError, lambda: write_anchor(pn, secret=b"kw"), "roll the anchor back"),
+   "write_anchor refuses to roll the committed anchor back to a lower count (no re-checkpoint normalization)")
+ok(raises_msg(LedgerError, lambda: EventLog(pn, secret=b"kw"), "truncated below the anchor"),
+   "EventLog refuses to OPEN a ledger truncated below its committed anchor")
+ok(isinstance(write_anchor(pn, secret=b"kw", allow_rollback=True), Path),
+   "an explicit allow_rollback reset is still permitted (a deliberate, audited action)")
+
+# a SIGNED event verified WITHOUT the secret must not silently downgrade to unsigned (mirror the anchor rule)
+ps = fresh(); ls = EventLog(ps, secret=b"ks")
+ls.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+           "case_ref": "A", "correlation_id": "A", "payload": {}})
+ok(any("downgrade to unsigned" in v for v in validate_log(ps)),
+   "a keyless validate of an HMAC-signed ledger flags the downgrade (no silent unsigned pass)")
 
 # the CLI wires --min-count: a rollback exits non-zero; the flag is refused where it would be a silent no-op
 _env0 = {**__import__("os").environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])}

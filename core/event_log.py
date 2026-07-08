@@ -101,6 +101,34 @@ class EventLog:
             problems = validate_log(self.path, secret=self.secret)
             if problems:
                 raise LedgerError(f"refusing to open a ledger that fails integrity: {problems[0]}")
+        # If a co-located anchor exists, the ledger must EXTEND it (never fall below it): opening a ledger that
+        # has since been truncated below — or head-rewritten at — its committed anchor fails closed here, so a
+        # truncation can't be silently normalized away by re-opening + re-checkpointing.
+        self._enforce_committed_anchor()
+
+    def _enforce_committed_anchor(self):
+        anchor_path = self.path.with_suffix(self.path.suffix + ".anchor.json")
+        if not anchor_path.exists():
+            return
+        try:
+            anc = json.loads(anchor_path.read_text(encoding="utf-8"), object_pairs_hook=_no_dup_keys)
+        except ValueError:
+            raise LedgerError("co-located anchor is not valid JSON — refusing to open")
+        if not (isinstance(anc, dict) and isinstance(anc.get("count"), int) and not isinstance(anc.get("count"), bool)
+                and anc["count"] >= 0 and isinstance(anc.get("head_hash"), str) and anc["head_hash"]):
+            raise LedgerError("co-located anchor is malformed — refusing to open")
+        if self.secret is not None:
+            if anc.get("hmac") != _hmac(self.secret, canonical(_subset(anc, _ANCHOR_HMAC_EXCLUDE))):
+                raise LedgerError("co-located anchor HMAC invalid (forged or wrong key) — refusing to open")
+        elif "hmac" in anc:
+            raise LedgerError("co-located anchor is HMAC-signed but this log has no secret — refusing to open")
+        if len(self._events) < anc["count"]:
+            raise LedgerError(f"ledger has {len(self._events)} row(s) but its committed anchor expects at least "
+                              f"{anc['count']} — truncated below the anchor; refusing to open")
+        head_at = GENESIS if anc["count"] == 0 else self._events[anc["count"] - 1].get("event_hash", "")
+        if head_at != anc["head_hash"]:
+            raise LedgerError("ledger head at the anchored height does not match the committed anchor "
+                              "(head rewritten) — refusing to open")
 
     def events(self):
         return list(self._events)
@@ -112,10 +140,11 @@ class EventLog:
         """This ledger's current head-count anchor (HMAC-signed when the log carries a secret)."""
         return compute_anchor(self._events, secret=self.secret)
 
-    def checkpoint(self, anchor_path=None) -> Path:
+    def checkpoint(self, anchor_path=None, allow_rollback: bool = False) -> Path:
         """Write this ledger's anchor sidecar (default `<log>.anchor.json`), signed with the log's
-        secret if it has one. A subsequent validate_log(..., anchor=<path>) then detects truncation."""
-        return write_anchor(self.path, anchor_path=anchor_path, secret=self.secret)
+        secret if it has one. A subsequent validate_log(..., anchor=<path>) then detects truncation.
+        The write is monotonic (refuses to lower the count) unless allow_rollback=True — see write_anchor."""
+        return write_anchor(self.path, anchor_path=anchor_path, secret=self.secret, allow_rollback=allow_rollback)
 
     def append(self, event: dict) -> dict:
         ev = dict(event)
@@ -258,8 +287,14 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None, min_cou
             violations.append(f"{tag}: event_id is not content-addressed")
         if ev.get("event_hash") != _sha(canonical(_subset(ev, _HASH_EXCLUDE))):
             violations.append(f"{tag}: TAMPER — event_hash does not match content")
-        if secret is not None and ev.get("hmac") != _hmac(secret, ev.get("event_hash", "")):
-            violations.append(f"{tag}: bad/missing HMAC signature (possible wholesale rewrite)")
+        if secret is not None:
+            if ev.get("hmac") != _hmac(secret, ev.get("event_hash", "")):
+                violations.append(f"{tag}: bad/missing HMAC signature (possible wholesale rewrite)")
+        elif "hmac" in ev:
+            # a signed event verified WITHOUT its secret must never silently downgrade to unsigned — same
+            # rule the anchor uses; otherwise a rewrite that keeps a stale/garbage hmac slips a keyless check.
+            violations.append(f"{tag}: event is HMAC-signed but no secret was supplied to verify it "
+                              "(would downgrade to unsigned)")
 
         eid = ev.get("event_id")
         if eid in seen_ids:
@@ -424,11 +459,31 @@ def compute_anchor(events, secret: bytes = None) -> dict:
     return anchor
 
 
-def write_anchor(log_path, anchor_path=None, secret: bytes = None) -> Path:
-    """Checkpoint a ledger: write its anchor sidecar (default `<log>.anchor.json`). Returns the path."""
+def write_anchor(log_path, anchor_path=None, secret: bytes = None, allow_rollback: bool = False) -> Path:
+    """Checkpoint a ledger: write its anchor sidecar (default `<log>.anchor.json`). Returns the path.
+
+    The write is MONOTONIC: if an anchor already exists at the target path, this refuses to lower its count
+    (or rewrite the head at the same count) unless `allow_rollback=True`. Without this, an attacker could
+    truncate the ledger and simply re-run checkpoint() to bless the shorter history as the new "valid" state —
+    the write side is the other half of the min_count read-side rollback defense."""
     log_path = Path(log_path)
     anchor_path = Path(anchor_path) if anchor_path else log_path.with_suffix(log_path.suffix + ".anchor.json")
     anchor = compute_anchor(_read_events(log_path), secret=secret)
+    if anchor_path.exists() and not allow_rollback:
+        try:
+            existing = json.loads(anchor_path.read_text(encoding="utf-8"), object_pairs_hook=_no_dup_keys)
+        except ValueError:
+            existing = None
+        if isinstance(existing, dict) and isinstance(existing.get("count"), int) \
+                and not isinstance(existing.get("count"), bool):
+            if anchor["count"] < existing["count"]:
+                raise LedgerError(f"refusing to roll the anchor back from count {existing['count']} to "
+                                  f"{anchor['count']} — a truncation would be normalized away. Pass "
+                                  "allow_rollback=True only for a deliberate, audited reset.")
+            if anchor["count"] == existing["count"] and anchor["head_hash"] != existing.get("head_hash"):
+                raise LedgerError("refusing to overwrite the anchor at the same count with a different head "
+                                  "hash — a head rewrite would be normalized away (pass allow_rollback=True "
+                                  "for a deliberate reset).")
     anchor_path.write_text(json.dumps(anchor, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     return anchor_path
 
