@@ -104,9 +104,11 @@ ISS_POLICIES = {
 }
 # the specific, verified 2026-vs-2025 delta — surfaced on the dashboard so the "tracks live policy" claim
 # is concrete and checkable, not decorative.
-ISS_2026_DELTA = ("RDA extended 3yr -> 5yr; MOM now a 50/50 blend of 1yr and 3yr (was 1yr only); "
-                  "concern thresholds refreshed (RDA -38/-50/-60 -> -41/-54/-64, MOM 1.84/2.33/3.33 -> "
-                  "1.89/2.33/3.40, PTA eligible -25% -> -28%); PTA WLS mechanics unchanged.")
+ISS_2026_DELTA = ("Primary-measure 2026 updates reflected: RDA extended 3yr -> 5yr; MOM now a 50/50 blend of "
+                  "1yr and 3yr (was 1yr only); concern thresholds refreshed (RDA -38/-50/-60 -> -41/-54/-64, "
+                  "MOM 1.84/2.33/3.33 -> 1.89/2.33/3.40, PTA eligible -25% -> -28%); PTA WLS mechanics "
+                  "unchanged. FPA remains an ILLUSTRATIVE single-score EVA proxy here, not ISS's four-metric "
+                  "(EVA Margin / Spread / Momentum vs Sales / vs Capital) FPA — that measure is not modeled.")
 DEFAULT_POLICY_YEAR = 2026
 _RANK_ROUND = 9                                  # round a measured value before percentile-ranking, so a
 #                                                # near-tie can't flip a rank on last-ULP float drift (macOS
@@ -118,7 +120,11 @@ _LABEL = {0: "Low", 1: "Medium", 2: "High"}
 
 
 def policy_for(policy_year):
-    """The frozen ISS policy for a season. Fails closed on an unmodeled year (never a silent default)."""
+    """The frozen ISS policy for a season. Fails closed on an unmodeled year (never a silent default) and on a
+    non-integer year (e.g. a bands dict fat-fingered in), so a bad argument raises ISSDataError, not a raw
+    TypeError from an unhashable lookup."""
+    if not isinstance(policy_year, int) or isinstance(policy_year, bool):
+        raise ISSDataError(f"policy_year must be an int season (e.g. 2026), got {type(policy_year).__name__}")
     if policy_year not in ISS_POLICIES:
         raise ISSDataError(f"no ISS policy modeled for {policy_year!r} "
                            f"(available: {sorted(ISS_POLICIES)})")
@@ -342,7 +348,9 @@ class ISSUniverse:
         }
 
     # ---------------------------------------------------------------- step 2: quantitative screen
-    def screen(self, policy_year=DEFAULT_POLICY_YEAR, bands=None):
+    def screen(self, *, policy_year=DEFAULT_POLICY_YEAR, bands=None):
+        # policy_year/bands are KEYWORD-ONLY: a legacy positional call (e.g. screen(some_bands_dict)) can no
+        # longer bind a bands dict to policy_year and blow up downstream — it fails immediately at the call.
         policy = policy_for(policy_year)
         bands = bands or policy["bands"]
         rda_years = policy["rda_years"]

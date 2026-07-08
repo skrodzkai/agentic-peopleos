@@ -278,7 +278,20 @@ except ISSDataError:
 base = [1.0, 2.0, 3.0]
 ok(_rank(2.0, base) == _rank(2.0 + 10 ** (-(_RANK_ROUND + 3)), base),
    "a difference below the rounding precision does not change the rank")
-ok(u.screen(2026) == ISSUniverse().screen(2026), "the 2026 screen is deterministic across instances")
+ok(u.screen(policy_year=2026) == ISSUniverse().screen(policy_year=2026),
+   "the 2026 screen is deterministic across instances")
+# policy_year is keyword-only: a legacy positional call (which could bind a bands dict) now fails fast
+try:
+    u.screen(2026)                                        # positional -> TypeError, not a silent bad result
+    ok(False, "a positional screen(year) call must fail (policy_year is keyword-only)")
+except TypeError:
+    ok(True, "a positional screen(year) call fails fast (policy_year is keyword-only)")
+raises_iss = getattr(__import__("foundation.compute.iss_screen", fromlist=["ISSDataError"]), "ISSDataError")
+try:
+    u.screen(policy_year={"bands": 1})                    # a dict fat-fingered in -> controlled ISSDataError
+    ok(False, "a non-int policy_year must raise ISSDataError")
+except raises_iss:
+    ok(True, "a non-int policy_year raises a controlled ISSDataError (not a raw unhashable TypeError)")
 
 print(f"OK — {passed} ISS-screen checks passed "
       f"(real Acme: {acme['concern']} concern, comparison group {acme['comparison_group']['n_group']}).")
