@@ -372,6 +372,10 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None, min_cou
 
         prev_hash = ev.get("event_hash")
 
+    if min_count is not None and anchor is None:
+        # a freshness bound with nothing to check it against is a caller error, not a silent no-op — the
+        # caller thinks they asked for a rollback guard and got none.
+        violations.append("min_count was supplied without an anchor — no checkpoint to enforce freshness against")
     if anchor is not None:
         violations.extend(verify_anchor(events, anchor, secret=secret, min_count=min_count))
 
@@ -452,6 +456,10 @@ def verify_anchor(events, anchor, secret: bytes = None, min_count: int = None) -
     store that holds the checkpoint) and an anchor shorter than it is rejected as a rollback/replay. Without
     `min_count` the freshness of the anchor is trusted — which is why the docs still require latest/monotonic
     anchor storage."""
+    # a malformed min_count must fail closed with a violation, never a silent no-op (bool/negative) or a raw
+    # TypeError (str) — the CLI already enforces this; the public API must too, for direct callers.
+    if min_count is not None and (isinstance(min_count, bool) or not isinstance(min_count, int) or min_count < 0):
+        return [f"min_count must be a non-negative integer (got {min_count!r})"]
     if isinstance(anchor, (str, Path)):
         p = Path(anchor)
         if not p.exists():

@@ -588,6 +588,16 @@ for n in range(4):
 ok(not validate_log(_pf, secret=b"k3", anchor=compute_anchor(_lf.events(), secret=b"k3"), min_count=4),
    "a fresh full ledger + current anchor + min_count passes clean")
 
+# the PUBLIC API fails closed on a malformed min_count (a direct caller, not just the CLI) — a bad freshness
+# bound must surface a violation, never a silent no-op (bool/negative) or a raw TypeError (str/float)
+_cur = compute_anchor(_lf.events(), secret=b"k3")
+for _bad in (True, 4.5, "4", -1):
+    ok(any("min_count must be a non-negative integer" in v
+           for v in verify_anchor(_lf.events(), _cur, secret=b"k3", min_count=_bad)),
+       f"verify_anchor fails closed on a non-integer/negative min_count ({_bad!r})")
+ok(any("without an anchor" in v for v in validate_log(_pf, secret=b"k3", min_count=4)),
+   "validate_log flags min_count supplied with no anchor (a freshness bound with nothing to check)")
+
 # the CLI wires --min-count: a rollback exits non-zero; the flag is refused where it would be a silent no-op
 _env0 = {**__import__("os").environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])}
 import subprocess as _sp0  # noqa: E402
