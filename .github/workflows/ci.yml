@@ -259,8 +259,9 @@ jobs:
             examples/visible-handoff/output/approved.events.sample.jsonl.anchor.json \
             examples/visible-handoff/output/denied.events.sample.jsonl.anchor.json \
             || (echo "::error::a committed head-count anchor is stale — re-run run.py + scenarios.py and commit" && exit 1)
-          # a truncated ledger must FAIL against its committed anchor (the defense actually bites)
-          head -n -1 examples/visible-handoff/output/events.jsonl > /tmp/truncated.jsonl
+          # a truncated ledger must FAIL against its committed anchor (the defense actually bites).
+          # drop the last row with sed (portable; GNU `head -n -1` is not on BSD/macOS)
+          sed '$d' examples/visible-handoff/output/events.jsonl > /tmp/truncated.jsonl
           if python3 -m core.event_log validate /tmp/truncated.jsonl \
                --anchor examples/visible-handoff/output/events.jsonl.anchor.json; then
             echo "::error::truncation defense did not trip — a truncated ledger validated against the anchor" && exit 1

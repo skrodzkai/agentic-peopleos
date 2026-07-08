@@ -89,7 +89,8 @@ python3 -m core.event_log validate examples/visible-handoff/output/denied.events
   --registry examples/visible-handoff/approval_registry.json \
   --anchor examples/visible-handoff/output/denied.events.sample.jsonl.anchor.json
 # the head-count anchor catches suffix truncation (the chain alone cannot): a truncated ledger must FAIL
-head -n -1 examples/visible-handoff/output/events.jsonl > /tmp/truncated.jsonl && \
+# (drop the last row portably — GNU `head -n -1` differs on BSD/macOS, so use sed)
+sed '$d' examples/visible-handoff/output/events.jsonl > /tmp/truncated.jsonl && \
   ! python3 -m core.event_log validate /tmp/truncated.jsonl \
     --anchor examples/visible-handoff/output/events.jsonl.anchor.json
 python3 tools/vault_lint.py vault

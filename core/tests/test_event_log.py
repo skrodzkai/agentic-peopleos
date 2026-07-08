@@ -543,4 +543,18 @@ ok(ap.exists() and not validate_log(pw, anchor=ap), "write_anchor sidecar valida
 ok(any("anchor not found" in v for v in validate_log(pw, anchor=pw.with_suffix(".missing"))),
    "a missing anchor file fails closed")
 
+# a SIGNED anchor may not be silently downgraded to unsigned: verifying it WITHOUT the secret is a
+# violation (else a truncating attacker who keeps a garbage `hmac` field slips past a keyless check)
+signed2 = compute_anchor(lw.events(), secret=b"k")
+ok(any("no secret" in v for v in verify_anchor(lw.events(), signed2)),
+   "a signed anchor verified without a secret is flagged (no silent downgrade)")
+ok(any("no secret" in v for v in verify_anchor(lw.events(), {**signed2, "hmac": "0" * 64})),
+   "a garbage hmac field is flagged when no secret is supplied, not ignored")
+
+# verify_anchor on a bad events PATH fails closed with a violation, not a raw exception
+ok(any("cannot read ledger" in v for v in verify_anchor(pw.with_suffix(".nope"), anchor)),
+   "a missing events path fails closed in verify_anchor")
+bad_ev = fresh(); bad_ev.write_text("{not json\n", encoding="utf-8")
+ok(verify_anchor(bad_ev, anchor) != [], "a malformed events path fails closed in verify_anchor")
+
 print(f"OK — {passed} ledger checks passed.")

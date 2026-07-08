@@ -54,8 +54,11 @@ transcript, ledger, and evals:
   hash-chained, replayable JSONL ledger that detects edits, gaps, duplicates, out-of-order or
   **forged** approvals, and **decision laundering** (an action with no genuine approval). The forward
   chain cannot, on its own, catch **suffix truncation** (dropping the last N rows leaves a consistent
-  prefix), so the ledger also takes a signed **head-count anchor** — `validate_log(..., anchor=…)`
-  fails a truncated (or extended, or head-rewritten) ledger; CI proves a truncated sample is rejected.
+  prefix), so the ledger also takes a **head-count anchor** — `validate_log(..., anchor=…)` fails a
+  truncated (or extended, or head-rewritten) ledger; CI proves a truncated sample is rejected. An anchor
+  is only a real control when the attacker can't rewrite it too: store it on separate/WORM media, or
+  HMAC-sign it (pass a `secret`). The committed sample anchors are **unsigned** demonstrations of the
+  mechanism; production would sign/anchor them to a KMS checkpoint.
 - **Approval registry** ([`core/approval_registry.py`](core/approval_registry.py)) — role-scoped, satisfied by
   a *pool*: any one entitled HR human can approve, so PTO/illness never blocks a decision.
   Entitlement is re-derived on replay; the logged flag is never trusted.

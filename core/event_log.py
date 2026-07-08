@@ -456,7 +456,14 @@ def verify_anchor(events, anchor, secret: bytes = None) -> list:
         want = _hmac(secret, canonical(_subset(anchor, _ANCHOR_HMAC_EXCLUDE)))
         if anchor.get("hmac") != want:
             problems.append("anchor HMAC invalid (anchor forged or wrong key)")
-    count, head = head_state(events if not isinstance(events, (str, Path)) else _read_events(Path(events)))
+    elif "hmac" in anchor:
+        # a signed anchor MUST be verified with its key — never silently downgraded to unsigned, or a
+        # truncating attacker who keeps a stale/garbage hmac field would slip past a keyless validate.
+        problems.append("anchor is HMAC-signed but no secret was supplied to verify it (would downgrade to unsigned)")
+    try:
+        count, head = head_state(events if not isinstance(events, (str, Path)) else _read_events(Path(events)))
+    except (LedgerError, ValueError) as exc:                # missing/malformed events path -> fail closed
+        return problems + [f"cannot read ledger to check against anchor: {exc}"]
     if count != anchor["count"]:
         problems.append(f"ANCHOR MISMATCH — ledger has {count} row(s), anchor expects {anchor['count']} "
                         f"({'truncated' if count < anchor['count'] else 'extended'})")
@@ -473,12 +480,15 @@ def _main(argv) -> int:
     reg_path, anchor_path, positional, i = None, None, [], 0
     while i < len(argv):
         a = argv[i]
-        if a == "--registry" and i + 1 < len(argv):
-            reg_path = argv[i + 1]
-            i += 2
-            continue
-        if a == "--anchor" and i + 1 < len(argv):
-            anchor_path = argv[i + 1]
+        if a in ("--registry", "--anchor"):
+            if i + 1 >= len(argv) or argv[i + 1].startswith("--"):
+                # a flag with no value must NOT be silently dropped — that would disable the check it names
+                print(f"error: {a} requires a value\n{_USAGE}", file=sys.stderr)
+                return 2
+            if a == "--registry":
+                reg_path = argv[i + 1]
+            else:
+                anchor_path = argv[i + 1]
             i += 2
             continue
         if not a.startswith("--"):
