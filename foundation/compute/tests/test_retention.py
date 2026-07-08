@@ -274,6 +274,17 @@ raises(R.ManifestError, lambda: R.validate_manifest({**m, "panel_rows": 0}), "no
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "increment": True}), "bool increment rejected")
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "training_window": {**m["training_window"], "l2": -1.0}}),
        "manifest with a negative ridge (training_window.l2 < 0) rejected at the manifest gate")
+# a POSITIVE-but-non-canonical l2 (e.g. 0.0 or 50.0, not the trained L2_LAMBDA) must be rejected at the
+# manifest/loader gate itself — not only by the separate, skippable check_reproducible() — because the
+# diagnostics would otherwise consume the wrong ridge and emit wrong confidence intervals
+for _l2 in (0.0, 50.0):
+    raises(R.ManifestError,
+           lambda v=_l2: R.validate_manifest({**m, "training_window": {**m["training_window"], "l2": v}}),
+           f"manifest with a positive-but-non-canonical ridge (l2={_l2} != L2_LAMBDA) rejected at the manifest gate")
+    raises((R.ModelError, R.ManifestError),
+           lambda v=_l2: R.model_from_manifest({**m, "training_window": {**m["training_window"], "l2": v}},
+                                               panel_path=None),
+           f"model_from_manifest refuses a non-canonical ridge (l2={_l2}) before it can build diagnostics")
 # scaffold/trained cross-field consistency (the committed manifest is TRAINED at Increment 2)
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "status": "scaffold"}), "trained manifest mislabeled scaffold rejected")
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "primary_coefficients": {}}), "trained manifest with empty results rejected")

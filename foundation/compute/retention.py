@@ -1521,11 +1521,16 @@ def _validate_trained_shape(m: dict) -> None:
               "irls_iters", "n_train", "n_calibration", "n_test"):
         if not (isinstance(tw.get(k), int) and not isinstance(tw[k], bool) and tw[k] >= 0):
             raise ManifestError(f"training_window.{k} must be a non-negative int")
-    if not (_finite_num(tw.get("l2")) and tw.get("l2") >= 0) \
+    # l2 must be the CANONICAL ridge the published coefficients were fit under (L2_LAMBDA), not merely a
+    # finite non-negative number: a positive-but-wrong l2 (e.g. 0.0 or 50.0) would let model_from_manifest()
+    # load a model whose coefficient_intervals() are computed against the wrong Hessian ridge — silently wrong
+    # SEs. Pin it here at the manifest gate, not only in the separate/skippable check_reproducible().
+    if not (_finite_num(tw.get("l2")) and tw.get("l2") == L2_LAMBDA) \
             or not (isinstance(tw.get("horizons_months"), list) and tw["horizons_months"]
                     and all(isinstance(h, int) and not isinstance(h, bool) and h > 0
                             for h in tw["horizons_months"])):
-        raise ManifestError("training_window.l2 (finite, >= 0) / horizons_months are malformed")
+        raise ManifestError(f"training_window.l2 (must equal the canonical L2_LAMBDA={L2_LAMBDA}) / "
+                            "horizons_months are malformed")
     rb = m.get("risk_band_thresholds")
     if not isinstance(rb, dict) or set(rb) != {"elevated", "high"} \
             or not _finite_num(rb.get("elevated")) or not _finite_num(rb.get("high")):
