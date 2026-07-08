@@ -49,6 +49,36 @@ for needle in ["ISS Pay-for-Performance Screen", "logomark", "Anticipated ISS qu
 for band in (report["measures"]["mom"]["band"], report["measures"]["rda"]["band"], report["measures"]["pta"]["band"]):
     ok(band in page, f"a measure band '{band}' is shown")
 ok(page.count("<svg") >= 4, "renders the brand mark + the three measure gauges as SVG")
+
+# ---- policy-year stamp + the concrete 2026 delta, and gauges driven by the engine's bands (not hard-coded) ----
+ok(report["res"]["policy"]["year"] == 2026 and "ISS 2026 policy" in page, "the dashboard stamps the ISS 2026 policy")
+ok("2026 update reflected" in page and "RDA extended 3yr" in page,
+   "the dashboard surfaces the concrete 2026-vs-2025 delta")
+ok("non-S&amp;P-500 thresholds" in page, "the dashboard states the (non-S&P-500) threshold set it used")
+b = report["res"]["bands"]
+ok(f"{b['mom']['high']:.2f}" in page or f"{b['mom']['high']}" in page, "MOM high threshold from the engine appears on the gauge")
+ok(str(int(b["rda"]["high"])) in page, "RDA high threshold from the engine appears on the gauge")
+# the gauge thresholds are engine-driven: swapping the policy year MOVES the rendered gauge geometry,
+# not just the engine bands or the delta prose. Render a real 2025 page and a real 2026 page and prove the
+# RDA concern-tick sits at a different x — X(threshold) on the shared -80..20 axis — in each.
+page26 = run.render_html(run.build_report(ISSUniverse(), None, policy_year=2026))
+page25 = run.render_html(run.build_report(ISSUniverse(), None, policy_year=2025))
+ok(page25 != page26, "rendering a different ISS policy year produces a different dashboard")
+_rda_tick = lambda hi: "x1='%.1f'" % (10 + (350 - 10) * (hi - (-80.0)) / (20.0 - (-80.0)))
+ok(_rda_tick(-64.0) in page26 and _rda_tick(-64.0) not in page25,
+   "the 2026 dashboard draws its RDA concern tick at the engine's -64 boundary (and 2025 does not)")
+ok(_rda_tick(-60.0) in page25 and _rda_tick(-60.0) not in page26,
+   "the 2025 dashboard draws its RDA concern tick at the engine's -60 boundary (and 2026 does not)")
+res25 = ISSUniverse().screen(policy_year=2025)
+ok(res25["bands"]["rda"]["high"] == -60.0 and report["res"]["bands"]["rda"]["high"] == -64.0,
+   "2025 vs 2026 RDA-high thresholds differ in the engine the dashboard reads from")
+# the 2025 render's COPY must track its own policy: a 3-year RDA window, and NO "2026 update" delta line
+ok("3-year TSR" in page25 and "5-year TSR" not in page25,
+   "the 2025 narrative states its own 3-year RDA/TSR window (not a hard-coded 5-year)")
+ok("of 5-year TSR" in page26, "the 2026 narrative states its 5-year RDA/TSR window")
+ok("2026 update reflected" not in page25 and "reflected: None" not in page25,
+   "the 2025 baseline render carries no '2026 update reflected' delta line (delta_from_prior is None)")
+ok("2026 update reflected" in page26, "the 2026 render still shows the concrete season delta")
 ok("overlap committee core" in page and str(len(report["committee"]["overlap"])) in page,
    "the ISS-vs-committee peer overlap is shown (the two-peer-object point)")
 

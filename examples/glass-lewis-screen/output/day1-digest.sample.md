@@ -1,4 +1,4 @@
-# Acme Corp — ISS vs Glass Lewis (say-on-pay digest, 2025 proxy)
+# Acme Corp — ISS vs Glass Lewis (say-on-pay digest, 2026 proxy)
 
 **ISS-ONLY FLAG** — committee considerations: the ISS lens is the one flagging — Glass Lewis's broader scorecard reads lower-concern; reviewing ISS's rationale and TSR-linked disclosure are common considerations here.
 
