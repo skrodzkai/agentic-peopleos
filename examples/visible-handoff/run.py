@@ -64,6 +64,11 @@ def run_handoff(out_dir=OUT, *, approver_id="hr.business-partner", inject=False,
     ledger_path = out_dir / "events.jsonl"
     if ledger_path.exists():
         ledger_path.unlink()  # regenerate deterministically
+    # a deliberate from-scratch rebuild must also clear the prior anchor, or opening the now-empty ledger
+    # would (correctly) refuse as "truncated below its committed anchor". This is the sanctioned reset path.
+    anchor_path = ledger_path.with_suffix(ledger_path.suffix + ".anchor.json")
+    if anchor_path.exists():
+        anchor_path.unlink()
     log = EventLog(ledger_path)
     chat = SimulatedChat("slack", registry=reg)
 
@@ -146,9 +151,13 @@ def run_handoff(out_dir=OUT, *, approver_id="hr.business-partner", inject=False,
         action_taken = False
 
     (out_dir / "transcript.md").write_text(chat.transcript(CHANNEL), encoding="utf-8")
-    return {"ledger_path": ledger_path, "action_taken": action_taken, "decision": decision,
-            "violations": validate_log(ledger_path, registry=reg), "events": log.events(),
-            "transcript": chat.transcript(CHANNEL)}
+    # Take a head-count anchor next to the ledger so a later validate can detect suffix truncation
+    # (deterministic: {count, head_hash}, no wall-clock — the committed anchor is byte-stable).
+    anchor_path = log.checkpoint()
+    return {"ledger_path": ledger_path, "anchor_path": anchor_path,
+            "action_taken": action_taken, "decision": decision,
+            "violations": validate_log(ledger_path, registry=reg, anchor=anchor_path),
+            "events": log.events(), "transcript": chat.transcript(CHANNEL)}
 
 
 def main() -> int:

@@ -43,8 +43,8 @@ OUT = HERE / "output"
 REPORT = OUT / "report.sample.html"
 DIGEST = OUT / "day1-digest.sample.md"
 COMPANY = "Acme Corp"
-AS_OF = "2025 proxy"
-PERIOD = "2025 say-on-pay · synthetic universe"
+AS_OF = "2026 proxy"
+PERIOD = "2026 say-on-pay · synthetic universe"
 SCOPE = "publish.glass_lewis_screen"
 APPROVER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .,'&()-]{0,79}$")
 

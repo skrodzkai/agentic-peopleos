@@ -272,6 +272,19 @@ for fld, bad in [("allowlist_features", m["allowlist_features"][:-1]), ("decoy_f
     raises(R.ManifestError, lambda f=fld, b=bad: R.validate_manifest({**m, f: b}), f"manifest {fld} drift rejected")
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "panel_rows": 0}), "non-positive panel_rows rejected")
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "increment": True}), "bool increment rejected")
+raises(R.ManifestError, lambda: R.validate_manifest({**m, "training_window": {**m["training_window"], "l2": -1.0}}),
+       "manifest with a negative ridge (training_window.l2 < 0) rejected at the manifest gate")
+# a POSITIVE-but-non-canonical l2 (e.g. 0.0 or 50.0, not the trained L2_LAMBDA) must be rejected at the
+# manifest/loader gate itself — not only by the separate, skippable check_reproducible() — because the
+# diagnostics would otherwise consume the wrong ridge and emit wrong confidence intervals
+for _l2 in (0.0, 50.0):
+    raises(R.ManifestError,
+           lambda v=_l2: R.validate_manifest({**m, "training_window": {**m["training_window"], "l2": v}}),
+           f"manifest with a positive-but-non-canonical ridge (l2={_l2} != L2_LAMBDA) rejected at the manifest gate")
+    raises((R.ModelError, R.ManifestError),
+           lambda v=_l2: R.model_from_manifest({**m, "training_window": {**m["training_window"], "l2": v}},
+                                               panel_path=None),
+           f"model_from_manifest refuses a non-canonical ridge (l2={_l2}) before it can build diagnostics")
 # scaffold/trained cross-field consistency (the committed manifest is TRAINED at Increment 2)
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "status": "scaffold"}), "trained manifest mislabeled scaffold rejected")
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "primary_coefficients": {}}), "trained manifest with empty results rejected")
@@ -419,6 +432,8 @@ raises(R.ModelError, lambda: R.calibrated_probability(model, {"a": 1.0}, design[
        "a calibration missing param b is rejected")
 # round-8 (P1-2): the artifact-CREATION APIs reject iters<1 and caller-forged (non-canonical) slices
 raises(R.ModelError, lambda: R.fit_hazard(design, slices, iters=0), "fit_hazard rejects iters=0")
+raises(R.ModelError, lambda: R.fit_hazard(design, slices, l2=-1.0), "fit_hazard rejects a negative ridge (l2<0)")
+raises(R.ModelError, lambda: R.fit_hazard(design, slices, l2=float("inf")), "fit_hazard rejects a non-finite ridge")
 _forged = {"train": slices["test"], "calibration": slices["calibration"], "test": slices["train"]}
 raises(R.ModelError, lambda: R.fit_hazard(design, _forged), "fit_hazard rejects forged (non-canonical) slices — no train-on-test leakage")
 raises(R.ModelError, lambda: R.platt_calibrate(model, design, slices["calibration"], iters=0), "platt_calibrate rejects iters=0")
@@ -717,8 +732,77 @@ _bad_pc = _c9.deepcopy(_mani); del _bad_pc["primary_coefficients"]["pos_weight"]
 raises((R.ModelError, R.ManifestError), lambda: R.model_from_manifest(_bad_pc, panel_path=None),
        "model_from_manifest fails closed when the fitted primary model is missing a required field")
 
+# --- diagnostics (Increment 4b): reliability curve + robust coefficient intervals, from the pinned model ---
+_rel = R.reliability_curve(model, calib, design, slices)
+ok(_rel["n_bins"] == 10 and sum(b["n"] for b in _rel["bins"]) == len(slices["test"]),
+   "reliability_curve bins the whole test slice into equal-count deciles")
+ok(all(abs(b["gap"] - (b["mean_pred"] - b["obs_freq"])) < 1.5e-6 for b in _rel["bins"]),
+   "each reliability bin's gap equals its two displayed numbers' difference (to display precision)")
+ok(0.0 <= _rel["ece"] <= 1.0 and _rel["ece"] < 0.05,
+   "the ECE is a valid, small calibration error on the honest synthetic model")
+ok(_rel["base_rate"] == round(E["base_rate"], 6), "reliability base rate is the eval base rate (to display precision)")
+ok(R.reliability_curve(model, calib, design, slices) == _rel, "reliability_curve is deterministic")
+raises(R.ModelError, lambda: R.reliability_curve(model, calib, design, slices, n_bins=1),
+       "reliability_curve rejects n_bins < 2")
+raises(R.ModelError, lambda: R.reliability_curve(model, None, design, slices),
+       "reliability_curve rejects a partial bundle")
+
+_ci = R.coefficient_intervals(model, design, slices)
+ok(len(_ci["coefficients"]) == len(model["feature_names"]), "an interval per design feature")
+ok(all(c["ci_lo"] <= c["coef"] <= c["ci_hi"] and c["se"] >= 0 for c in _ci["coefficients"]),
+   "every coefficient interval brackets its point estimate with a non-negative SE")
+ok(all(c["excludes_zero"] == (c["ci_lo"] > 0 or c["ci_hi"] < 0) for c in _ci["coefficients"]),
+   "excludes_zero is consistent with the interval bounds")
+_dec = [c for c in _ci["coefficients"] if c["is_decoy"]]
+ok(len(_dec) == len(R.DECOY_FEATURES) and all(not c["excludes_zero"] for c in _dec),
+   "every planted decoy's coefficient interval spans 0 (noise, not a real driver)")
+_real_top = [c for c in _ci["coefficients"] if c["feature"] in ("unvested_equity_pct_comp", "comp_ratio")]
+ok(_real_top and all(c["excludes_zero"] for c in _real_top),
+   "the top protective drivers (equity, comp-ratio) have intervals that exclude 0")
+ok(R.coefficient_intervals(model, design, slices) == _ci, "coefficient_intervals is deterministic")
+raises(R.ModelError, lambda: R.coefficient_intervals(model, None, slices),
+       "coefficient_intervals rejects a partial bundle")
+raises(R.ModelError, lambda: R.coefficient_intervals(model, design, slices, z=-1),
+       "coefficient_intervals rejects a non-positive z")
+
+# --- fail-closed on forged labels + mismatched artifacts (diagnostics must not emit nonsense) ---
+_forge_test = {**design, "y": list(design["y"])}
+_forge_test["y"][slices["test"][0]] = 999                    # a non-binary label in the TEST slice
+raises(R.ModelError, lambda: R.reliability_curve(model, calib, _forge_test, slices),
+       "reliability_curve fails closed on a forged/non-binary test label (no nonsense obs_freq/ECE)")
+_forge_train = {**design, "y": list(design["y"])}
+_forge_train["y"][slices["train"][0]] = 999                  # a non-binary label in the TRAIN slice
+raises(R.ModelError, lambda: R.coefficient_intervals(model, _forge_train, slices),
+       "coefficient_intervals fails closed on a forged/non-binary train label")
+# the FIT + CALIBRATION paths validate labels too (no silent float() coercion of a forged label)
+raises(R.ModelError, lambda: R.fit_hazard(_forge_train, slices),
+       "fit_hazard fails closed on a forged/non-binary train label")
+_forge_cal = {**design, "y": list(design["y"])}
+_forge_cal["y"][slices["calibration"][0]] = 999
+raises(R.ModelError, lambda: R.platt_calibrate(model, _forge_cal, slices["calibration"]),
+       "platt_calibrate fails closed on a forged/non-binary calibration label")
+# reliability_curve rejects a single-class test slice (no observed-frequency variation to calibrate)
+_all_one = {**design, "y": list(design["y"])}
+for _i in slices["test"]:
+    _all_one["y"][_i] = 1
+raises(R.ModelError, lambda: R.reliability_curve(model, calib, _all_one, slices),
+       "reliability_curve rejects an all-one-class test slice (degenerate calibration)")
+_bad_pw = {**model, "pos_weight": model["pos_weight"] * 2.0}  # structurally valid but wrong class weighting
+raises(R.ModelError, lambda: R.coefficient_intervals(_bad_pw, design, slices),
+       "coefficient_intervals rejects a model whose pos_weight != the train slice class balance")
+ok("l2" in model and abs(model["l2"] - R.L2_LAMBDA) < 1e-12, "the fitted model carries its own l2 (ridge) value")
+raises(R.ModelError, lambda: R._validate_model({k: v for k, v in model.items() if k != "l2"}),
+       "_validate_model requires l2 on the model artifact")
+raises(R.ModelError, lambda: R._validate_model({**model, "l2": -1.0}),
+       "_validate_model rejects a negative l2")
+# the interval Hessian uses the MODEL's l2, not the module global: a model fit under a different ridge shifts SEs
+_m_hi_l2 = R.fit_hazard(design, slices, l2=50.0)
+ok(_m_hi_l2["l2"] == 50.0 and R.coefficient_intervals(_m_hi_l2, design, slices) !=
+   R.coefficient_intervals(model, design, slices),
+   "coefficient_intervals reads l2 from the model artifact (heavier ridge -> different intervals)")
+
 print(f"OK — {CHECKS} retention Increment 0+1+2+3+4 checks passed "
-      f"(contract + feature builder + glass-box hazard + eval/realism-guard + segment layer; {len(rows)} "
+      f"(contract + feature builder + glass-box hazard + eval/realism-guard + segment layer + diagnostics; {len(rows)} "
       f"person-months, {len(names)} design features, voluntary={ev['voluntary']}; test AUC={E['roc_auc']:.3f}, "
       f"concordance={E['horizon_concordance']:.3f}; {_recon['n_segments']} segments reconciled, "
       f"{_recon['n_flagged']} gaps surfaced, max gap {_recon['max_abs_gap']:.3f}; realism-guarded, reproducible).")

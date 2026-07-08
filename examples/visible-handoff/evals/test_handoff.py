@@ -74,4 +74,25 @@ lp = d / "events.jsonl"
 lp.write_text(lp.read_text().replace('"published":true', '"published":false'))
 ok(any("TAMPER" in v for v in validate_log(lp)), "editing the committed ledger is detected on replay")
 
+# Truncation: dropping the trailing published-action row makes the chain validate clean (a consistent
+# prefix) — but the head-count anchor written beside the ledger catches it. This is the concrete attack:
+# lop off the "published" action and, without the anchor, the ledger looks like an un-acted-on request.
+d2 = tmp()
+r2 = run.run_handoff(d2)
+lp2, ap2 = d2 / "events.jsonl", r2["anchor_path"]
+lines = lp2.read_text(encoding="utf-8").strip().splitlines()
+lp2.write_text("\n".join(lines[:-1]) + "\n", encoding="utf-8")     # drop the last (action) row
+ok(not validate_log(lp2), "a truncated ledger is a consistent prefix — the chain alone does not flag it")
+ok(any("truncated" in v.lower() for v in validate_log(lp2, anchor=ap2)),
+   "the committed head-count anchor catches the dropped action row (truncation)")
+
+# every committed sample ledger validates against its committed anchor (the shipped artifacts reconcile)
+import subprocess  # noqa: E402
+REPO = Path(run.__file__).resolve().parents[2]
+OUTDIR = Path(run.__file__).resolve().parent / "output"
+for name in ("events.jsonl", "approved.events.sample.jsonl", "denied.events.sample.jsonl"):
+    lg = OUTDIR / name
+    ok(not validate_log(lg, anchor=lg.with_name(lg.name + ".anchor.json")),
+       f"committed {name} matches its committed anchor")
+
 print(f"OK — {passed} handoff checks passed.")

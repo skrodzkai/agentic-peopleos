@@ -18,7 +18,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parents[1]))
 import run  # noqa: E402
+from core.event_log import write_anchor  # noqa: E402
 
 OUT = HERE / "output"
 
@@ -39,10 +41,11 @@ def main() -> int:
 
         # Re-home the generated ledger/transcript to stable, committed sample names so the
         # two scenarios don't clobber each other (run_handoff writes events.jsonl/transcript.md).
-        (OUT / f"{label}.events.sample.jsonl").write_text(
-            (OUT / "events.jsonl").read_text(encoding="utf-8"), encoding="utf-8")
-        (OUT / f"{label}.transcript.sample.md").write_text(
-            r["transcript"], encoding="utf-8")
+        sample_ledger = OUT / f"{label}.events.sample.jsonl"
+        sample_ledger.write_text((OUT / "events.jsonl").read_text(encoding="utf-8"), encoding="utf-8")
+        (OUT / f"{label}.transcript.sample.md").write_text(r["transcript"], encoding="utf-8")
+        # commit a matching head-count anchor beside each sample ledger (truncation defense)
+        write_anchor(sample_ledger)
 
         ok = (r["decision"] == expect["decision"]
               and r["action_taken"] == expect["action_taken"]

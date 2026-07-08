@@ -83,9 +83,18 @@ python3 skills/sec-proxy-extractor/scripts/extractor.py --demo >/dev/null
 # both handoff outcomes + ledger integrity (approved AND denied)
 (cd examples/visible-handoff && python3 scenarios.py)
 python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
-  --registry examples/visible-handoff/approval_registry.json
+  --registry examples/visible-handoff/approval_registry.json \
+  --anchor examples/visible-handoff/output/events.jsonl.anchor.json
 python3 -m core.event_log validate examples/visible-handoff/output/denied.events.sample.jsonl \
-  --registry examples/visible-handoff/approval_registry.json
+  --registry examples/visible-handoff/approval_registry.json \
+  --anchor examples/visible-handoff/output/denied.events.sample.jsonl.anchor.json
+# the head-count anchor catches suffix truncation (the chain alone cannot): a truncated ledger must FAIL
+# (drop the last row portably — GNU `head -n -1` differs on BSD/macOS, so use sed)
+sed '$d' examples/visible-handoff/output/events.jsonl > /tmp/truncated.jsonl && \
+  ! python3 -m core.event_log validate /tmp/truncated.jsonl \
+    --anchor examples/visible-handoff/output/events.jsonl.anchor.json
+# a rolled-back OLDER (but validly-signed) anchor is caught by supplying the last-known height:
+#   validate <log> --anchor <older-anchor.json> --min-count <current-height>   # -> ANCHOR ROLLBACK, rc 1
 python3 tools/vault_lint.py vault
 ```
 

@@ -20,6 +20,15 @@ def ok(cond, label):
     passed += 1
 
 
+def raises_msg(exc, fn, substr):
+    """True iff fn() raises `exc` with `substr` in its message (fail-closed assertion helper)."""
+    try:
+        fn()
+        return False
+    except exc as e:
+        return substr in str(e)
+
+
 def actor(kind="agent", id="agent.x", role="reporter"):
     return {"id": id, "display": id, "kind": kind, "role": role}
 
@@ -483,5 +492,166 @@ by_mismatch = _restamped({"ts": "t", "actor": _m("hr.business-partner"), "channe
                                        "scope": "publish.ta_report", "registry_version": RV}, "payload": {}})
 ok(any("attribution laundering" in v for v in validate_log(by_mismatch, registry=reg)),
    "an approval.by disagreeing with the event actor is caught on replay")
+
+# --- head-count anchor: the suffix-truncation defense the forward chain can't provide ---
+from core.event_log import write_anchor, compute_anchor, verify_anchor, GENESIS  # noqa: E402
+
+pa = fresh()
+la = EventLog(pa)
+for n in range(4):
+    la.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c",
+               "type": "fyi", "case_ref": "A", "correlation_id": "A", "payload": {"n": n}})
+anchor = compute_anchor(la.events())
+ok(anchor["count"] == 4 and anchor["head_hash"] == la.last_hash(), "anchor records count + head hash")
+ok(compute_anchor([])["head_hash"] == GENESIS, "empty-ledger anchor head is GENESIS")
+
+# baseline: a valid ledger passes with its anchor; the chain ALONE cannot detect truncation
+ok(not validate_log(pa, anchor=anchor), "valid ledger validates against its anchor")
+full_lines = pa.read_text(encoding="utf-8").strip().splitlines()
+pa.write_text("\n".join(full_lines[:-1]) + "\n", encoding="utf-8")   # drop the last row
+ok(not validate_log(pa), "chain-only validation does NOT catch suffix truncation (the gap this closes)")
+trunc = validate_log(pa, anchor=anchor)
+ok(any("truncated" in v.lower() for v in trunc), "the anchor CATCHES suffix truncation (count mismatch)")
+
+# truncating a trailing DENIAL would reinstate a revoked approval — the anchor blocks exactly that
+pa.write_text("\n".join(full_lines) + "\n", encoding="utf-8")        # restore
+pa.write_text("\n".join(full_lines[:2]) + "\n", encoding="utf-8")    # aggressive truncation
+ok(any("ANCHOR MISMATCH" in v for v in validate_log(pa, anchor=anchor)), "deeper truncation is caught too")
+pa.write_text("\n".join(full_lines) + "\n", encoding="utf-8")        # restore full
+
+# a signed anchor: an attacker who truncates the ledger AND rewrites an (unsigned) sidecar still fails HMAC
+KEY2 = b"kms-checkpoint-key"
+signed = compute_anchor(la.events(), secret=KEY2)
+ok("hmac" in signed, "a secret produces an HMAC-signed anchor")
+ok(not verify_anchor(la.events(), signed, secret=KEY2), "signed anchor verifies with the right key")
+forged = compute_anchor(la.events()[:3])                              # unsigned anchor for a 3-row prefix
+ok(any("HMAC invalid" in v for v in verify_anchor(la.events()[:3], forged, secret=KEY2)),
+   "under a secret, an unsigned/forged anchor is rejected before the count even matches")
+ok(any("wrong key" in v or "HMAC invalid" in v
+       for v in verify_anchor(la.events(), compute_anchor(la.events(), secret=b"other"), secret=KEY2)),
+   "an anchor signed with the wrong key is rejected")
+
+# a malformed anchor fails closed (never silently passes)
+for bad, why in ((None, "non-dict"), ({"count": 4, "head_hash": "x"}, "missing schema_version"),
+                 ({"schema_version": "1.0", "count": -1, "head_hash": "x"}, "negative count"),
+                 ({"schema_version": "1.0", "count": 4, "head_hash": ""}, "empty head_hash")):
+    ok(verify_anchor(la.events(), bad) != [], f"malformed anchor rejected: {why}")
+
+# an EXTENDED ledger (rows appended past the anchor) is caught as well
+la.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+           "case_ref": "A", "correlation_id": "A", "payload": {"n": 99}})
+ok(any("extended" in v for v in verify_anchor(la.events(), anchor)), "appending past the anchor is caught")
+
+# write_anchor round-trips through a file, and validate_log accepts an anchor PATH
+pw = fresh()
+lw = EventLog(pw)
+lw.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+           "case_ref": "A", "correlation_id": "A", "payload": {}})
+ap = write_anchor(pw)
+ok(ap.exists() and not validate_log(pw, anchor=ap), "write_anchor sidecar validates by path")
+ok(any("anchor not found" in v for v in validate_log(pw, anchor=pw.with_suffix(".missing"))),
+   "a missing anchor file fails closed")
+
+# a SIGNED anchor may not be silently downgraded to unsigned: verifying it WITHOUT the secret is a
+# violation (else a truncating attacker who keeps a garbage `hmac` field slips past a keyless check)
+signed2 = compute_anchor(lw.events(), secret=b"k")
+ok(any("no secret" in v for v in verify_anchor(lw.events(), signed2)),
+   "a signed anchor verified without a secret is flagged (no silent downgrade)")
+ok(any("no secret" in v for v in verify_anchor(lw.events(), {**signed2, "hmac": "0" * 64})),
+   "a garbage hmac field is flagged when no secret is supplied, not ignored")
+
+# verify_anchor on a bad events PATH fails closed with a violation, not a raw exception
+ok(any("cannot read ledger" in v for v in verify_anchor(pw.with_suffix(".nope"), anchor)),
+   "a missing events path fails closed in verify_anchor")
+bad_ev = fresh(); bad_ev.write_text("{not json\n", encoding="utf-8")
+ok(verify_anchor(bad_ev, anchor) != [], "a malformed events path fails closed in verify_anchor")
+
+# ROLLBACK is a documented limit: an OLDER but genuinely-signed anchor rubber-stamps a truncation to
+# that earlier count (a genuine earlier state). The defense holds only against the CURRENT anchor.
+pr = fresh(); lr = EventLog(pr, secret=b"k3")
+for n in range(4):
+    lr.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+               "case_ref": "A", "correlation_id": "A", "payload": {"n": n}})
+old_anchor = compute_anchor(lr.events()[:3], secret=b"k3")     # a genuine, signed count=3 checkpoint
+cur_anchor = compute_anchor(lr.events(), secret=b"k3")         # the current, signed count=4 checkpoint
+all_lines = pr.read_text(encoding="utf-8").strip().splitlines()
+pr.write_text("\n".join(all_lines[:3]) + "\n", encoding="utf-8")   # truncate 4 -> 3
+ok(not validate_log(pr, secret=b"k3", anchor=old_anchor),
+   "a rolled-back OLDER signed anchor rubber-stamps a truncation (documented rollback limit)")
+ok(any("truncated" in v.lower() for v in validate_log(pr, secret=b"k3", anchor=cur_anchor)),
+   "the CURRENT (latest) signed anchor still catches the same truncation")
+
+# min_count CLOSES that rollback gap: given the last-known height (from monotonic/WORM storage), an OLDER
+# genuine anchor is rejected as stale even though its signature is valid and the truncated ledger matches it.
+ok(any("ROLLBACK" in v for v in validate_log(pr, secret=b"k3", anchor=old_anchor, min_count=4)),
+   "min_count rejects a rolled-back OLDER signed anchor (the freshness the signature can't provide)")
+ok(not validate_log(pr, secret=b"k3", anchor=old_anchor, min_count=3),
+   "min_count equal to the anchor's own height is not a rollback (no false positive at the known height)")
+ok(any("ROLLBACK" in v for v in verify_anchor(lr.events()[:3], old_anchor, secret=b"k3", min_count=4)),
+   "verify_anchor surfaces the rollback directly under min_count")
+# and min_count never masks a plain truncation caught by the head-count check
+_pf = fresh(); _lf = EventLog(_pf, secret=b"k3")
+for n in range(4):
+    _lf.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+                "case_ref": "A", "correlation_id": "A", "payload": {"n": n}})
+ok(not validate_log(_pf, secret=b"k3", anchor=compute_anchor(_lf.events(), secret=b"k3"), min_count=4),
+   "a fresh full ledger + current anchor + min_count passes clean")
+
+# the PUBLIC API fails closed on a malformed min_count (a direct caller, not just the CLI) — a bad freshness
+# bound must surface a violation, never a silent no-op (bool/negative) or a raw TypeError (str/float)
+_cur = compute_anchor(_lf.events(), secret=b"k3")
+for _bad in (True, 4.5, "4", -1):
+    ok(any("min_count must be a non-negative integer" in v
+           for v in verify_anchor(_lf.events(), _cur, secret=b"k3", min_count=_bad)),
+       f"verify_anchor fails closed on a non-integer/negative min_count ({_bad!r})")
+ok(any("without an anchor" in v for v in validate_log(_pf, secret=b"k3", min_count=4)),
+   "validate_log flags min_count supplied with no anchor (a freshness bound with nothing to check)")
+
+# WRITE-side monotonicity: an attacker can't truncate the ledger and simply re-checkpoint to bless it. The
+# committed anchor's height is a floor; write_anchor refuses to lower it (or rewrite the head) without an
+# explicit reset, and EventLog(path) refuses to even OPEN a ledger truncated below its committed anchor.
+pn = fresh(); ln = EventLog(pn, secret=b"kw")
+for n in range(4):
+    ln.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+               "case_ref": "A", "correlation_id": "A", "payload": {"n": n}})
+ap = ln.checkpoint()                                       # committed anchor at count 4
+ok(Path(ap).exists() and compute_anchor(ln.events())["count"] == 4, "checkpoint wrote a count-4 anchor")
+_all = pn.read_text(encoding="utf-8").strip().splitlines()
+pn.write_text("\n".join(_all[:3]) + "\n", encoding="utf-8")   # truncate 4 -> 3 on disk
+ok(raises_msg(LedgerError, lambda: write_anchor(pn, secret=b"kw"), "roll the anchor back"),
+   "write_anchor refuses to roll the committed anchor back to a lower count (no re-checkpoint normalization)")
+ok(raises_msg(LedgerError, lambda: EventLog(pn, secret=b"kw"), "truncated below the anchor"),
+   "EventLog refuses to OPEN a ledger truncated below its committed anchor")
+ok(isinstance(write_anchor(pn, secret=b"kw", allow_rollback=True), Path),
+   "an explicit allow_rollback reset is still permitted (a deliberate, audited action)")
+
+# a SIGNED event verified WITHOUT the secret must not silently downgrade to unsigned (mirror the anchor rule)
+ps = fresh(); ls = EventLog(ps, secret=b"ks")
+ls.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+           "case_ref": "A", "correlation_id": "A", "payload": {}})
+ok(any("downgrade to unsigned" in v for v in validate_log(ps)),
+   "a keyless validate of an HMAC-signed ledger flags the downgrade (no silent unsigned pass)")
+
+# the CLI wires --min-count: a rollback exits non-zero; the flag is refused where it would be a silent no-op
+_env0 = {**__import__("os").environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])}
+import subprocess as _sp0  # noqa: E402
+_ap = write_anchor(_pf)                                   # unsigned current anchor (count 4) on disk
+_rc = _sp0.run([sys.executable, "-m", "core.event_log", "validate", str(_pf), "--anchor", str(_ap),
+                "--min-count", "5"], capture_output=True, text=True, env=_env0)
+ok(_rc.returncode == 1 and "ROLLBACK" in _rc.stderr, "CLI --min-count above the anchor height reports a rollback (rc 1)")
+_rc = _sp0.run([sys.executable, "-m", "core.event_log", "validate", str(_pf), "--min-count", "4"],
+               capture_output=True, text=True, env=_env0)
+ok(_rc.returncode == 2, "CLI refuses --min-count without --anchor (no false rollback guard)")
+for _bad in ("abc", "-3"):
+    _rc = _sp0.run([sys.executable, "-m", "core.event_log", "validate", str(_pf), "--anchor", str(_ap),
+                    "--min-count", _bad], capture_output=True, text=True, env=_env0)
+    ok(_rc.returncode == 2, f"CLI rejects a non-natural --min-count value ({_bad})")
+
+# the CLI rejects an unknown flag (a typo'd --anhor must not silently skip the anchor check)
+import subprocess as _sp, os as _os  # noqa: E402
+_env = {**_os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])}
+_r = _sp.run([sys.executable, "-m", "core.event_log", "validate", str(pr), "--anhor", "x"],
+             capture_output=True, text=True, env=_env)
+ok(_r.returncode == 2 and "unknown flag" in _r.stderr, "the CLI errors on an unknown/typo'd flag")
 
 print(f"OK — {passed} ledger checks passed.")

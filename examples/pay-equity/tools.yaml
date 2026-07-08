@@ -1,0 +1,24 @@
+# Tools the pay-equity agent is allowed to use.
+# Note what's ABSENT: no pay-adjustment / raise tool, no HRIS comp writer, no "reclassify group" tool,
+# and no "send"/"publish" tool.
+
+tools:
+  - name: pay_equity_read
+    access: read-only
+    description: >
+      Reads the pay-equity results (raw mean/median gaps, the regression-adjusted like-for-like gap with its
+      confidence interval, and the EU 5% per-category joint-assessment screen) from the shared engine
+      (foundation/compute/pay_equity.py), itself read-only over the synthetic workers.csv. The agent performs
+      no math of its own.
+
+  - name: report_writer
+    access: write-local
+    description: >
+      Renders the pay-equity dashboard (HTML) and the digest (Markdown) to the local output/ directory.
+      Produces drafts only; distribution requires the human publish gate.
+
+# Intentionally NOT granted:
+#   - any pay-adjustment / raise / remediation tool — the agent reports the gap, a human owns the response
+#   - HRIS / compensation system-of-record writer — no mutation of anyone's pay, ever
+#   - any tool that re-labels or de-anonymizes a protected-class group
+#   - email / Slack / "publish" — People / Total Rewards owns distribution (publish gate)

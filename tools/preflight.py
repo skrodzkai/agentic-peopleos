@@ -58,7 +58,8 @@ REQUIRED_OUTPUTS = [
     for ex in ("headcount-reporting", "attrition-reporting", "people-ops-reporting", "operating-review",
                "people-intelligence", "executive-comp-peer-builder", "executive-comp-benchmarking",
                "rtsr-psu-valuation", "iss-pay-screen", "equity-spend", "glass-lewis-screen",
-               "pay-versus-performance", "merit-comp-planning", "ta-reporting", "comp-reporting")
+               "pay-versus-performance", "merit-comp-planning", "ta-reporting", "comp-reporting",
+               "pay-equity", "sbc-forecasting")
     for a in _STD_OUTPUTS
 ] + [
     # retention-risk uses a committee-digest (not the day1-digest tuple above) — enumerate it explicitly so a
@@ -68,6 +69,7 @@ REQUIRED_OUTPUTS = [
     "examples/retention-risk/output/committee-digest.sample.md",
     "examples/merit-comp-planning/output/equity_refresh_grants.sample.csv",   # the equity-handoff artifact
     "examples/operating-review/output/decision.sample.events.jsonl",
+    "examples/operating-review/output/decision.sample.events.jsonl.anchor.json",
     "examples/visible-handoff/output/ledger.sample.html",
     "examples/visible-handoff/output/ledger.sample.png",
     "examples/visible-handoff/output/events.jsonl",
@@ -78,6 +80,10 @@ REQUIRED_OUTPUTS = [
     "examples/visible-handoff/output/approved.transcript.sample.md",
     "examples/visible-handoff/output/denied.events.sample.jsonl",
     "examples/visible-handoff/output/denied.transcript.sample.md",
+    # head-count anchors committed beside each ledger — the suffix-truncation defense
+    "examples/visible-handoff/output/events.jsonl.anchor.json",
+    "examples/visible-handoff/output/approved.events.sample.jsonl.anchor.json",
+    "examples/visible-handoff/output/denied.events.sample.jsonl.anchor.json",
 ]
 
 

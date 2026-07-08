@@ -111,11 +111,40 @@ ledger still **validates**; it just records a denial + escalation instead of an 
 
 ## Integrity vs non-repudiation (be honest)
 
-The SHA-256 hash chain proves **internal consistency / no in-place edit**. It does **not**
-prove non-repudiation: an attacker who rewrites the whole file can recompute every hash.
-Construct `EventLog(path, secret=...)` to sign each event (HMAC) — a wholesale rewrite then
-fails verification (`validate_log(path, secret=...)`). **Production** anchors the head hash in
-a KMS-signed checkpoint and stores the ledger on WORM/append-only media.
+The SHA-256 hash chain proves **internal consistency / no in-place edit**. On its own it does
+**not** prove non-repudiation (an attacker who rewrites the whole file can recompute every hash)
+and it does **not** detect **suffix truncation** — dropping the last N rows leaves a consistent
+prefix that validates clean, which would silently reinstate a decision a later "denied" had revoked.
+Two controls close those gaps:
+
+- **HMAC signatures.** Construct `EventLog(path, secret=...)` to sign each event — a wholesale
+  rewrite then fails `validate_log(path, secret=...)` for anyone without the key.
+- **Head-count anchor.** `EventLog.checkpoint()` (CLI: `python3 -m core.event_log checkpoint
+  <log>`) writes a small sidecar `{schema_version, count, head_hash}` — itself HMAC-signable when
+  the log carries a secret. `validate_log(path, anchor=<sidecar>)` fails a truncated (fewer rows),
+  extended (more rows), or head-rewritten ledger. The visible-handoff example commits an anchor
+  beside every sample ledger, and CI regenerates them byte-for-byte AND proves a truncated ledger
+  is rejected against its anchor.
+
+Two honest limits on the anchor:
+
+1. The **committed sample anchors are unsigned** — a demonstration of the mechanism. An unsigned,
+   co-located sidecar is only a real control when the attacker cannot also rewrite it: store it on
+   separate/WORM media, or HMAC-sign it (pass a `secret`).
+2. Even a **signed anchor must be the latest one.** Verifying a truncated ledger against an *older*
+   but genuinely-signed anchor (rolled back to that earlier `count`/`head`) passes on the anchor checks
+   alone — because that is a genuine earlier state, indistinguishable from it having been the real one.
+   Defending against anchor **rollback** requires a trusted, monotonic record of how tall the ledger has
+   already grown — the append-only WORM / KMS property. The reference makes that requirement **explicit and
+   enforceable**: pass the last-known height as `validate_log(path, anchor=<sidecar>, min_count=N)` (CLI:
+   `--min-count N`) and an anchor shorter than `N` is rejected as a rollback/replay, *even when its HMAC is
+   valid*. `N` comes from the same monotonic store that holds the checkpoint; without it, anchor freshness is
+   trusted, so always verify against the current, highest-count anchor. A truncation test that exercises the
+   `min_count` rollback guard is in [`core/tests/test_event_log.py`](../core/tests/test_event_log.py).
+
+**Production** stores that anchor as a KMS-signed checkpoint on WORM / append-only media; the
+mechanism here is the reference shape of exactly that control, and that append-only storage is what
+closes both limits above.
 
 ## Scale
 

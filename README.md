@@ -52,7 +52,16 @@ transcript, ledger, and evals:
 
 - **A tamper-evident decision ledger** ([`core/event_log.py`](core/event_log.py)) — a
   hash-chained, replayable JSONL ledger that detects edits, gaps, duplicates, out-of-order or
-  **forged** approvals, and **decision laundering** (an action with no genuine approval).
+  **forged** approvals, and **decision laundering** (an action with no genuine approval). The forward
+  chain cannot, on its own, catch **suffix truncation** (dropping the last N rows leaves a consistent
+  prefix), so the ledger also takes a **head-count anchor** — `validate_log(..., anchor=…)` fails a
+  truncated (or extended, or head-rewritten) ledger; CI proves a truncated sample is rejected. An anchor
+  is only a real control when the attacker can't rewrite it too: store it on separate/WORM media, or
+  HMAC-sign it (pass a `secret`). A rolled-back *older* signed anchor would still rubber-stamp a truncation,
+  so freshness is enforced explicitly: `validate_log(..., anchor=…, min_count=N)` (CLI `--min-count N`)
+  rejects any anchor shorter than the last-known height `N` — the one attack a lone signature can't catch.
+  The committed sample anchors are **unsigned** demonstrations; production would sign/anchor them to a KMS
+  checkpoint on WORM media and feed `min_count` from that monotonic store.
 - **Approval registry** ([`core/approval_registry.py`](core/approval_registry.py)) — role-scoped, satisfied by
   a *pool*: any one entitled HR human can approve, so PTO/illness never blocks a decision.
   Entitlement is re-derived on replay; the logged flag is never trusted.
@@ -185,9 +194,13 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   shows how the **ISS quantitative pay-for-performance screen** would likely read the subject: the overall
   Low/Medium/High concern, the three measures (**MOM / RDA / PTA**) against ISS's *published* non-S&P-500
   thresholds and weighted-least-squares mechanics, the ISS-derived comparison group (and its overlap with
-  the committee's own peer group), and the FPA modifier. It models the proxy-advisor screen a committee
-  must navigate, on transparent public methodology over synthetic Acme data — anticipating the board read,
-  never deciding pay, and never claiming to be ISS's actual output.
+  the committee's own peer group), and the FPA modifier. The screen is **parameterized by policy year**
+  (`ISS_POLICIES`, default **2026**) so it tracks live ISS policy and keeps the prior season for a legible
+  before/after: the dashboard stamps the season and the concrete **2026 delta** (RDA 3yr→5yr, MOM now a
+  50/50 blend of 1yr and 3yr, refreshed thresholds), and every gauge threshold is read from the engine's
+  bands — never hard-coded. It models the proxy-advisor screen a committee must navigate, on transparent
+  public methodology over synthetic Acme data — anticipating the board read, never deciding pay, and never
+  claiming to be ISS's actual output.
 - **[Equity Spend & Burn](examples/equity-spend/)** — the board equity deliverable a VP of Total Rewards
   presents each quarter, computed over a **company-wide grant ledger**: SBC as a share of revenue, gross/net
   burn and an **illustrative reconstruction of the current ISS Equity-Plan-Scorecard Value-Adjusted Burn
@@ -196,6 +209,24 @@ relative-TSR PSU tracking, and human-owned committee decisions.
   lands), the locked-in SBC backlog, and where the equity goes — executives through broad-based staff.
   Benchmarks, the Plan-Cost overhang proxy, and the VABR price input are illustrative, never claimed as advisor output; the
   plan-feature tests are scored exactly from the plan.
+- **[Pay Equity & EU Pay Transparency](examples/pay-equity/)** — the two numbers a Total-Rewards leader must
+  defend to the board and file under the **EU Pay Transparency Directive (2023/970)**: the **raw** pay gap
+  (mean and median, as the Directive requires) and the **adjusted, like-for-like** gap that survives once job
+  level, family, country, tenure, rating and management are held equal — the latter as a forest plot of point
+  estimate **+ 95% CI** over the raw gap, from a dependency-free OLS. It then runs the Directive's **5%
+  joint-pay-assessment screen** per category of workers. On synthetic Acme a 3.1% raw median gender gap falls
+  to a non-significant +0.4% adjusted, while the EU screen still flags one senior level over 5%. Protected
+  classes are pseudonymised, pay is base only, controls are observable only — a surviving gap is a flag for a
+  privileged equal-pay review, not a legal finding. Provenance:
+  [`governance/pay-equity-methodology.md`](governance/pay-equity-methodology.md).
+- **[SBC Expense Forecast](examples/sbc-forecasting/)** — the forward **stock-based-compensation forecast** a
+  Total-Rewards leader takes into the CFO guidance conversation. From the same grant ledger it projects the
+  **locked-in SBC runoff** — the amortization of grants already made, rolling off by fiscal year — which ties
+  **to the cent** to the equity-spend arm's unamortized-SBC backlog (same amortization, split by year). It then
+  layers an **illustrative** steady-state new-grant run-rate and estimated forfeiture rate for a total go-forward
+  run-rate. On synthetic Acme, $179.8M rolls off from $85.9M in FY2026 to near zero by FY2029; the locked-in
+  runoff is assumption-free, everything forward is labeled illustrative — never guidance. Provenance:
+  [`governance/sbc-forecast-methodology.md`](governance/sbc-forecast-methodology.md).
 - **[ISS vs Glass Lewis — Say-on-Pay War Room](examples/glass-lewis-screen/)** — the two-proxy-advisor view a
   committee needs before the vote: an illustrative reconstruction of **Glass Lewis's current (2026)
   pay-for-performance scorecard** — a 0–100 composite across five quantitative tests (granted CEO/NEO pay vs
