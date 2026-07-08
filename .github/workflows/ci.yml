@@ -138,6 +138,7 @@ jobs:
             examples/people-ops-reporting/output/report.sample.html examples/people-ops-reporting/output/day1-digest.sample.md \
             examples/operating-review/output/report.sample.html examples/operating-review/output/day1-digest.sample.md \
             examples/operating-review/output/decision.sample.events.jsonl \
+            examples/operating-review/output/decision.sample.events.jsonl.anchor.json \
             examples/people-intelligence/output/report.sample.html examples/people-intelligence/output/day1-digest.sample.md \
             || (echo "::error::an Analytics-arm dashboard/ledger is stale — run the agents and commit" && exit 1)
 
@@ -213,10 +214,17 @@ jobs:
           git diff --exit-code -- output/report.sample.html output/committee-digest.sample.md \
             || (echo "::error::retention-risk output is stale — run examples/retention-risk/run.py and commit" && exit 1)
 
-      - name: Operating-review decision ledger validates (registry-backed)
+      - name: Operating-review decision ledger validates (registry + anchor) and rejects truncation
         run: |
           python3 -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
-            --registry examples/visible-handoff/approval_registry.json
+            --registry examples/visible-handoff/approval_registry.json \
+            --anchor examples/operating-review/output/decision.sample.events.jsonl.anchor.json
+          # negative control: a truncated ledger MUST fail against its committed anchor (drop the last row
+          # portably — GNU `head -n -1` differs on BSD, so use sed)
+          sed '$d' examples/operating-review/output/decision.sample.events.jsonl > /tmp/or_trunc.jsonl && \
+            ! python3 -m core.event_log validate /tmp/or_trunc.jsonl \
+              --anchor examples/operating-review/output/decision.sample.events.jsonl.anchor.json \
+            || (echo "::error::operating-review truncation defense did not trip" && exit 1)
 
       - name: TA reporting eval + dashboard in sync
         working-directory: examples/ta-reporting

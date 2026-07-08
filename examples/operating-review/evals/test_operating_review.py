@@ -67,6 +67,16 @@ try:
     ok(_types() == ["recommendation", "approval", "action"], "approved ledger is rec -> approval -> action")
     ok(run.publish_decision("hr.business-partner", lambda: None)[2] == [],
        "ledger re-verifies (deterministic, registry-backed)")
+    # the decision ledger ships with a head-count anchor: a suffix-truncated copy fails against it (the same
+    # defense visible-handoff ships — a 'ledger-backed governance' example must not be truncatable in silence)
+    from core.event_log import validate_log as _vl
+    _al = run.LEDGER.with_suffix(run.LEDGER.suffix + ".anchor.json")
+    ok(_al.exists(), "an approved publish writes the ledger's head-count anchor sidecar")
+    ok(_vl(run.LEDGER, anchor=str(_al)) == [], "the full ledger validates against its committed anchor")
+    _tl = run.LEDGER.with_name("truncated.events.jsonl")
+    _tl.write_text("\n".join(run.LEDGER.read_text().strip().splitlines()[:-1]) + "\n", encoding="utf-8")
+    ok(any("truncat" in v.lower() or "MISMATCH" in v for v in _vl(_tl, anchor=str(_al))),
+       "a suffix-truncated decision ledger is CAUGHT by the committed anchor")
 
     # HIGH-2: the published 'action' is recorded ONLY after the write succeeds. A failing write must
     # leave a truthful rec+approval trail with NO published action (the ledger can never lie).
