@@ -272,6 +272,8 @@ for fld, bad in [("allowlist_features", m["allowlist_features"][:-1]), ("decoy_f
     raises(R.ManifestError, lambda f=fld, b=bad: R.validate_manifest({**m, f: b}), f"manifest {fld} drift rejected")
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "panel_rows": 0}), "non-positive panel_rows rejected")
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "increment": True}), "bool increment rejected")
+raises(R.ManifestError, lambda: R.validate_manifest({**m, "training_window": {**m["training_window"], "l2": -1.0}}),
+       "manifest with a negative ridge (training_window.l2 < 0) rejected at the manifest gate")
 # scaffold/trained cross-field consistency (the committed manifest is TRAINED at Increment 2)
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "status": "scaffold"}), "trained manifest mislabeled scaffold rejected")
 raises(R.ManifestError, lambda: R.validate_manifest({**m, "primary_coefficients": {}}), "trained manifest with empty results rejected")
@@ -419,6 +421,8 @@ raises(R.ModelError, lambda: R.calibrated_probability(model, {"a": 1.0}, design[
        "a calibration missing param b is rejected")
 # round-8 (P1-2): the artifact-CREATION APIs reject iters<1 and caller-forged (non-canonical) slices
 raises(R.ModelError, lambda: R.fit_hazard(design, slices, iters=0), "fit_hazard rejects iters=0")
+raises(R.ModelError, lambda: R.fit_hazard(design, slices, l2=-1.0), "fit_hazard rejects a negative ridge (l2<0)")
+raises(R.ModelError, lambda: R.fit_hazard(design, slices, l2=float("inf")), "fit_hazard rejects a non-finite ridge")
 _forged = {"train": slices["test"], "calibration": slices["calibration"], "test": slices["train"]}
 raises(R.ModelError, lambda: R.fit_hazard(design, _forged), "fit_hazard rejects forged (non-canonical) slices — no train-on-test leakage")
 raises(R.ModelError, lambda: R.platt_calibrate(model, design, slices["calibration"], iters=0), "platt_calibrate rejects iters=0")

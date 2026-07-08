@@ -433,6 +433,8 @@ def fit_hazard(design, slices=None, l2=L2_LAMBDA, iters=IRLS_ITERS):
     {intercept, coef{feature->weight (standardized units)}, mean, std, feature_names, pos_weight}."""
     if not (isinstance(iters, int) and not isinstance(iters, bool) and iters >= 1):
         raise ModelError(f"iters must be a positive int (got {iters!r})")
+    if not (_finite_num(l2) and l2 >= 0):        # a negative/non-finite ridge is nonsense — fail closed at entry
+        raise ModelError(f"l2 (ridge penalty) must be a finite non-negative number (got {l2!r})")
     X, y, names = design["X"], design["y"], design["feature_names"]
     sl = slices or temporal_slices(design)
     # the artifact-creation path must fit on the CANONICAL train slice — a caller-forged slice (e.g. the test
@@ -1519,11 +1521,11 @@ def _validate_trained_shape(m: dict) -> None:
               "irls_iters", "n_train", "n_calibration", "n_test"):
         if not (isinstance(tw.get(k), int) and not isinstance(tw[k], bool) and tw[k] >= 0):
             raise ManifestError(f"training_window.{k} must be a non-negative int")
-    if not _finite_num(tw.get("l2")) or not (isinstance(tw.get("horizons_months"), list)
-                                             and tw["horizons_months"]
-                                             and all(isinstance(h, int) and not isinstance(h, bool) and h > 0
-                                                     for h in tw["horizons_months"])):
-        raise ManifestError("training_window.l2 / horizons_months are malformed")
+    if not (_finite_num(tw.get("l2")) and tw.get("l2") >= 0) \
+            or not (isinstance(tw.get("horizons_months"), list) and tw["horizons_months"]
+                    and all(isinstance(h, int) and not isinstance(h, bool) and h > 0
+                            for h in tw["horizons_months"])):
+        raise ManifestError("training_window.l2 (finite, >= 0) / horizons_months are malformed")
     rb = m.get("risk_band_thresholds")
     if not isinstance(rb, dict) or set(rb) != {"elevated", "high"} \
             or not _finite_num(rb.get("elevated")) or not _finite_num(rb.get("high")):
