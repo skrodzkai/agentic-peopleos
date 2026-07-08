@@ -132,11 +132,15 @@ Two honest limits on the anchor:
    co-located sidecar is only a real control when the attacker cannot also rewrite it: store it on
    separate/WORM media, or HMAC-sign it (pass a `secret`).
 2. Even a **signed anchor must be the latest one.** Verifying a truncated ledger against an *older*
-   but genuinely-signed anchor (rolled back to that earlier `count`/`head`) passes — because that is
-   a genuine earlier state, indistinguishable from it having been the real one. Defending against
-   anchor **rollback** requires monotonic anchor storage: a checkpoint sequence that can only advance,
-   which is exactly the append-only WORM / KMS property. Always verify against the current,
-   highest-count anchor.
+   but genuinely-signed anchor (rolled back to that earlier `count`/`head`) passes on the anchor checks
+   alone — because that is a genuine earlier state, indistinguishable from it having been the real one.
+   Defending against anchor **rollback** requires a trusted, monotonic record of how tall the ledger has
+   already grown — the append-only WORM / KMS property. The reference makes that requirement **explicit and
+   enforceable**: pass the last-known height as `validate_log(path, anchor=<sidecar>, min_count=N)` (CLI:
+   `--min-count N`) and an anchor shorter than `N` is rejected as a rollback/replay, *even when its HMAC is
+   valid*. `N` comes from the same monotonic store that holds the checkpoint; without it, anchor freshness is
+   trusted, so always verify against the current, highest-count anchor. A truncation test that exercises the
+   `min_count` rollback guard is in [`core/tests/test_event_log.py`](../core/tests/test_event_log.py).
 
 **Production** stores that anchor as a KMS-signed checkpoint on WORM / append-only media; the
 mechanism here is the reference shape of exactly that control, and that append-only storage is what

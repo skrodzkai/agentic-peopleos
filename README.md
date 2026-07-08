@@ -57,10 +57,11 @@ transcript, ledger, and evals:
   prefix), so the ledger also takes a **head-count anchor** — `validate_log(..., anchor=…)` fails a
   truncated (or extended, or head-rewritten) ledger; CI proves a truncated sample is rejected. An anchor
   is only a real control when the attacker can't rewrite it too: store it on separate/WORM media, or
-  HMAC-sign it (pass a `secret`) — and verify against the *latest* anchor, since a rolled-back older
-  signed anchor rubber-stamps a truncation (both closed by append-only/monotonic anchor storage). The
-  committed sample anchors are **unsigned** demonstrations; production would sign/anchor them to a KMS
-  checkpoint on WORM media.
+  HMAC-sign it (pass a `secret`). A rolled-back *older* signed anchor would still rubber-stamp a truncation,
+  so freshness is enforced explicitly: `validate_log(..., anchor=…, min_count=N)` (CLI `--min-count N`)
+  rejects any anchor shorter than the last-known height `N` — the one attack a lone signature can't catch.
+  The committed sample anchors are **unsigned** demonstrations; production would sign/anchor them to a KMS
+  checkpoint on WORM media and feed `min_count` from that monotonic store.
 - **Approval registry** ([`core/approval_registry.py`](core/approval_registry.py)) — role-scoped, satisfied by
   a *pool*: any one entitled HR human can approve, so PTO/illness never blocks a decision.
   Entitlement is re-derived on replay; the logged flag is never trusted.

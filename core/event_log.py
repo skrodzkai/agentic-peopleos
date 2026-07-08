@@ -183,7 +183,7 @@ class EventLog:
 #  Validation / replay
 # ---------------------------------------------------------------------------
 
-def validate_log(path, registry=None, secret: bytes = None, anchor=None) -> list:
+def validate_log(path, registry=None, secret: bytes = None, anchor=None, min_count: int = None) -> list:
     """Replay a ledger and return violations ([] == valid).
 
     If `registry` (an ApprovalRegistry) is given, approvals are re-verified against it (the
@@ -192,6 +192,8 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None) -> list
     one), the ledger's length and head hash are checked against it — this is what detects SUFFIX
     TRUNCATION (deleting the last N rows), which the forward hash chain alone cannot: a truncated
     prefix is internally consistent, so nothing but an external head-count anchor catches it.
+    `min_count` (the last-known checkpoint height, from monotonic/WORM storage) additionally rejects
+    a stale anchor rolled back to hide later rows — the one attack a lone signed anchor cannot catch.
     """
     path = Path(path)
     if not path.exists():
@@ -371,7 +373,7 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None) -> list
         prev_hash = ev.get("event_hash")
 
     if anchor is not None:
-        violations.extend(verify_anchor(events, anchor, secret=secret))
+        violations.extend(verify_anchor(events, anchor, secret=secret, min_count=min_count))
 
     return violations
 
@@ -438,10 +440,18 @@ def _read_events(path: Path) -> list:
     return out
 
 
-def verify_anchor(events, anchor, secret: bytes = None) -> list:
+def verify_anchor(events, anchor, secret: bytes = None, min_count: int = None) -> list:
     """Return violations ([] == the ledger matches its anchor). `anchor` may be a dict or a path. Checks
     the anchor's own shape + (if a secret is given) its HMAC first, THEN that the ledger's length and head
-    hash equal the anchored ones — so a truncated (or extended, or head-rewritten) ledger is caught."""
+    hash equal the anchored ones — so a truncated (or extended, or head-rewritten) ledger is caught.
+
+    `min_count` closes the anchor-ROLLBACK gap that neither the hash chain nor an HMAC can: an attacker who
+    truncates the ledger AND rolls the sidecar back to a genuine *earlier* signed anchor (a real past state)
+    passes every other check. The only defense is a trusted, monotonic record of how tall the ledger has
+    already grown. Pass that last-known height as `min_count` (production reads it from the same WORM/KMS
+    store that holds the checkpoint) and an anchor shorter than it is rejected as a rollback/replay. Without
+    `min_count` the freshness of the anchor is trusted — which is why the docs still require latest/monotonic
+    anchor storage."""
     if isinstance(anchor, (str, Path)):
         p = Path(anchor)
         if not p.exists():
@@ -459,6 +469,11 @@ def verify_anchor(events, anchor, secret: bytes = None) -> list:
     if not (isinstance(anchor.get("head_hash"), str) and anchor["head_hash"]):
         return ["anchor head_hash must be a non-empty string"]
     problems = []
+    if min_count is not None and anchor["count"] < min_count:
+        # a genuine, correctly-signed anchor can still be a STALE one rolled back to hide later rows;
+        # the last-known height (from monotonic storage) is what exposes it. Signature valid, freshness not.
+        problems.append(f"ANCHOR ROLLBACK — anchor count {anchor['count']} is below the last-known checkpoint "
+                        f"height {min_count} (a stale/replayed anchor, even if correctly signed)")
     if secret is not None:
         want = _hmac(secret, canonical(_subset(anchor, _ANCHOR_HMAC_EXCLUDE)))
         if anchor.get("hmac") != want:
@@ -479,23 +494,32 @@ def verify_anchor(events, anchor, secret: bytes = None) -> list:
     return problems
 
 
-_USAGE = ("usage: python3 -m core.event_log validate <log.jsonl> [--registry registry.json] [--anchor anchor.json]\n"
+_USAGE = ("usage: python3 -m core.event_log validate <log.jsonl> [--registry registry.json] "
+          "[--anchor anchor.json] [--min-count N]\n"
           "       python3 -m core.event_log checkpoint <log.jsonl> [--anchor anchor.json]")
 
 
 def _main(argv) -> int:
-    reg_path, anchor_path, positional, i = None, None, [], 0
+    reg_path, anchor_path, min_count, positional, i = None, None, None, [], 0
     while i < len(argv):
         a = argv[i]
-        if a in ("--registry", "--anchor"):
+        if a in ("--registry", "--anchor", "--min-count"):
             if i + 1 >= len(argv) or argv[i + 1].startswith("--"):
                 # a flag with no value must NOT be silently dropped — that would disable the check it names
                 print(f"error: {a} requires a value\n{_USAGE}", file=sys.stderr)
                 return 2
             if a == "--registry":
                 reg_path = argv[i + 1]
-            else:
+            elif a == "--anchor":
                 anchor_path = argv[i + 1]
+            else:
+                try:
+                    min_count = int(argv[i + 1])
+                    if min_count < 0:
+                        raise ValueError("negative")
+                except ValueError:
+                    print(f"error: --min-count requires a non-negative integer\n{_USAGE}", file=sys.stderr)
+                    return 2
             i += 2
             continue
         if a.startswith("--"):
@@ -508,6 +532,12 @@ def _main(argv) -> int:
     args = positional
     if len(args) != 2 or args[0] not in ("validate", "checkpoint"):
         print(_USAGE, file=sys.stderr)
+        return 2
+
+    if min_count is not None and (args[0] == "checkpoint" or anchor_path is None):
+        # --min-count is a freshness check ON an anchor during validate; silently accepting it where it
+        # does nothing (checkpoint, or validate with no --anchor) would give a false sense of a rollback guard
+        print("error: --min-count applies only to `validate` with --anchor\n" + _USAGE, file=sys.stderr)
         return 2
 
     if args[0] == "checkpoint":
@@ -527,7 +557,7 @@ def _main(argv) -> int:
         except Exception as exc:  # missing/unparseable/invalid registry — fail closed, no traceback
             print(f"LEDGER INVALID — registry unavailable: {exc}", file=sys.stderr)
             return 1
-    violations = validate_log(args[1], registry=registry, anchor=anchor_path)
+    violations = validate_log(args[1], registry=registry, anchor=anchor_path, min_count=min_count)
     if violations:
         print(f"LEDGER INVALID — {len(violations)} violation(s):", file=sys.stderr)
         for v in violations:

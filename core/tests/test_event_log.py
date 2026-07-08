@@ -572,6 +572,37 @@ ok(not validate_log(pr, secret=b"k3", anchor=old_anchor),
 ok(any("truncated" in v.lower() for v in validate_log(pr, secret=b"k3", anchor=cur_anchor)),
    "the CURRENT (latest) signed anchor still catches the same truncation")
 
+# min_count CLOSES that rollback gap: given the last-known height (from monotonic/WORM storage), an OLDER
+# genuine anchor is rejected as stale even though its signature is valid and the truncated ledger matches it.
+ok(any("ROLLBACK" in v for v in validate_log(pr, secret=b"k3", anchor=old_anchor, min_count=4)),
+   "min_count rejects a rolled-back OLDER signed anchor (the freshness the signature can't provide)")
+ok(not validate_log(pr, secret=b"k3", anchor=old_anchor, min_count=3),
+   "min_count equal to the anchor's own height is not a rollback (no false positive at the known height)")
+ok(any("ROLLBACK" in v for v in verify_anchor(lr.events()[:3], old_anchor, secret=b"k3", min_count=4)),
+   "verify_anchor surfaces the rollback directly under min_count")
+# and min_count never masks a plain truncation caught by the head-count check
+_pf = fresh(); _lf = EventLog(_pf, secret=b"k3")
+for n in range(4):
+    _lf.append({"ts": "t", "actor": actor(id="agent.coordinator"), "channel": "c", "type": "fyi",
+                "case_ref": "A", "correlation_id": "A", "payload": {"n": n}})
+ok(not validate_log(_pf, secret=b"k3", anchor=compute_anchor(_lf.events(), secret=b"k3"), min_count=4),
+   "a fresh full ledger + current anchor + min_count passes clean")
+
+# the CLI wires --min-count: a rollback exits non-zero; the flag is refused where it would be a silent no-op
+_env0 = {**__import__("os").environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])}
+import subprocess as _sp0  # noqa: E402
+_ap = write_anchor(_pf)                                   # unsigned current anchor (count 4) on disk
+_rc = _sp0.run([sys.executable, "-m", "core.event_log", "validate", str(_pf), "--anchor", str(_ap),
+                "--min-count", "5"], capture_output=True, text=True, env=_env0)
+ok(_rc.returncode == 1 and "ROLLBACK" in _rc.stderr, "CLI --min-count above the anchor height reports a rollback (rc 1)")
+_rc = _sp0.run([sys.executable, "-m", "core.event_log", "validate", str(_pf), "--min-count", "4"],
+               capture_output=True, text=True, env=_env0)
+ok(_rc.returncode == 2, "CLI refuses --min-count without --anchor (no false rollback guard)")
+for _bad in ("abc", "-3"):
+    _rc = _sp0.run([sys.executable, "-m", "core.event_log", "validate", str(_pf), "--anchor", str(_ap),
+                    "--min-count", _bad], capture_output=True, text=True, env=_env0)
+    ok(_rc.returncode == 2, f"CLI rejects a non-natural --min-count value ({_bad})")
+
 # the CLI rejects an unknown flag (a typo'd --anhor must not silently skip the anchor check)
 import subprocess as _sp, os as _os  # noqa: E402
 _env = {**_os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])}

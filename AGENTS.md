@@ -93,6 +93,8 @@ python3 -m core.event_log validate examples/visible-handoff/output/denied.events
 sed '$d' examples/visible-handoff/output/events.jsonl > /tmp/truncated.jsonl && \
   ! python3 -m core.event_log validate /tmp/truncated.jsonl \
     --anchor examples/visible-handoff/output/events.jsonl.anchor.json
+# a rolled-back OLDER (but validly-signed) anchor is caught by supplying the last-known height:
+#   validate <log> --anchor <older-anchor.json> --min-count <current-height>   # -> ANCHOR ROLLBACK, rc 1
 python3 tools/vault_lint.py vault
 ```
 
