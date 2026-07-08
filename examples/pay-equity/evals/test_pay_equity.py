@@ -35,7 +35,7 @@ h = result["headline"]
 ok(f"{h['unadjusted_median_gap_pct']:.1f}%" in html, "the raw median gap headline number renders")
 ok("pay-equity" in digest.lower() or "Pay-equity" in digest, "the digest names the arm")
 # the EU trigger surfaced by the engine is reflected in the render
-if report["eu"]["joint_assessment_required"]:
+if report["eu"]["potential_joint_assessment"]:
     ok("assessment" in html.lower() and "Indicated" in html, "a triggered joint assessment is shown (as a screen flag)")
 
 # -- honest labeling --
@@ -72,7 +72,7 @@ def _flip_eu_flag(r):
 
 def _flip_joint(r):
     eu = next(d for d in r["dimensions"] if d["key"] == "gender_group")["eu_pay_transparency"]
-    eu["joint_assessment_required"] = not eu["joint_assessment_required"]
+    eu["potential_joint_assessment"] = not eu["potential_joint_assessment"]
 
 
 def _nan_eu(r):

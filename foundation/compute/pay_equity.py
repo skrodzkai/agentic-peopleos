@@ -113,7 +113,7 @@ def _load_population(data_dir):
     # IS in scope — an employed employee with a recorded protected class — but carries malformed pay or a
     # malformed control is a DATA DEFECT, not a scope decision, and fails closed (it must never silently
     # shrink the analyzed population).
-    kept, excluded = [], {"not_employee": 0, "not_employed_status": 0, "missing_protected_class": 0}
+    kept, excluded = [], {"not_employee": 0, "not_employed_status": 0, "missing_all_protected_class": 0}
     for r in raw:
         if r["worker_type"] != "employee":
             excluded["not_employee"] += 1
@@ -121,9 +121,9 @@ def _load_population(data_dir):
         if r["status"] not in INCLUDED_STATUSES:
             excluded["not_employed_status"] += 1
             continue
-        if not r["gender_group"] or not r["ethnicity_group"]:
-            excluded["missing_protected_class"] += 1
-            continue
+        # Validate pay + controls FIRST, for EVERY in-scope employee — a malformed value here is a data defect
+        # that must fail closed whether or not the row also happens to be missing a protected-class label
+        # (never let a bad salary hide behind a "missing class" exclusion).
         ctx = f"workers.csv {r['emp_id']}"
         base = _num(r["base_salary"], f"{ctx} base_salary", positive=True)
         std_ft = _num(r["standard_full_time_hours"], f"{ctx} standard_full_time_hours", positive=True)
@@ -144,8 +144,15 @@ def _load_population(data_dir):
         tenure_years = (AS_OF - hire).days / 365.25
         if tenure_years < 0:
             raise PayEquityDataError(f"{ctx}: hire_date {hire} is after the as-of date {AS_OF}")
+        # Protected class is PER-LENS: an employee with a gender feeds the gender (+ EU) lens; one with an
+        # ethnicity feeds the ethnicity lens. Only an employee missing BOTH has no lens and is out of scope.
+        gender = r["gender_group"].strip() or None
+        ethnicity = r["ethnicity_group"].strip() or None
+        if gender is None and ethnicity is None:
+            excluded["missing_all_protected_class"] += 1
+            continue
         kept.append({
-            "emp_id": r["emp_id"], "gender_group": r["gender_group"], "ethnicity_group": r["ethnicity_group"],
+            "emp_id": r["emp_id"], "gender_group": gender, "ethnicity_group": ethnicity,
             "level": r["level"], "job_family": r["job_family"], "location": r["location"],
             "rating": r["rating"], "is_people_manager": 1.0 if r["is_people_manager"] == "yes" else 0.0,
             "tenure_years": tenure_years,
@@ -306,7 +313,9 @@ def _eu_assessment(pop, key):
     return {"category_dimension": "job_level", "threshold_pct": _EU_THRESHOLD_PCT,
             "categories": categories, "n_categories": len(categories),
             "n_flagged": n_flagged, "n_median_watch": n_median_watch,
-            "joint_assessment_required": n_flagged > 0}
+            # a SCREEN flag, not a legal determination: Article 10 also depends on objective-factor
+            # justification and a six-month remediation window, which this data does not model.
+            "potential_joint_assessment": n_flagged > 0}
 
 
 # ---------------------------------------------------------------- public entrypoint
@@ -320,12 +329,22 @@ def compute(data_dir=None):
     dimensions = []
     for d in _DIMENSIONS:
         key = d["key"]
-        unadj = _unadjusted(pop, key)
-        adj = _adjusted(pop, key, unadj["reference_group"])
+        # PER-LENS population: only employees who carry THIS protected-class label. An employee missing (say)
+        # ethnicity still contributes to the gender lens, and vice-versa — a missing label narrows one lens,
+        # never the whole analysis. A lens with fewer than two groups is degenerate-but-valid (it just shows no
+        # gap); an EMPTY secondary lens is skipped, but an empty PRIMARY (gender) lens is a fail-closed error.
+        pop_d = [r for r in pop if r[key] is not None]
+        if not pop_d:
+            if key == "gender_group":
+                raise PayEquityDataError("no employee carries a gender-group label — cannot compute the "
+                                         "primary lens or the EU screen")
+            continue
+        unadj = _unadjusted(pop_d, key)
+        adj = _adjusted(pop_d, key, unadj["reference_group"])
         entry = {"key": key, "label": d["label"], "note": d["note"], "eu_scope": d["eu_scope"],
-                 "unadjusted": unadj, "adjusted": adj}
+                 "n_in_lens": len(pop_d), "unadjusted": unadj, "adjusted": adj}
         if d["eu_scope"]:
-            entry["eu_pay_transparency"] = _eu_assessment(pop, key)
+            entry["eu_pay_transparency"] = _eu_assessment(pop_d, key)
         dimensions.append(entry)
 
     # a headline for the primary (gender) lens: the raw vs the like-for-like gap, side by side
@@ -340,16 +359,20 @@ def compute(data_dir=None):
         "unadjusted_mean_gap_pct": lagging[0]["mean_gap_pct"] if lagging else None,
         "adjusted_gap_pct": prim_adj["adjusted_gap_pct"] if prim_adj else None,
         "adjusted_significant": prim_adj["significant"] if prim_adj else None,
-        "eu_joint_assessment_required": primary["eu_pay_transparency"]["joint_assessment_required"],
+        "eu_potential_joint_assessment": primary["eu_pay_transparency"]["potential_joint_assessment"],
         "eu_flagged_categories": primary["eu_pay_transparency"]["n_flagged"],
     }
 
     return {
         "company": "Acme Corp (ACMQ)", "as_of": AS_OF.isoformat(),
         "population": {"n_analyzed": n, "excluded": excluded,
-                       "note": "Employees in active/on-leave status with a recorded protected-class group, "
-                               "positive FTE base pay, and the controls the adjusted model needs. Contractors, "
-                               "terminated workers, and records missing a control are out of scope."},
+                       "note": "Employees in active/on-leave status carrying at least one protected-class "
+                               "label, with positive FTE base pay and the controls the adjusted model needs. "
+                               "Each lens uses only the employees who carry ITS label (see n_in_lens per "
+                               "dimension). Contractors and terminated workers are out of scope; a malformed "
+                               "pay/control value on an in-scope employee fails closed.",
+                       "reference_denominator": "gaps are vs the highest-paid PSEUDONYMISED group (A/B, "
+                               "grp1-3); the tool never maps a label to a real statutory class"},
         "pay_measure": "FTE hourly = FTE-annual base salary / standard full-time hours (base only; "
                        "no bonus/equity/benefits)",
         "headline": headline,

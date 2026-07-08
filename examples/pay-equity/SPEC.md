@@ -27,7 +27,7 @@ protected-class group, and the job-related controls). No other input; no externa
 - Every adjusted-gap statistic is finite and its 95% CI brackets the point estimate.
 - Each dimension's group counts partition the analyzed population; R² ∈ [0,1].
 - Each EU category's `exceeds_threshold` flag equals `mean_gap_pct >= 5%` (Article 10 is "at least 5%"); the
-  `joint_assessment_required` flag equals `n_flagged > 0` and is a **screen flag** (before objective-factor
+  `potential_joint_assessment` flag equals `n_flagged > 0` and is a **screen flag** (before objective-factor
   justification), never a legal determination.
 - Publish requires a named approver matching a strict charset; a control-char approver is refused (rc 2).
 - Two runs are byte-identical (determinism); a failed/refused run stales any prior published output.

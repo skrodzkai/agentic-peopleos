@@ -76,8 +76,8 @@ def build_report(result):
     # every group's counts must partition the population; every RENDERED number must be finite (a NaN/Inf must
     # fail closed, never reach the page); every CI must bracket its point estimate.
     for d in result["dimensions"]:
-        if sum(g["n"] for g in d["unadjusted"]["groups"]) != n:
-            raise ReportError(f"{d['key']}: group counts do not partition the analyzed population")
+        if sum(g["n"] for g in d["unadjusted"]["groups"]) != d["n_in_lens"]:
+            raise ReportError(f"{d['key']}: group counts do not partition this lens's population")
         for g in d["unadjusted"]["groups"]:
             if not _finite(g["mean_gap_pct"], g["median_gap_pct"], g["mean_hourly"], g["median_hourly"]):
                 raise ReportError(f"{d['key']}: non-finite raw-gap statistics for {g['group']}")
@@ -98,7 +98,7 @@ def build_report(result):
             raise ReportError(f"EU category {c['category']}: non-finite gap statistics")
         if c["exceeds_threshold"] != (c["mean_gap_pct"] >= eu["threshold_pct"]):
             raise ReportError(f"EU category {c['category']}: flag inconsistent with its mean gap vs threshold")
-    if eu["joint_assessment_required"] != (eu["n_flagged"] > 0):
+    if eu["potential_joint_assessment"] != (eu["n_flagged"] > 0):
         raise ReportError("EU joint-assessment flag inconsistent with the flagged-category count")
     # the RENDERED counters + threshold + model n must be sound too — a forged inf/wrong count would otherwise
     # reach the page. Validate them and cross-check the counts against the category list.
@@ -126,8 +126,8 @@ def build_report(result):
          "tone": "bad" if h["adjusted_significant"] else "good"},
         {"value": f"{eu['n_flagged']}", "label": f"EU categories ≥ 5% (of {eu['n_categories']})",
          "tone": "bad" if eu["n_flagged"] else "good"},
-        {"value": "Indicated" if eu["joint_assessment_required"] else "None",
-         "label": "EU joint assessment (screen)", "tone": "bad" if eu["joint_assessment_required"] else "good"},
+        {"value": "Indicated" if eu["potential_joint_assessment"] else "None",
+         "label": "EU joint assessment (screen)", "tone": "bad" if eu["potential_joint_assessment"] else "good"},
         {"value": f"{n:,}", "label": "Employees analyzed"},
     ]
     return {"r": result, "gender": gender, "eu": eu, "cards": cards, "narrative": _narrative(result, gender, eu)}
@@ -143,7 +143,7 @@ def _narrative(result, gender, eu):
         f"{h['adjusted_gap_pct']:+.1f}% — {sig}. Most of the raw gap is workforce COMPOSITION, not unequal pay "
         f"for equal work.",
     ]
-    if eu["joint_assessment_required"]:
+    if eu["potential_joint_assessment"]:
         flagged = [c["category"] for c in eu["categories"] if c.get("exceeds_threshold")]
         parts.append(f"But the EU Pay Transparency 5% screen flags {eu['n_flagged']} category "
                      f"({', '.join(flagged)}): the screen indicates a potential joint-pay-assessment obligation "
@@ -261,7 +261,7 @@ def render_digest(report):
              f"Adjusted (like-for-like): **{h['adjusted_gap_pct']:+.1f}%** "
              f"({'significant' if h['adjusted_significant'] else 'not significant'}, "
              f"R²={gender['adjusted']['r2']:.2f}, n={gender['adjusted']['n']})."]
-    if eu["joint_assessment_required"]:
+    if eu["potential_joint_assessment"]:
         flagged = ", ".join(c["category"] for c in eu["categories"] if c.get("exceeds_threshold"))
         lines.append(f"- **EU 5% screen flags** {eu['n_flagged']} category ({flagged}) — the screen indicates a "
                      f"potential joint-pay-assessment obligation, pending objective-factor justification / legal "

@@ -74,12 +74,12 @@ _ref = next(g for g in _u["groups"] if g["is_reference"])
 ok(_ref["mean_gap_pct"] == 0.0 and _ref["median_gap_pct"] == 0.0, "the reference group's gap vs itself is 0")
 _b = next(g for g in _u["groups"] if g["group"] == "B")
 ok(_b["median_gap_pct"] > 0 and _b["mean_gap_pct"] > 0, "the non-reference group shows a positive (behind) raw gap")
-ok(sum(g["n"] for g in _u["groups"]) == r["population"]["n_analyzed"], "the group counts partition the population")
+ok(sum(g["n"] for g in _u["groups"]) == _gender["n_in_lens"], "the group counts partition the population")
 
 # ---- adjusted: the like-for-like residual is far below the raw gap, with a CI that brackets it ------
 _a = _gender["adjusted"]
 _ab = _a["groups"][0]
-ok(_a["n"] == r["population"]["n_analyzed"], "the regression uses the full analyzed population")
+ok(_a["n"] == _gender["n_in_lens"], "the regression uses the full analyzed population")
 ok(0.0 <= _a["r2"] <= 1.0 and _a["r2"] > 0.5, "the pay model explains a majority of variance (level/role/geo)")
 ok(_ab["ci_lo_pct"] <= _ab["adjusted_gap_pct"] <= _ab["ci_hi_pct"], "the adjusted CI brackets the point estimate")
 ok(abs(_ab["adjusted_gap_pct"]) < _b["median_gap_pct"],
@@ -106,7 +106,7 @@ ok(all(c["exceeds_threshold"] == (c["mean_gap_pct"] >= 5.0) for c in _assess),
    "a category is flagged iff its MEAN gap is at least 5% (Article 10 >= trigger)")
 _l7 = next(c for c in _eu["categories"] if c["category"] == "L7")
 ok(_l7["exceeds_threshold"] is True and _l7["mean_gap_pct"] > 5.0, "L7 crosses the 5% mean trigger")
-ok(_eu["joint_assessment_required"] is True and _eu["n_flagged"] >= 1,
+ok(_eu["potential_joint_assessment"] is True and _eu["n_flagged"] >= 1,
    "a flagged category makes a joint pay assessment required")
 ok(_l7["advantaged_group"] != _l7["disadvantaged_group"], "the flagged category names distinct advantaged/disadvantaged groups")
 
@@ -114,7 +114,7 @@ ok(_l7["advantaged_group"] != _l7["disadvantaged_group"], "the flagged category 
 _h = r["headline"]
 ok(_h["adjusted_gap_pct"] == _ab["adjusted_gap_pct"] and _h["unadjusted_median_gap_pct"] == _b["median_gap_pct"],
    "the headline numbers are exactly the primary-lens detail (no separate re-computation)")
-ok(_h["eu_joint_assessment_required"] is True, "the headline surfaces the EU trigger")
+ok(_h["eu_potential_joint_assessment"] is True, "the headline surfaces the EU trigger")
 
 # ---- determinism -----------------------------------------------------------------------------------
 ok(PE.compute() == r, "compute() is deterministic (same committed data -> identical result)")
@@ -136,10 +136,27 @@ _one = PE.compute(_tmp_with(lambda h, rows: (h, [_set(h, r, "gender_group", "A")
 _g1 = next(d for d in _one["dimensions"] if d["key"] == "gender_group")
 ok(len(_g1["unadjusted"]["groups"]) == 1 and _g1["adjusted"]["groups"] == [],
    "a single-group dimension yields no comparison groups (degenerate, not an error)")
-ok(_g1["eu_pay_transparency"]["joint_assessment_required"] is False,
+ok(_g1["eu_pay_transparency"]["potential_joint_assessment"] is False,
    "with one group present, no category is assessable and no assessment triggers")
+
+# PER-LENS protected class: a missing ETHNICITY label only drops the ethnicity lens — the employees still
+# count in the gender (+ EU) lens. (A missing label narrows one lens, never the whole analysis.)
+_no_eth = PE.compute(_tmp_with(lambda h, rows: (h, [_set(h, r, "ethnicity_group", "") for r in rows if r])))
+ok([d["key"] for d in _no_eth["dimensions"]] == ["gender_group"],
+   "every-ethnicity-blank skips the ethnicity lens but keeps the gender lens")
+ok(_no_eth["population"]["n_analyzed"] == 2023 and _no_eth["dimensions"][0]["n_in_lens"] == 2023,
+   "those employees remain in scope (and in the gender lens) via their gender label")
+ok(_no_eth["population"]["excluded"]["missing_all_protected_class"] == 0,
+   "an employee is only excluded when it is missing BOTH protected-class labels")
+
+# a malformed pay/control FAILS CLOSED even on a row ALSO missing its protected class — pay is validated
+# FIRST, so a bad salary can never hide behind a "missing class" exclusion
+raises(lambda: PE.compute(_tmp_with(lambda h, rows: (h, [
+        _set(h, _set(h, _set(h, r, "base_salary", "oops"), "gender_group", ""), "ethnicity_group", "")
+        for r in rows if r]))),
+       "a malformed salary fails closed even when the row is also missing both protected-class labels")
 
 print(f"OK — {passed} pay-equity checks passed "
       f"(n={r['population']['n_analyzed']}; gender raw median gap {_b['median_gap_pct']:.2f}% -> adjusted "
       f"{_ab['adjusted_gap_pct']:.2f}% (n.s.); EU flagged {_eu['n_flagged']} category, joint assessment "
-      f"{'required' if _eu['joint_assessment_required'] else 'not required'}).")
+      f"{'required' if _eu['potential_joint_assessment'] else 'not required'}).")
