@@ -97,6 +97,36 @@ ok(run.render_digest(run.build_report(ISSUniverse(), PeerUniverse())) == digest,
 # the overlap is optional: with no peer universe, the screen still renders standalone
 ok("Medium" in run.render_html(run.build_report(ISSUniverse(), None)), "renders standalone if the peer arm is absent")
 
+# ---- build-time validation gate: a self-inconsistent engine result is refused before it can render ----
+import copy  # noqa: E402
+
+
+def _refused(mut, why):
+    global passed
+    r = copy.deepcopy(screen)
+    mut(r)
+    try:
+        run.validate_iss_result(r, 2026)
+        assert False, f"FAILED (no raise): validate_iss_result rejects {why}"
+    except run.ReportError:
+        passed += 1
+
+
+ok(run.validate_iss_result(screen, 2026) is None, "the real committed screen passes validation")
+_refused(lambda r: r.update(concern="Severe"), "a concern outside the ISS Low/Medium/High vocab")
+_refused(lambda r: r["measures"]["mom"].update(value=float("nan")), "a non-finite MOM value")
+_refused(lambda r: r["measures"]["rda"].update(pay_pctile=140.0), "a pay percentile outside [0,100]")
+_refused(lambda r: r.update(triggers_qualitative=not r["triggers_qualitative"]),
+         "a qualitative-trigger flag inconsistent with the concern level")
+_refused(lambda r: r["policy"].update(delta_from_prior=None), "a 2026 render with no policy-delta provenance")
+_refused(lambda r: r["comparison_group"].update(group=[]), "an empty comparison group the group card would count")
+# the render year must equal the screened year — a 2026 result validated as a 2025 render is false provenance
+try:
+    run.validate_iss_result(copy.deepcopy(screen), 2025)  # committed result is a 2026 screen
+    assert False, "FAILED (no raise): validate_iss_result rejects a policy-year mismatch"
+except run.ReportError:
+    passed += 1
+
 # ---- injection / public-safety: no script, no per-person ids, no real ticker / employer leakage ----
 ok("<script" not in page, "no <script> in the dashboard")
 ok(not re.search(r"\bE-\d{4}\b", page) and not re.search(r"\bC-\d{4}\b", page), "no per-person ids appear")

@@ -36,9 +36,11 @@ ok("sbc" in digest.lower() and "forecast" in digest.lower(), "the digest names t
 
 # -- honest labeling --
 low = (html + digest).lower()
-for phrase in ("illustrative", "not financial guidance", "assumption-free", "reconciles to"):
+for phrase in ("illustrative", "not financial guidance", "reconciles to"):
     ok(phrase in low, f"the dashboard/digest states '{phrase}' (honest about certain vs assumed)")
 ok("synthetic" in low, "the artifacts label the data synthetic")
+ok("assumes continued service" in low or "assumes full vesting" in low,
+   "the dashboard/digest states the gross runoff's continued-service (full-vesting) assumption plainly")
 
 # -- no PII / injection --
 ok(not re.search(r"[\w.]+@[\w.]+\.[a-z]{2,}", html) and "SSN" not in html, "no email/SSN in the dashboard")

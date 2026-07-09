@@ -130,6 +130,43 @@ raises(lambda: PE.compute(_tmp_with(lambda h, rows: (h, [_set(h, r, "job_family"
        "a blank job_family on an in-scope employee fails closed (it is a regression control)")
 raises(lambda: PE.compute(_tmp_with(lambda h, rows: (h, [_set(h, r, "location", "") for r in rows]))),
        "a blank location on an in-scope employee fails closed (it is a regression control)")
+# PSEUDONYM ALLOWLIST: a REAL protected-class label must fail closed, never leak into a public artifact
+raises(lambda: PE.compute(_tmp_with(lambda h, rows: (h, [
+        _set(h, r, "gender_group", "Female") if r[h.index("worker_type")] == "employee"
+        and r[h.index("status")] in ("active", "on_leave") else r for r in rows]))),
+       "a real gender label ('Female') fails closed (pseudonym allowlist — no real-class leakage)")
+raises(lambda: PE.compute(_tmp_with(lambda h, rows: (h, [
+        _set(h, r, "ethnicity_group", "Hispanic") if r[h.index("worker_type")] == "employee"
+        and r[h.index("status")] in ("active", "on_leave") else r for r in rows]))),
+       "a real ethnicity label fails closed (pseudonym allowlist)")
+# DUPLICATE emp_id must fail closed (double-counting a person into a gap)
+raises(lambda: PE.compute(_tmp_with(lambda h, rows: (h, rows + [rows[0]]))),
+       "a duplicate emp_id row fails closed")
+# SMALL-CELL: the committed Acme cells are all above MIN_CELL_N, and the view records the threshold it used
+_small = PE.compute()
+_g_small = next(d for d in _small["dimensions"] if d["key"] == "gender_group")["unadjusted"]
+ok(all(not g.get("suppressed") for g in _g_small["groups"]),
+   "the full Acme cells are all above MIN_CELL_N (nothing suppressed in the committed run)")
+ok(_g_small.get("min_cell_n") == PE.MIN_CELL_N, "the unadjusted view records the small-cell threshold it used")
+
+# SMALL-CELL REFERENCE DIRECTION: a sub-MIN_CELL_N group that is the HIGHEST-paid must NOT become the
+# reference. Otherwise its <MIN_CELL_N pay aggregate is the denominator of every other group's gap and is
+# algebraically recoverable — the exact re-identification the floor exists to prevent.
+_ref_pop = ([{"gender_group": "B", "hourly": 900.0}] * 3 +          # 3 people, highest-paid -> must be suppressed
+            [{"gender_group": "A", "hourly": 100.0}] * 50)         # 50 people, the reportable reference
+_ru = PE._unadjusted(_ref_pop, "gender_group")
+ok(_ru["reference_group"] == "A", "the reference is the highest-paid REPORTABLE group, not the tiny top-paid cell")
+_rb = next(g for g in _ru["groups"] if g["group"] == "B")
+ok(_rb["suppressed"] is True and _rb["is_reference"] is False and _rb["mean_gap_pct"] is None,
+   "the tiny highest-paid group is suppressed, never the reference, and leaks no gap through others")
+_ra = next(g for g in _ru["groups"] if g["group"] == "A")
+ok(_ra["is_reference"] is True and _ra["mean_gap_pct"] == 0.0,
+   "the reportable reference's own gap is 0 — the tiny group's pay never enters any rendered denominator")
+# no reportable cell at all -> no reference, everything suppressed, degenerate (never a crash or a leaked gap)
+_none = PE._unadjusted([{"gender_group": "A", "hourly": 100.0}] * 2 +
+                       [{"gender_group": "B", "hourly": 200.0}] * 2, "gender_group")
+ok(_none["reference_group"] is None and all(g["suppressed"] for g in _none["groups"]),
+   "with no reportable cell there is no reference and every cell is suppressed (degenerate, not an error)")
 
 # a single-group population is degenerate-but-valid: it computes no gap rather than crashing
 _one = PE.compute(_tmp_with(lambda h, rows: (h, [_set(h, r, "gender_group", "A") for r in rows if r])))

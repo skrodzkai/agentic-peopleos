@@ -204,6 +204,21 @@ raises(lambda: S.compute(_tmp_with(lambda d: (
        _rewrite(d / "shares_outstanding.csv", lambda h, rows: (h, rows[-3:])),
        _rewrite(d / "financials.csv", lambda h, rows: (h, rows[-3:]))))),
        "fewer than four quarterly financials rows fails closed (cannot form a clean TTM)")
+# TTM rows must be exact quarter-END days (3/31, 6/30, 9/30, 12/31), not just quarter months
+raises(lambda: S.compute(_tmp_with(lambda d: (
+       _rewrite(d / "shares_outstanding.csv", lambda h, rows: (h, rows[:-4] + [
+           _set(h, rows[-4], "period_end", "2025-03-01"), rows[-3], rows[-2], rows[-1]])),
+       _rewrite(d / "financials.csv", lambda h, rows: (h, rows[:-4] + [
+           _set(h, rows[-4], "period_end", "2025-03-01"), rows[-3], rows[-2], rows[-1]]))))),
+       "a non-quarter-END TTM date (2025-03-01) fails closed")
+
+# grant referential integrity: unknown plan, and the director label must match the directors roster
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda h, rows: (h, [_set(h, row, "plan_id", "P-9999") for row in rows])))),
+       "a grant to an unknown plan_id fails closed")
+raises(lambda: S.compute(_tmp_with(lambda d: _rewrite(d / "equity_grants.csv",
+       lambda h, rows: (h, [_set(h, row, "participant_group", "director") for row in rows])))),
+       "an employee grant mislabeled participant_group=director fails closed (must match directors.csv)")
 
 print(f"OK — {passed} SBC-forecast checks passed "
       f"(as of {r['as_of']}; backlog ${li['backlog_unrecognized_usd']:,.0f} reconciles to equity-spend; "

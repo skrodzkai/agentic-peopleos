@@ -1,10 +1,12 @@
 # Pay-Equity & EU Pay Transparency — methodology
 
-The pay-equity arm (`foundation/compute/pay_equity.py` + `examples/pay-equity/`) reconstructs, on synthetic
-data, the two measurements a Total-Rewards function owes the board and — from 2026-27 — regulators under the
-**EU Pay Transparency Directive (Directive (EU) 2023/970)**: the pay gap it must publish, and the like-for-like
-analysis an equal-pay audit rests on. This note states exactly what is methodology-faithful and what is
-illustrative, so nothing here is mistaken for legal output.
+The pay-equity arm (`foundation/compute/pay_equity.py` + `examples/pay-equity/`) is an **illustrative
+base-pay readiness screen** that, on synthetic data, mirrors the *shape* of the two measurements a
+Total-Rewards function looks at ahead of the **EU Pay Transparency Directive (Directive (EU) 2023/970)**:
+an unadjusted pay gap, and the like-for-like analysis an equal-pay review rests on. It is **not** the filed
+Directive report — it is base pay only, uses observable controls only, runs on pseudonymised synthetic
+classes, and produces a screen flag, never a compliance determination. This note states exactly what is
+methodology-faithful and what is illustrative, so nothing here is mistaken for legal or filed output.
 
 ## 1. Source of truth
 Everything is derived from one committed table, `foundation/data/acme/workers.csv`:
@@ -16,7 +18,10 @@ Everything is derived from one committed table, `foundation/data/acme/workers.cs
   standard full-time hours yields the Directive's hourly basis without part-time distortion. Base pay only —
   no bonus, equity, or benefits.
 - **Protected class** — `gender_group` (A/B) and `ethnicity_group` (grp1-3), both **pseudonymised** in the
-  synthetic data.
+  synthetic data. The engine enforces a **pseudonym allowlist**: only the abstract labels A/B and grp1-3 are
+  accepted. Any real-world class name (`Female`, `Hispanic`, …) **fails closed** rather than being computed
+  on or rendered — a public artifact can never leak a real protected-class label. Each row must also carry a
+  unique, non-blank `emp_id`; a duplicate id fails closed (no person is double-counted into a gap).
 - **Legitimate controls** — job `level`, `job_family`, `location`, tenure (from `hire_date` to the fixed
   as-of date), performance `rating`, and `is_people_manager`.
 
@@ -42,8 +47,11 @@ The engine is stdlib-only, deterministic, offline, and fails closed on any malfo
   resulting flag is a **screen flag**, not a legal determination.
 
 ## 3. Illustrative (labeled, never claimed as legal output)
-- **Pseudonymised groups.** The tool reports gaps between groups and **never asserts** which real protected
-  class a label (A/B, grp1-3) denotes.
+- **Pseudonymised groups + small-cell suppression.** The tool reports gaps between groups and **never
+  asserts** which real protected class a label (A/B, grp1-3) denotes. Any unadjusted group cell with fewer
+  than `MIN_CELL_N` (= 5) members is **suppressed** — its gap is not computed or rendered, and an EU category
+  with fewer than two reportable groups is marked not-assessable — so no group small enough to re-identify an
+  individual reaches an artifact. The threshold the run used is recorded in the result (`min_cell_n`).
 - **"Category of workers" = job level.** A stand-in for the Directive's "equal work or work of equal value"
   grouping, which in production is defined by a **gender-neutral job-evaluation scheme**, not a single level
   field.
@@ -60,8 +68,10 @@ The engine is stdlib-only, deterministic, offline, and fails closed on any malfo
   company-wide adjusted gap is near zero while a specific level still trips the category trigger.
 
 ## 5. Guardrails (what the arm never does)
+- Never presents the screen as the filed Directive report, as regulatory compliance, or as the number an
+  employer publishes — it is an illustrative base-pay readiness screen on synthetic data.
 - Never recommends, sets, or authorises a pay change, raise, or adjustment for any group or individual.
-- Never de-anonymises or asserts the real identity of a protected-class group.
+- Never de-anonymises or asserts the real identity of a protected-class group; a real class label fails closed.
 - Never presents the adjusted gap as a legal conclusion, or the tool as legal advice.
 - Never emits an individual's name or a direct identifier; the analysis is group-level on synthetic ids.
 - Never distributes without a named human approver (the publish gate).

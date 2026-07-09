@@ -481,6 +481,14 @@ raises(R.ManifestError, lambda: R.check_reproducible({"status": "trained"}),
        "check_reproducible fails closed on a malformed (missing-keys) manifest — no raw KeyError")
 raises(R.ManifestError, lambda: R.check_reproducible({"status": "trained", "primary_coefficients": None}),
        "check_reproducible fails closed on a malformed nested field")
+# an explicitly-passed EMPTY/falsy manifest must fail closed on ITS shape — not silently reload the committed
+# good file (the `manifest or load_manifest()` bug would have let a malformed {} pass the gate)
+raises(R.ManifestError, lambda: R.check_reproducible({}),
+       "an explicitly-passed empty manifest fails closed (not silently swapped for the committed one)")
+# a non-finite / non-positive tolerance would silently disable the gate — reject it
+for _bad_tol in (float("inf"), float("nan"), 0, -1e-5, True, "1e-5"):
+    raises(R.ManifestError, lambda t=_bad_tol: R.check_reproducible(m, tol=t),
+           f"check_reproducible rejects a tol of {_bad_tol!r} (a bad tol would disable the sync gate)")
 
 # --------------------------------------------------------------- 9) evaluation + realism guard (Increment 3)
 
@@ -686,6 +694,22 @@ raises(R.ModelError, lambda: R.company_risk(list(reversed(rows)), model, calib, 
 for _bad in (0, -1, 6.0, None):
     raises(R.ModelError, lambda b=_bad: R.company_risk(rows, model, calib, design, slices, horizon=b),
            f"company_risk rejects a horizon of {_bad!r}")
+
+# --- P2.9/P2.10: the empirical top-down KM must not silently trust a contaminated label or a short window ---
+# every rendered segment carries its OWN observed-month span, and on the committed panel it covers the horizon
+ok(all("months_observed" in s and s.get("incomplete_window") is False and s["months_observed"] >= 6
+       for s in _rendered),
+   "every rendered segment spans the full 6-month horizon on the committed panel (no silently-truncated window)")
+# a horizon beyond the observed test window fails closed in segment_risk too (parallel to company_risk)
+raises(R.ModelError, lambda: R.segment_risk(rows, model, calib, design, slices, horizon=99),
+       "segment_risk rejects a horizon beyond the observed test window (no truncate-and-mislabel)")
+# a contaminated (non-0/1) design label must fail closed in BOTH KM paths, not corrupt the empirical curve
+_bad_y = list(design["y"]); _bad_y[slices["test"][0]] = 2
+_bad_design = dict(design); _bad_design["y"] = _bad_y
+raises(R.ModelError, lambda: R.segment_risk(rows, model, calib, _bad_design, slices),
+       "segment_risk fails closed on a non-binary design label (empirical top-down KM would be bogus)")
+raises(R.ModelError, lambda: R.company_risk(rows, model, calib, _bad_design, slices),
+       "company_risk fails closed on a non-binary design label (empirical top-down KM would be bogus)")
 
 # tier_counts: thresholds on calibration, person-months bucketed on test; never leaks a person
 _tc = R.tier_counts(model, calib, design, slices)

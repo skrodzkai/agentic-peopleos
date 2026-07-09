@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -73,12 +74,53 @@ def _e(v):
     return html.escape(str(v))
 
 
+def _plain_finite(*xs):
+    """A PLAIN int/float (no bool, no hostile subclass) that is finite — every number this view interpolates
+    into a gauge or sentence must clear this before it can render a false figure."""
+    return all(type(x) in (int, float) and math.isfinite(x) for x in xs)
+
+
+def validate_iss_result(res, policy_year):
+    """Fail closed on a self-inconsistent engine result BEFORE it can render a false screen (mirrors the
+    glass-lewis arm's build-time gate). No screening math here — only invariants the render relies on."""
+    m = res["measures"]
+    mom, rda, pta, fpa = m["mom"], m["rda"], m["pta"], m["fpa"]
+    b, cg, pol = res["bands"], res["comparison_group"], res["policy"]
+    concern = res["concern"]
+    checks = [
+        isinstance(res["subject"].get("ticker"), str) and bool(res["subject"]["ticker"]),  # one issuer scored
+        concern in ("Low", "Medium", "High"),
+        all(x["band"] in ("Low", "Medium", "High") for x in (mom, rda, pta)),
+        # the qualitative-trigger flag must be consistent with the concern it is rendered beside
+        isinstance(res["triggers_qualitative"], bool) and res["triggers_qualitative"] == (concern != "Low"),
+        _plain_finite(mom["value"]) and mom["value"] >= 0.0,        # rendered as "N.NN×"
+        _plain_finite(rda["value"], pta["value"]),
+        _plain_finite(rda["pay_pctile"], rda["tsr_pctile"], fpa["pay_pctile"], fpa["fin_pctile"])
+        and all(0.0 <= p <= 100.0 for p in (rda["pay_pctile"], rda["tsr_pctile"], fpa["pay_pctile"], fpa["fin_pctile"])),
+        # every gauge threshold the render draws must be a plain finite number, medium before high on each axis
+        all(_plain_finite(b[k]["medium"], b[k]["high"]) for k in ("mom", "rda", "pta")),
+        b["mom"]["medium"] <= b["mom"]["high"],                     # MOM: higher is worse
+        b["rda"]["medium"] >= b["rda"]["high"] and b["pta"]["medium"] >= b["pta"]["high"],  # RDA/PTA: higher is better
+        isinstance(fpa["fpa_applied"], bool) and isinstance(fpa["borderline_low_eligible"], bool),
+        # policy provenance is REAL, not decorative: the year rendered is the year screened, with the 2026 delta
+        # present iff the 2026 policy ran (never a stale constant vs a different render year)
+        pol["year"] == policy_year and type(pol["year"]) is int,
+        type(pol["rda_years"]) is int and pol["rda_years"] > 0,
+        (pol["delta_from_prior"] is not None) == (policy_year == 2026),
+        # the comparison group the group card counts must actually be there
+        isinstance(cg.get("group"), list) and len(cg["group"]) > 0 and cg.get("n_group") == len(cg["group"]),
+    ]
+    if not all(checks):
+        raise ReportError(f"ISS screen result failed validation (check #{checks.index(False)})")
+
+
 # ---------------------------------------------------------------- compute (no screening math here)
 def build_report(iss_universe, peer_universe=None, policy_year=None):
     # The committed dashboard renders POLICY_YEAR (2026); policy_year is injectable so a before/after
     # (e.g. a 2025 render) drives every gauge/label straight off the engine's bands, never a constant.
     policy_year = POLICY_YEAR if policy_year is None else policy_year
     res = iss_universe.screen(policy_year=policy_year)    # the screen decision is entirely iss_screen.py
+    validate_iss_result(res, policy_year)                 # fail closed before any number reaches the render
     cg = res["comparison_group"]
     iss_tickers = {m["ticker"] for m in cg["group"]}
 

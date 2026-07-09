@@ -50,6 +50,9 @@ from foundation.compute.peers import real_peer_identifiers, name_matches_real
 
 _DATA = Path(__file__).resolve().parents[1] / "data" / "acme"
 _TICKER_RE = re.compile(r"^(ACMQ|S\d{3})$")     # structural guard: only the synthetic universe, never a real ticker
+GL_ISS_POLICY_YEAR = 2026                        # this reconciliation grades the GL 2026 model against the ISS 2026
+#                                                # policy — pin it explicitly so a shift in the ISS engine default
+#                                                # can never silently reconcile GL 2026 against a different ISS year
 
 _GL_COLS = ("ticker", "neo_other_pay_y1", "neo_other_pay_y2", "neo_other_pay_y3", "neo_other_pay_y4",
             "neo_other_pay_y5", "sti_payout_y1", "sti_payout_y2", "sti_payout_y3", "sti_payout_y4",
@@ -456,12 +459,14 @@ def advisor_synthesis(iss_result, gl_result):
     }
 
 
-def compute(data_dir=_DATA):
+def compute(data_dir=_DATA, iss_policy_year=GL_ISS_POLICY_YEAR):
     """The full two-advisor result the glass-lewis agent renders: the GL scorecard, the ISS screen (same
-    facts), and the reconciliation. The agent does no scoring of its own."""
+    facts), and the reconciliation. The agent does no scoring of its own. The ISS side is pinned to
+    `iss_policy_year` (default the GL model year, 2026) so the reconciliation never silently grades the GL
+    2026 model against a different ISS policy year if the ISS engine default moves."""
     glu = GLUniverse(data_dir)
     gl = glu.screen()
-    iss = ISSUniverse(data_dir).screen()
+    iss = ISSUniverse(data_dir).screen(policy_year=iss_policy_year)
     if iss["subject"]["ticker"] != glu.subject:                  # both advisors MUST score the same issuer
         raise GLDataError(f"subject mismatch: ISS {iss['subject']['ticker']} vs GL {glu.subject}")
     return {"subject": glu.subject, "gl": gl, "iss": iss, "synthesis": advisor_synthesis(iss, gl)}

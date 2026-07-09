@@ -1,12 +1,13 @@
 # pay-equity — pay-equity & EU Pay Transparency assessment
 
-The Executive-Compensation arm's **pay-equity deliverable**: the two numbers a Total-Rewards leader must be
-able to defend to the board and, from 2026-27, file under the **EU Pay Transparency Directive (2023/970)**.
-From a single workforce table it renders the **raw pay gap** (mean and median — the numbers the Directive
-requires published) and the **adjusted, like-for-like gap** that survives once job level, family, country,
-tenure, rating and management are held equal — the latter as a forest plot of point estimate **+ 95% CI**,
-with the raw gap drawn as a ghost. It then runs the Directive's **5% joint-pay-assessment screen** per
-category of workers.
+The Executive-Compensation arm's **pay-equity readiness screen**: an **illustrative base-pay** view a
+Total-Rewards leader uses to get ahead of the **EU Pay Transparency Directive (2023/970)**. It is a readiness
+screen, **not the filed report** — the Directive's Article 9 report also requires variable/complementary pay,
+the proportion of each group receiving them, quartile pay bands, and full category breakdowns, none of which
+this base-pay screen computes. From a single workforce table it renders the **raw base-pay gap** (mean and
+median) and the **adjusted, like-for-like gap** that survives once job level, family, country, tenure, rating
+and management are held equal — the latter as a forest plot of point estimate **+ 95% CI**, with the raw gap
+drawn as a ghost. It then runs the Directive's **5% joint-pay-assessment screen** per category of workers.
 
 ```bash
 python3 run.py                                          # draft dashboard + digest (nothing sent)

@@ -35,8 +35,15 @@ cat examples/visible-handoff/output/events.jsonl      # the decision ledger (one
 
 # full integrity check — re-verifies the approval registry, not just the chain
 python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
-  --registry examples/visible-handoff/approval_registry.json
+  --registry examples/visible-handoff/approval_registry.json \
+  --anchor examples/visible-handoff/output/events.jsonl.anchor.json --min-count 1
 ```
+
+The `--anchor` file is a committed checkpoint (`{count, head_hash}`) the ledger must **extend** —
+a truncation back below it, or a rewritten head, fails closed. `--min-count N` additionally asserts the
+ledger has grown to at least N rows, so a rollback to an empty-but-valid chain is caught too. (When the
+agent opens a ledger it also auto-enforces a *co-located* `<log>.anchor.json`; the flag makes the same
+guard explicit on the standalone check.)
 
 Try the adversarial paths:
 

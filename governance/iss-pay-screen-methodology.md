@@ -23,6 +23,15 @@ closed on an unmodeled year.
 | **PTA** (Pay-TSR Alignment) | 5-year WLS | 5-year WLS | unchanged |
 | **FPA** (Financial Performance Assessment) | EVA-style, 3-year (real ISS) | EVA-style, 5-year (real ISS) | horizon 3→5yr |
 
+**The pay (and TSR) percentile is itself policy-year-sensitive.** RDA's measurement window changes by
+season (3-year in 2025 → 5-year in 2026), and the pay-vs-group and TSR-vs-group percentiles are ranked over
+that window — so the *same* subject can carry a different `pay_pctile`/`tsr_pctile` under each policy year.
+Because the illustrative FPA proxy reads `pay_pctile` (its divergence is `|fin_pctile − pay_pctile|`), the
+FPA value moves with the policy year too. On the synthetic Acme, the pay percentile shifts 91.7 (2025) →
+87.5 (2026) and the FPA proxy from −4.2 → 0.0 for exactly this reason — a policy-window effect, not a data
+change. The percentile is never a season-invariant constant; always read it against the policy year that
+produced it.
+
 ### Published non-S&P-500 (Russell 3000) concern thresholds
 
 | Measure | 2025 (eligible / medium / high) | 2026 (eligible / medium / high) |
@@ -49,7 +58,7 @@ operate — the S&P-500 case is out of scope, not silently mis-scored.
 
 Every measured value is rounded (`_RANK_ROUND = 9`) before percentile-ranking, so a near-tie cannot flip
 a rank on last-ULP float drift across platforms — matching the Glass Lewis arm's guard. The committed
-dashboard is byte-identical across Python 3.9 and 3.14.
+dashboard is byte-identical across the CI Python matrix (3.9 and 3.12).
 
 ## Sources (public)
 

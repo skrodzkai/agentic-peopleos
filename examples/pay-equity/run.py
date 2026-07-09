@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """Acme Corp — Pay-Equity & EU Pay Transparency agent (Agentic PeopleOS Executive-Comp arm).
 
-Presentation + governance over foundation/compute/pay_equity.py. It renders the two numbers a Total-Rewards
-leader must be able to defend to the board and, from 2026-27, to regulators under the EU Pay Transparency
-Directive: the RAW pay gap (what you must publish) and the ADJUSTED, like-for-like residual (what an equal-pay
-audit actually investigates), the latter with a confidence interval. It then runs the Directive's 5%
-joint-pay-assessment screen per category of workers. The agent does no math and recommends no pay change; it
-reports and governs.
+Presentation + governance over foundation/compute/pay_equity.py. It renders an illustrative base-pay
+READINESS SCREEN for the EU Pay Transparency Directive — NOT the filed report (which also requires
+variable/complementary pay, the proportion receiving them, quartile pay bands, and full category breakdowns).
+The two numbers a Total-Rewards leader reasons about ahead of filing: the RAW base-pay gap and the ADJUSTED,
+like-for-like residual (what an equal-pay audit investigates), the latter with a confidence interval. It then
+runs the Directive's 5% joint-pay-assessment screen per category of workers. The agent does no math and
+recommends no pay change; it reports and governs.
 
 IMPORTANT (on the dashboard and here): protected-class groups are PSEUDONYMISED in the synthetic data (A / B,
-grp1-3) — the tool reports gaps between groups and never asserts which real class a label denotes. "Category
-of workers" is job level, a stand-in for the Directive's equal-work grouping. Pay is base only. A surviving
-adjusted gap is a flag for a privileged equal-pay review, not a legal finding.
+grp1-3) — a strict allowlist rejects any real class label — and the tool never asserts which real class a
+label denotes. Small cells are suppressed. "Category of workers" is job level, a stand-in for the Directive's
+equal-work grouping. Pay is base only. A surviving adjusted gap is a flag for a privileged equal-pay review,
+not a legal finding.
 
     python3 run.py                                       # writes the draft dashboard + digest (nothing sent)
     python3 run.py --publish --approved-by "Chief People Officer"
@@ -79,6 +81,8 @@ def build_report(result):
         if sum(g["n"] for g in d["unadjusted"]["groups"]) != d["n_in_lens"]:
             raise ReportError(f"{d['key']}: group counts do not partition this lens's population")
         for g in d["unadjusted"]["groups"]:
+            if g.get("suppressed"):          # a small-cell group reports no pay figures (disclosure control)
+                continue
             if not _finite(g["mean_gap_pct"], g["median_gap_pct"], g["mean_hourly"], g["median_hourly"]):
                 raise ReportError(f"{d['key']}: non-finite raw-gap statistics for {g['group']}")
         for g in d["adjusted"]["groups"]:
@@ -171,10 +175,13 @@ def _forest_rows(dim):
     unadj = {g["group"]: g for g in dim["unadjusted"]["groups"]}
     rows = []
     for g in dim["adjusted"]["groups"]:
+        rg = unadj.get(g["group"], {})
+        if rg.get("suppressed") or rg.get("mean_gap_pct") is None:
+            continue                          # small-cell group: no raw ghost to plot (disclosure control)
         # ghost = raw MEAN gap vs the same (highest-mean) reference the adjusted coefficient is measured
         # against, so point and ghost are apples-to-apples on one reference (and non-negative). The median gap
         # is reported separately (headline KPI + EU screen); it can rank groups differently than the mean.
-        raw = round(unadj[g["group"]]["mean_gap_pct"], 1)
+        raw = round(rg["mean_gap_pct"], 1)
         rows.append({"group": f"Group {g['group']}", "adj": round(g["adjusted_gap_pct"], 1),
                      "ci_lo": g["ci_lo_pct"], "ci_hi": g["ci_hi_pct"], "raw": raw,
                      "sub": ("gap ≠ 0" if g["significant"] else "n.s.")})
@@ -185,9 +192,10 @@ def render_html(report):
     result, gender, eu = report["r"], report["gender"], report["eu"]
     body = [
         dash.brand_header(),
-        dash.title_block("Pay Equity · EU Pay Transparency",
-                         "Pay-Equity Assessment",
-                         f"{COMPANY} · as of {AS_OF} · {result['pay_measure']} · synthetic, pseudonymised"),
+        dash.title_block("Pay Equity · EU Pay Transparency readiness",
+                         "Pay-Equity Readiness Screen",
+                         f"{COMPANY} · as of {AS_OF} · {result['pay_measure']} · synthetic, pseudonymised · "
+                         f"illustrative readiness screen, not the filed Directive report"),
         dash.narrator(report["narrative"]),
         dash.kpi_cards(report["cards"]),
     ]
@@ -248,7 +256,7 @@ def render_html(report):
     body.append("<div style='font-size:11.5px;color:var(--soft);line-height:1.55;margin:8px 0 2px'>"
                 + dash._esc(result['disclaimer']) + "</div>")
     body.append(dash.governance_footer(AGENT))
-    return dash.page(f"{COMPANY} — Pay-Equity Assessment", "".join(body))
+    return dash.page(f"{COMPANY} — Pay-Equity Readiness Screen", "".join(body))
 
 
 def render_digest(report):
