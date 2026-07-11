@@ -72,6 +72,7 @@ jobs:
       - name: Core spine evals
         run: |
           python3 core/tests/test_evidence.py
+          python3 core/tests/test_evidence_bundle.py
           python3 core/tests/test_event_log.py
           python3 core/tests/test_approval_registry.py
           python3 core/tests/test_content.py
@@ -144,6 +145,8 @@ jobs:
             examples/attrition-reporting/output/report.sample.html examples/attrition-reporting/output/day1-digest.sample.md \
             examples/people-ops-reporting/output/report.sample.html examples/people-ops-reporting/output/day1-digest.sample.md \
             examples/operating-review/output/report.sample.html examples/operating-review/output/day1-digest.sample.md \
+            examples/operating-review/output/report.sample.evidence.json examples/operating-review/output/day1-digest.sample.evidence.json \
+            examples/operating-review/output/review.sample.evidence-bundle.json \
             examples/operating-review/output/decision.sample.events.jsonl \
             examples/operating-review/output/decision.sample.events.jsonl.anchor.json \
             examples/people-intelligence/output/report.sample.html examples/people-intelligence/output/day1-digest.sample.md \
@@ -245,6 +248,9 @@ jobs:
 
       - name: Operating-review decision ledger validates (registry + anchor) and rejects truncation
         run: |
+          python3 -m core.evidence_bundle validate \
+            examples/operating-review/output/review.sample.evidence-bundle.json \
+            --ledger examples/operating-review/output/decision.sample.events.jsonl --verify-artifacts
           python3 -m core.event_log validate examples/operating-review/output/decision.sample.events.jsonl \
             --registry examples/visible-handoff/approval_registry.json \
             --anchor examples/operating-review/output/decision.sample.events.jsonl.anchor.json
@@ -278,6 +284,9 @@ jobs:
       - name: Ledger validates on replay (approval registry re-verified + head-count anchor)
         run: |
           (cd examples/visible-handoff && python3 run.py)
+          python3 -m core.evidence_bundle validate \
+            examples/visible-handoff/output/evidence-bundle.json \
+            --ledger examples/visible-handoff/output/events.jsonl --verify-artifacts
           python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
             --registry examples/visible-handoff/approval_registry.json \
             --anchor examples/visible-handoff/output/events.jsonl.anchor.json
@@ -329,6 +338,7 @@ jobs:
             examples/glass-lewis-screen/output \
             examples/merit-comp-planning/output \
             examples/executive-comp-benchmarking/output \
+            examples/operating-review/output \
             examples/visible-handoff/output foundation/data vault
 
       - name: No stale or UNTRACKED generated artifacts (whole-tree backstop)

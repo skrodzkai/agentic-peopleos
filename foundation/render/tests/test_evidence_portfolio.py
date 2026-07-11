@@ -8,6 +8,7 @@ sys.path.insert(0, str(REPO))
 
 from foundation import evidence_portfolio as portfolio  # noqa: E402
 from foundation.render import evidence as evidence_render  # noqa: E402
+from core import evidence as evidence_core  # noqa: E402
 
 
 passed = 0
@@ -79,5 +80,11 @@ ok(tuple(path.name for path in portfolio.managed_outputs(
     "day1-digest.sample.evidence.json"), "artifact and evidence sidecars share one fail-closed lifecycle")
 ok(len(portfolio.portfolio_artifacts(REPO)) == 36,
    "managed portfolio expands to eighteen report/digest pairs")
+material_claims = 0
+for artifact_path in portfolio.portfolio_artifacts(REPO):
+    manifest = evidence_core.load_manifest(portfolio.sidecar_path(artifact_path))
+    material_claims += sum(claim.get("material") is True for claim in manifest["claims"])
+ok(material_claims == 216,
+   "public 216-claim coverage statement reconciles to all committed portfolio manifests")
 
 print("OK — %d portfolio-evidence checks passed." % passed)

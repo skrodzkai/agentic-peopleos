@@ -10,7 +10,8 @@ the hard part is running the fleet **safely and auditably**. Agentic PeopleOS is
 working system for an agent-run People function — **eighteen dashboard-rendering reference agents** across
 People Analytics, Executive Compensation, Total Rewards, and retention-risk ML, every one built on the same governance
 spine — a **hash-chained decision ledger**, **role-scoped human approvals**, **injection-safe content**,
-and a **fail-closed compute engine**. The agents are the easy part. The spine is the point.
+an **artifact-bound evidence graph**, and a **fail-closed compute engine**. The agents are the easy part.
+The spine is the point.
 
 > Built by [@skrodzkai](https://github.com/skrodzkai) — a senior Total Rewards leader and hands-on AI
 > systems engineer who designs and operates a 30+ agent production fleet. Not a product, not a pitch —
@@ -24,6 +25,39 @@ python3 examples/visible-handoff/run.py    # request → recommendation → huma
 ```
 
 ![How Agentic PeopleOS stays governed — the arms recommend, the governance spine mediates, an entitled human approves, and only then does the gated action run; every step a hash-chained ledger row.](docs/assets/system-diagram.svg)
+
+---
+
+## Evidence Graph v1 — click a number, inspect the proof
+
+Every generated dashboard and digest now carries a machine-readable claims-to-evidence manifest.
+Across the portfolio, **18 dashboards + 18 digests expose 216 consequential claim occurrences**:
+source version/as-of/hash, transformation, assumptions, checks, caveats, and an explicit prior-cycle
+change field. The browser drawer and committed sidecar are the same graph; CI verifies source bytes,
+rendered claim coverage, embedded/sidecar parity, and portfolio completeness.
+
+Publishing adds the missing governance link. A content-addressed **evidence bundle** hashes the exact
+rendered dashboard, digest, evidence manifests, and material-claim set. That same authorization envelope
+must survive `recommendation → human approval → action` unchanged, and the first valid action consumes it.
+Change one report byte or one evidence node, substitute a different bundle, or reuse the approval: replay fails.
+
+- Read the architecture and threat model: [`governance/evidence-graph.md`](governance/evidence-graph.md)
+- Inspect an exact published bundle: [`review.sample.evidence-bundle.json`](examples/operating-review/output/review.sample.evidence-bundle.json)
+- Follow the human-readable proof: [`examples/visible-handoff/`](examples/visible-handoff/)
+
+```bash
+python3 tools/verify_evidence.py --portfolio --verify-sources --verify-rendered
+python3 -m core.evidence_bundle validate \
+  examples/operating-review/output/review.sample.evidence-bundle.json \
+  --ledger examples/operating-review/output/decision.sample.events.jsonl \
+  --verify-artifacts
+```
+
+The exact v1 boundary is deliberate: every artifact traces its **three to ten decision-consequential
+claims**; it does not label every decorative value as governed. The SBC forecast and executive-comp
+benchmarking agents are the deeper domain references. The [v1 design note](governance/evidence-graph.md)
+states what is proven, what is not, and how the contract maps to controlled Workday, ADP, Fidelity,
+Radford, finance-model, and AI adapters without putting confidential data in the public layer.
 
 ---
 
@@ -65,6 +99,10 @@ transcript, ledger, and evals:
 - **Approval registry** ([`core/approval_registry.py`](core/approval_registry.py)) — role-scoped, satisfied by
   a *pool*: any one entitled HR human can approve, so PTO/illness never blocks a decision.
   Entitlement is re-derived on replay; the logged flag is never trusted.
+- **Evidence Graph v1** ([`core/evidence.py`](core/evidence.py),
+  [`core/evidence_bundle.py`](core/evidence_bundle.py)) — every consequential claim resolves to versioned
+  evidence, and every publish approval binds to the exact artifact/evidence bytes it authorized. A valid
+  action consumes that authorization once, preventing artifact substitution and approval replay.
 - **Injection-safe content** ([`core/content.py`](core/content.py)) — only provenance-trusted
   policy is authoritative; a note or channel message can never approve anything.
 - **Human-in-the-loop by construction** — agents recommend; an entitled human approves with a

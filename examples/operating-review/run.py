@@ -29,12 +29,14 @@ if str(REPO) not in sys.path:
 
 from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 from foundation.render import dashboard as dash          # noqa: E402
+from core import evidence_bundle as evidence_bundle_core  # noqa: E402
 
 OUT = HERE / "output"
 REPORT = OUT / "report.sample.html"
 DIGEST = OUT / "day1-digest.sample.md"
 LEDGER = OUT / "decision.sample.events.jsonl"
 ANCHOR = OUT / "decision.sample.events.jsonl.anchor.json"
+BUNDLE = OUT / "review.sample.evidence-bundle.json"
 COMPANY = "Acme Corp"
 AS_OF = "Jan 2026"
 AGENT = "operating-review"
@@ -164,13 +166,15 @@ def render_digest(report):
 
 # ---------- FULL role-scoped, ledger-backed publish gate ----------
 
-def publish_decision(approver_id, commit_fn):
+def publish_decision(approver_id, commit_fn, authorization):
     """Record the publish decision in a hash-chained ledger, adjudicated + re-verified by the
     approval registry. The gated ``action: published`` event is appended ONLY after ``commit_fn()``
     has actually written the report — so the ledger can never claim a publish that did not happen.
     An unrecognized approver id is still recorded (recommendation + escalation), never silently
     dropped. Returns (decision, published, violations); ``commit_fn`` may raise OSError on write
-    failure, leaving a truthful recommendation+approval (no action) trail.
+    failure, leaving a truthful recommendation+approval (no action) trail. ``authorization``
+    content-addresses the exact rendered review, digest, evidence graphs, and material-claim set;
+    the same envelope must survive recommendation -> approval -> one-shot action unchanged.
     """
     from core.event_log import EventLog, validate_log, write_anchor
     from core.approval_registry import ApprovalRegistry, ACME
@@ -192,6 +196,7 @@ def publish_decision(approver_id, commit_fn):
     rec = log.append({"ts": T[0], "actor": actor("agent.coordinator"), "channel": CHANNEL,
                       "type": "recommendation", "case_ref": CASE, "correlation_id": CASE,
                       "requires_approval": True, "scope": SCOPE,
+                      "authorization": authorization,
                       "payload": {"ask": "publish the monthly People Operating Review"}})
 
     known = approver_id in reg.actors
@@ -203,6 +208,7 @@ def publish_decision(approver_id, commit_fn):
         appr = log.append({"ts": T[1], "actor": actor(approver_id), "channel": CHANNEL, "type": "approval",
                            "case_ref": CASE, "correlation_id": CASE, "scope": SCOPE,
                            "causation_id": rec["event_id"],
+                           "authorization": authorization,
                            "approval": {"decision": decision, "entitled": entitled, "by": approver_id,
                                         "scope": SCOPE, "reason": "entitled channel member"
                                         if decision == "approved" else "not entitled for this scope",
@@ -217,7 +223,8 @@ def publish_decision(approver_id, commit_fn):
         commit_fn()
         log.append({"ts": T[2], "actor": actor("agent.coordinator"), "channel": CHANNEL, "type": "action",
                     "case_ref": CASE, "correlation_id": CASE, "gated": True, "scope": SCOPE,
-                    "causation_id": appr["event_id"], "payload": {"published": True}})
+                    "causation_id": appr["event_id"], "authorization": authorization,
+                    "payload": {"published": True, "bundle_id": authorization["bundle_id"]}})
     else:
         reason = ("approver id not recognized — held for an authorized approver" if not known
                   else "no entitled approval — held for an authorized approver")
@@ -233,7 +240,7 @@ def publish_decision(approver_id, commit_fn):
 # ---------- fail-closed + entrypoint ----------
 
 def _fail_closed(message) -> int:
-    for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
+    for p in _managed_outputs():
         try:
             if p.exists():
                 p.rename(p.with_name(p.name + ".stale"))
@@ -247,6 +254,10 @@ def _atomic_write(path: Path, text: str):
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(text, encoding="utf-8")
     os.replace(tmp, path)
+
+
+def _managed_outputs():
+    return portfolio_ev.managed_outputs(REPORT, DIGEST) + (BUNDLE,)
 
 
 def main(argv=None) -> int:
@@ -272,6 +283,19 @@ def main(argv=None) -> int:
         html_doc, digest_doc = render_html(report), render_digest(report)
         html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
             AGENT, report, html_doc, digest_doc, REPO)
+        evidence_bundle = evidence_bundle_core.build_bundle(
+            "bundle.operating-review.2026-01",
+            [(html_doc, report_evidence), (digest_doc, digest_evidence)],
+            artifact_uris={
+                report_evidence["artifact"]["id"]: (
+                    "repo:examples/operating-review/output/report.sample.html",
+                    "repo:examples/operating-review/output/report.sample.evidence.json"),
+                digest_evidence["artifact"]["id"]: (
+                    "repo:examples/operating-review/output/day1-digest.sample.md",
+                    "repo:examples/operating-review/output/day1-digest.sample.evidence.json"),
+            },
+        )
+        authorization = evidence_bundle_core.authorization_envelope(evidence_bundle)
     except ReportError as exc:
         return _fail_closed(str(exc))
     except Exception as exc:
@@ -281,7 +305,7 @@ def main(argv=None) -> int:
         """Write the report + digest atomically. Called by the publish gate AFTER an entitled
         approval but BEFORE the ledger records the published action, so the ledger never lies."""
         OUT.mkdir(exist_ok=True)
-        for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
+        for p in _managed_outputs():
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
@@ -289,8 +313,9 @@ def main(argv=None) -> int:
             _atomic_write(REPORT, html_doc)
             _atomic_write(DIGEST, digest_doc)
             portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
+            evidence_bundle_core.write_bundle(BUNDLE, evidence_bundle)
         except OSError:
-            for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
+            for p in _managed_outputs():
                 try:
                     p.with_name(p.name + ".tmp").unlink()
                 except OSError:
@@ -301,7 +326,7 @@ def main(argv=None) -> int:
     decision = None
     if args.publish:
         try:
-            decision, published, violations = publish_decision(approver, _commit)
+            decision, published, violations = publish_decision(approver, _commit, authorization)
         except OSError as exc:
             return _fail_closed(f"could not write output: {exc}")
         except Exception as exc:
@@ -323,10 +348,11 @@ def main(argv=None) -> int:
     total = sum(tot for _, tot in report["coverage"].values())
     print(f"{COMPANY} People Operating Review — as of {AS_OF}")
     print(f"  headline metrics: {len(report['ok_ids'])} | instrumentation coverage: {instrumented}/{total}")
-    print("  wrote report.sample.html and day1-digest.sample.md")
+    print("  wrote report.sample.html, day1-digest.sample.md, and review.sample.evidence-bundle.json")
     if args.publish:
-        print(f"\nPublished — approved by {approver} (entitled). Decision recorded in "
-              f"decision.sample.events.jsonl (ledger-verified).")
+        print(f"\nPublished — approved by {approver} (entitled) for bundle "
+              f"{authorization['bundle_hash'][:19]}…. Decision recorded in "
+              f"decision.sample.events.jsonl (ledger-verified, one-shot authorization).")
     else:
         print("\nDRAFT only. Publishing requires a role-scoped, ledger-backed approval. Nothing was sent.")
     return 0

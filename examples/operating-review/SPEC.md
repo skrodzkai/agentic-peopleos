@@ -30,7 +30,11 @@ python3 run.py --publish --approved-by obs.engineering       # NOT entitled → 
 - `--approved-by` is an **actor id**, adjudicated by the [`ApprovalRegistry`](../../core/approval_registry.py).
 - The decision is recorded in a **hash-chained ledger** ([`core/event_log.py`](../../core/event_log.py))
   as recommendation → approval → action, then **re-verified** (`validate_log(..., registry=…)`):
-  entitlement to scope `publish.operating_review`, channel ACL, and the point-in-time `registry_version`.
+  entitlement to scope `publish.operating_review`, channel ACL, the point-in-time `registry_version`,
+  and exact evidence authorization.
+- [`core/evidence_bundle.py`](../../core/evidence_bundle.py) content-addresses the rendered dashboard,
+  digest, both evidence manifests, and material-claim set. The same envelope is required on the
+  recommendation, approval, and action; the action consumes that approval once.
 - An entitled approver (the `hr_approver` pool) → the gated action is recorded and the review is
   published (decision ledger at `output/decision.sample.events.jsonl`). A non-entitled actor (or an
   unknown actor) → **denied + escalation, exit 2, nothing distributed**. The ledger **validates in both
@@ -42,8 +46,9 @@ Input is the engine. Engine/registry/dataset unavailable, or any headline metric
 closed** (no report, one clean line, non-zero exit). Writes are atomic.
 
 ## Outputs
-`output/report.sample.html` (+ committed `report.sample.png`), `output/day1-digest.sample.md`, and —
-when published — `output/decision.sample.events.jsonl` (the ledger-verified approval).
+`output/report.sample.html` (+ committed `report.sample.png`), `output/day1-digest.sample.md`, their
+evidence sidecars, `output/review.sample.evidence-bundle.json`, and — when published —
+`output/decision.sample.events.jsonl` (the ledger-verified, exact-bundle approval).
 
 ## Where the model fits
 None — deterministic composition + templates (tier-0), offline, zero cost.

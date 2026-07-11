@@ -11,6 +11,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))      # the visible-handoff dir (run.py)
 import run                                 # noqa: E402
 from core.event_log import validate_log    # noqa: E402
+from core import evidence_bundle as evidence_bundle_core  # noqa: E402
 
 passed = 0
 
@@ -35,6 +36,15 @@ ok(r["action_taken"] and r["decision"] == "approved" and not r["violations"],
    "entitled approval publishes and the ledger is valid")
 ok([e["type"] for e in r["events"]] == ["request", "recommendation", "approval", "action"],
    "emits request -> recommendation -> approval -> action")
+authorization_events = [e["authorization"] for e in r["events"]
+                        if e["type"] in ("recommendation", "approval", "action")]
+ok(authorization_events == [r["authorization"], r["authorization"], r["authorization"]],
+   "recommendation -> approval -> action carries one exact authorization envelope")
+ok(evidence_bundle_core.authorization_violations(
+    evidence_bundle_core.load_bundle(r["bundle_path"]), r["authorization"]) == [],
+   "the handoff authorization resolves to exact rendered report and evidence-graph bytes")
+ok(r["authorization"]["bundle_hash"][:19] in r["transcript"],
+   "the human-readable handoff exposes the bundle fingerprint under review")
 
 # Unentitled human (a viewer in the channel) cannot authorize the action.
 r = run.run_handoff(tmp(), approver_id="obs.engineering")
@@ -94,5 +104,11 @@ for name in ("events.jsonl", "approved.events.sample.jsonl", "denied.events.samp
     lg = OUTDIR / name
     ok(not validate_log(lg, anchor=lg.with_name(lg.name + ".anchor.json")),
        f"committed {name} matches its committed anchor")
+committed_bundle = evidence_bundle_core.load_bundle(OUTDIR / "evidence-bundle.json")
+for name in ("events.jsonl", "approved.events.sample.jsonl", "denied.events.sample.jsonl"):
+    events = [__import__("json").loads(line) for line in (OUTDIR / name).read_text().splitlines()]
+    envelope = next(event["authorization"] for event in events if event["type"] == "recommendation")
+    ok(evidence_bundle_core.authorization_violations(committed_bundle, envelope) == [],
+       f"committed {name} authorization resolves to the committed evidence bundle")
 
 print(f"OK — {passed} handoff checks passed.")

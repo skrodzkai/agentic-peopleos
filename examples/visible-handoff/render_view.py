@@ -66,13 +66,16 @@ def main():
     anchor = str(ANCHOR) if ANCHOR.exists() else None
     violations = validate_log(LEDGER, registry=ApprovalRegistry.from_json(HERE / "approval_registry.json"),
                               anchor=anchor)
-    verdict = ('<span class="ok">LEDGER OK · chain verified</span>' if not violations
+    verdict = ('<span class="ok">LEDGER OK · chain + authorization verified</span>' if not violations
                else f'<span class="ok" style="color:#ff4d4f">{len(violations)} violation(s)</span>')
     rows = []
     for ev in events:
         c = BADGE.get(ev["type"], "#8db1ce")
         actor = ev["actor"]
         icon = "🤖" if actor["kind"] == "agent" else "👤"
+        authorization = ev.get("authorization") or {}
+        bundle_note = (" · bundle %s…" % authorization["bundle_hash"][:19]
+                       if authorization.get("bundle_hash") else "")
         rows.append(
             f'<div class="ev"><div class="row">'
             f'<span class="seq">#{ev["sequence"]}</span>'
@@ -80,14 +83,16 @@ def main():
             f'<span class="who">{icon} {html.escape(actor["display"])} <span class="k">· {html.escape(actor["kind"])}</span></span>'
             f'<span class="scope">{html.escape(ev.get("scope","") or "")}</span></div>'
             f'<div class="txt">{html.escape(_txt(ev))}</div>'
-            f'<div class="hash">id {ev["event_id"]} · prev {ev["prev_hash"][:10]}… · hash {ev["event_hash"][:10]}…</div>'
+            f'<div class="hash">id {ev["event_id"]} · prev {ev["prev_hash"][:10]}… · '
+            f'hash {ev["event_hash"][:10]}…{html.escape(bundle_note)}</div>'
             f'</div>')
     doc = (f"<!doctype html><html><head><meta charset='utf-8'><style>{STYLE}</style></head><body>"
             f"<div class='wrap'><div class='brand'><b>Agentic People<span class='os'>OS</span></b>{verdict}</div>"
             f"<h1>Decision ledger — case TA-2026-W03</h1>"
             f"<div class='sub'>The audit record of decisions, actions, and approvals · synthetic data</div>"
             f"{''.join(rows)}"
-            f"<div class='foot'>Every action binds to an entitled approval by causation + scope. "
+            f"<div class='foot'>Every action binds to an entitled approval by causation + scope + exact "
+            f"evidence authorization; the action consumes that authority once. "
             f"Re-derive entitlement, detect tampering, AND catch truncation: "
             f"<code style='color:#8db1ce'>python3 -m core.event_log validate output/events.jsonl "
             f"--registry … --anchor output/events.jsonl.anchor.json</code></div>"

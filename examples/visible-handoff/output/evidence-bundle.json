@@ -1,0 +1,41 @@
+{
+  "agent_id": "agent.ta-reporting",
+  "artifacts": [
+    {
+      "artifact_id": "artifact.ta-reporting.digest",
+      "artifact_type": "digest",
+      "content_hash": "sha256:1ee4d768a1ead61409498612a7b145fe5fbb1b7b2ee2e03a8b721d65a2f7dce4",
+      "content_uri": "repo:examples/ta-reporting/output/day1-digest.sample.md",
+      "evidence_hash": "sha256:869b6d022d1c69c1ede6e127668753c1fb06a6868a9aec399cb3b4335c66b07e",
+      "evidence_uri": "repo:examples/ta-reporting/output/day1-digest.sample.evidence.json",
+      "material_claim_ids": [
+        "claim.ta-reporting.at-risk",
+        "claim.ta-reporting.avg-days-open",
+        "claim.ta-reporting.median-pipeline",
+        "claim.ta-reporting.on-hold",
+        "claim.ta-reporting.total-open"
+      ],
+      "semantic_hash": "sha256:8dc5f7557f4f9098b814ce7a8af0a27f8f2a2910fcd16640e7ae648dd32ffbf3"
+    },
+    {
+      "artifact_id": "artifact.ta-reporting.report",
+      "artifact_type": "dashboard",
+      "content_hash": "sha256:33c9b242c65e30de5199edb21d1ee07ecb3990881a56f9e3a8acb4ec57014e63",
+      "content_uri": "repo:examples/ta-reporting/output/report.sample.html",
+      "evidence_hash": "sha256:4a87d7a269e1a692e4931b1e6e3217cff7a4e6b238a5034aea172b603a3f4ceb",
+      "evidence_uri": "repo:examples/ta-reporting/output/report.sample.evidence.json",
+      "material_claim_ids": [
+        "claim.ta-reporting.at-risk",
+        "claim.ta-reporting.avg-days-open",
+        "claim.ta-reporting.median-pipeline",
+        "claim.ta-reporting.on-hold",
+        "claim.ta-reporting.total-open"
+      ],
+      "semantic_hash": "sha256:8dc5f7557f4f9098b814ce7a8af0a27f8f2a2910fcd16640e7ae648dd32ffbf3"
+    }
+  ],
+  "as_of": "2026-01-15",
+  "bundle_id": "bundle.visible-handoff.ta-2026-w03",
+  "period": "TA snapshot as of 2026-01-15",
+  "schema_version": "1.0"
+}

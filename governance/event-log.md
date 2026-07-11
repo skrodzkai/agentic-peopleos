@@ -21,13 +21,14 @@ caller. Validation re-derives every assigned field on replay.
 | `type` | enum | **yes** | One of `request, response, recommendation, approval, action, escalation, fyi`. |
 | `payload` | object | **yes** | Type-specific body. Minimized + pseudonymous by convention; a heuristic backstop in `append()` rejects obvious direct identifiers (see [data-classification](data-classification.md)). |
 | `case_ref` | string | no | Human-facing case label (e.g. `TA-2026-W03`). |
-| `correlation_id` | string | no | Groups every event in one case/thread. |
+| `correlation_id` | string | **governed decision events** | Groups every event in one case/thread; required on a gated recommendation, approval, and every action. |
 | `causation_id` | string | no | `event_id` of the event that directly caused this one. Must reference an earlier event. |
 | `idempotency_key` | string | no | De-dupes re-processed inputs (e.g. a re-delivered reaction). Repeats are no-ops, not new events. |
 | `requires_approval` | bool | no | On a `recommendation`: marks it as gating a downstream action. |
 | `scope` | string | no | The capability being approved/exercised (e.g. `publish.ta_report`). Bound action↔approval. |
 | `gated` | bool | no | On an `action`: this action ran only because an entitled approval exists. |
 | `approval` | object | no | On an `approval`: the adjudication — see approval sub-fields below. |
+| `authorization` | object | **yes for `publish.*` decision events** | Exact content-addressed evidence-bundle envelope. Required and copied unchanged on the gated recommendation, approval, and action. See [Evidence Graph v1](evidence-graph.md). |
 
 **`actor` sub-fields** (all required): `id` (stable identity, e.g. `hr.business-partner`),
 `display` (human label), `kind` (`agent` or `human`), `role` (e.g. `hr_approver`).
@@ -40,7 +41,7 @@ caller. Validation re-derives every assigned field on replay.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `schema_version` | string | Schema version (`1.0`). Validator rejects a mismatch. |
+| `schema_version` | string | Schema version (`1.1`). Validator rejects a mismatch. |
 | `sequence` | int | Monotonic index, no gaps. |
 | `prev_hash` | hex(64) | `event_hash` of the previous event; first links to GENESIS (`000…0`). |
 | `event_id` | hex(32) | Content address — SHA-256 of the event minus id/hash/hmac, truncated. |
@@ -60,8 +61,11 @@ for the exact one-line values:
    "policy_ref":"governance/approval-registry","reason":"entitled channel member","scope":"publish.ta_report"},
  "case_ref":"TA-2026-W03","causation_id":"1e0f3ae6f53f9a7eaedf6846991bd8c9","channel":"people-analytics",
  "correlation_id":"TA-2026-W03","idempotency_key":"react:hr.business-partner:msg-2:approve",
+ "authorization":{"bundle_id":"bundle.visible-handoff.ta-2026-w03","bundle_hash":"sha256:6d1e…",
+   "artifacts":[{"artifact_id":"artifact.ta-reporting.digest","content_hash":"sha256:…","evidence_hash":"sha256:…"}],
+   "material_claim_ids_hash":"sha256:…"},
  "payload":{},"scope":"publish.ta_report","ts":"2026-01-19T09:05:00Z","type":"approval",
- "schema_version":"1.0","sequence":2,
+ "schema_version":"1.1","sequence":2,
  "prev_hash":"56da37a6…","event_id":"4bf8f6cb…","event_hash":"59b2011e…"}
 ```
 
@@ -69,9 +73,11 @@ for the exact one-line values:
 
 | Bad event | Rejected by | Rule |
 |---|---|---|
-| `{"type":"approval", ...}` from `obs.engineering` (not in the approver pool) | `validate_log(registry=…)` | **#9** `FORGED — re-derives as NOT entitled`. The logged `entitled:true` is ignored. |
+| `{"type":"approval", ...}` from `obs.engineering` (not in the approver pool) | `validate_log(registry=…)` | **#11** `FORGED — re-derives as NOT entitled`. The logged `entitled:true` is ignored. |
 | An `action` with `gated:true` and no matching approval for the case | `validate_log` | **#8** `ungated/laundered action — no entitled approval`. |
 | An `action` whose `scope` ≠ the approved scope | `validate_log` | **#8** `action scope … != approved scope …` (anti scope-confusion). |
+| A `publish.*` approval/action carrying a different bundle than its predecessor | `validate_log` | `artifact substitution` — authorization must match exactly across all three decision events. |
+| A second action reusing the same approval | `validate_log` | `approval already consumed — one-shot authorization replay`. |
 | Any byte changed in a committed line | `validate_log` | **#4** `TAMPER — event_hash does not match content`. |
 | A line with a duplicate JSON key | `validate_log` | **#5** `duplicate JSON key` (parsed with `object_pairs_hook`). |
 | `append` of an event missing `payload`, or `actor.kind` ∉ {agent,human} | `EventLog.append` | writer fails closed (`LedgerError`) — bad data never reaches the file. |
@@ -98,15 +104,22 @@ ledger still **validates**; it just records a denial + escalation instead of an 
    **and** scope. The approval in turn must bind to its `recommendation` by causation **and** the
    same scope — so an approval can't pivot to a different (even if also-entitled) scope than was
    recommended.
-9. **Entitlement + ACL re-verification** — with the approval registry, both are re-derived for
+9. **Exact evidence authorization** — every `publish.*` recommendation, approval, and action carries
+   a schema-validated authorization envelope. The approval must exactly match its recommendation; the
+   action must exactly match its approval. Rendered-byte, evidence-graph, or material-claim substitution
+   invalidates the chain.
+10. **One-shot action authority** — the first fully valid action consumes its approval. A second action
+    using that approval is rejected as replay. Invalid/substituted attempts do not consume the genuine
+    authorization.
+11. **Entitlement + ACL re-verification** — with the approval registry, both are re-derived for
    **every** event: entitlement to the scope (`can_approve`) and channel membership (`is_member`).
    The logged `entitled` flag is never trusted (catches forged approvals, non-member actors on any
    event, and unknown actors).
-10. **Point-in-time authority** — an approval is stamped with the approval-registry `version` in
+12. **Point-in-time authority** — an approval is stamped with the approval-registry `version` in
     force when it was made; on replay a registry that has since changed surfaces as a version
     mismatch rather than silently revaluing a past approval. (Production stores a full snapshot per
     version; the reference hashes the live config.)
-11. **PII backstop** — a heuristic scan rejects events carrying obvious direct identifiers
+13. **PII backstop** — a heuristic scan rejects events carrying obvious direct identifiers
     (emails/SSNs/phones), at both `append` and replay (a backstop, not a guarantee).
 
 ## Integrity vs non-repudiation (be honest)

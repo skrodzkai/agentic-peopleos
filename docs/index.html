@@ -239,11 +239,11 @@
     <div class="hero-wordmark">Agentic People<span class="os">OS</span></div>
     <p class="kicker">A working reference system · Synthetic data · Real controls</p>
     <h1>Agents do the work.<br>Humans own every decision.<br><span style="color:var(--cyan)">The ledger proves it.</span></h1>
-    <p class="sub">Agentic PeopleOS is the operating system for an agent-run People function — eighteen reference agents across analytics, executive compensation, total rewards, and retention-risk ML, all built on one governance spine: a hash-chained decision ledger, role-scoped human approvals, injection-safe content, and a fail-closed engine. The agents are the easy part. The spine is the point.</p>
+    <p class="sub">Agentic PeopleOS is the operating system for an agent-run People function — eighteen reference agents across analytics, executive compensation, total rewards, and retention-risk ML, all built on one governance spine: a claims-to-evidence graph, exact-review bundles, a hash-chained decision ledger, role-scoped human approvals, injection-safe content, and a fail-closed engine. The agents are the easy part. The spine is the point.</p>
     <div class="chips">
       <span class="chip"><b>18</b> rendered dashboards, one shared engine</span>
       <span class="chip"><b style="color:var(--cyan)">72</b> governed metrics, defined once</span>
-      <span class="chip"><b style="color:var(--amber)">5</b> attack classes caught in evals</span>
+      <span class="chip"><b style="color:var(--amber)">216</b> material claims with evidence</span>
       <span class="chip"><b style="color:var(--green)">0</b> ungated consequential actions</span>
     </div>
     <div class="cta-row">
@@ -266,7 +266,7 @@
   <!-- ============ SECTION 3 — THE GOVERNANCE SPINE ============ -->
   <section>
     <p class="kicker">The differentiator</p>
-    <h2>Five controls, each tied to the bad thing it prevents</h2>
+    <h2>Six controls, each tied to the bad thing it prevents</h2>
     <p class="lead">"Governed" is asserted on every AI-for-HR slide. Here it's demonstrated: each control below is working code in this repo, with an eval that attacks it and a ledger you can re-verify yourself.</p>
 
     <div class="spine-grid">
@@ -276,6 +276,13 @@
         <p class="prevents-label">Prevents</p>
         <p class="prevents-body">History editing, forged or out-of-order approvals, and decision laundering — an action with no genuine approval behind it.</p>
         <span class="filepath">core/event_log.py</span>
+      </div>
+      <div class="card spine-card">
+        <p class="name">Evidence graph + exact-review bundle</p>
+        <p class="what">Every material claim links to versioned sources, logic, assumptions, checks, and caveats; publish approval hashes the exact rendered and evidence bytes.</p>
+        <p class="prevents-label">Prevents</p>
+        <p class="prevents-body">A polished number with no proof — or a human approving one report while the system quietly publishes another.</p>
+        <span class="filepath">core/evidence.py · core/evidence_bundle.py</span>
       </div>
       <div class="card spine-card">
         <p class="name">Role-scoped approval registry</p>
@@ -316,7 +323,7 @@
       </div>
       <div>
         <h3>Attack it yourself</h3>
-        <p style="color:var(--muted);font-size:15px;margin:0">The eval suite forges an approval, replays a bot as a human, duplicates a reaction, injects instructions through content, and tampers with a ledger row — all five are caught.</p>
+        <p style="color:var(--muted);font-size:15px;margin:0">The eval suite forges approvals, pivots scope, substitutes artifact bytes, reuses consumed authority, injects instructions, tampers with history, and truncates the ledger. Each attack has a named failing invariant.</p>
         <pre>python3 examples/visible-handoff/run.py
 python3 examples/visible-handoff/evals/test_handoff.py
 python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
@@ -325,11 +332,39 @@ python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl 
     </div>
   </section>
 
-  <!-- ============ SECTION 4 — THE ARMS GALLERY ============ -->
+  <!-- ============ SECTION 4 — EVIDENCE GRAPH ============ -->
+  <section id="evidence-graph">
+    <p class="kicker">Evidence Graph v1</p>
+    <h2>Click a number. Follow it all the way to the decision.</h2>
+    <p class="lead">All 18 dashboards and 18 digests carry machine-readable evidence for their decision-consequential claims. The visible drawer, committed sidecar, exact-review bundle, and decision ledger reconcile to one chain of proof.</p>
+    <div class="card proof">
+      <div>
+        <h3>Claims → evidence</h3>
+        <p style="color:var(--muted);font-size:15px;margin:0">A material number answers where it came from, source version and as-of date, content hash, transformation, assumptions, checks, caveats, and prior-cycle comparability. Missing history is explicit; the system does not invent a delta.</p>
+        <pre>rendered number
+  → claim id
+  → source version + as-of + hash
+  → transformation + checks
+  → assumptions + caveats</pre>
+      </div>
+      <div>
+        <h3>Evidence → authorized action</h3>
+        <p style="color:var(--muted);font-size:15px;margin:0">The bundle hashes the exact dashboard, digest, evidence manifests, and material-claim set. The recommendation, human approval, and one-shot action must carry that same envelope—one changed byte invalidates authority.</p>
+        <pre>B=examples/operating-review/output
+python3 -m core.evidence_bundle validate \
+  "$B/review.sample.evidence-bundle.json" \
+  --ledger "$B/decision.sample.events.jsonl" \
+  --verify-artifacts</pre>
+        <p class="cap"><a href="https://github.com/skrodzkai/agentic-peopleos/blob/main/governance/evidence-graph.md" target="_blank" rel="noopener">Read the architecture, threat model, and honest limits ↗</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 5 — THE ARMS GALLERY ============ -->
   <section>
     <p class="kicker">The arms</p>
     <h2>What the fleet actually ships</h2>
-    <p class="lead">Every dashboard below is rendered by this repo — one deterministic SVG toolkit, one compute engine, synthetic Acme Corp data (the exec-comp peer universe and proxy pay are real, SEC-disclosed public figures). Note the badge in every top-right corner: nothing here publishes itself.</p>
+    <p class="lead">Every dashboard below is rendered by this repo — one deterministic SVG toolkit, one compute engine, and an evidence trigger on every consequential claim. Data is synthetic Acme Corp data (the exec-comp peer universe and proxy pay are real, SEC-disclosed public figures). Note the badge in every top-right corner: nothing here publishes itself.</p>
 
     <!-- 01 -->
     <div class="card shot-card">
@@ -433,19 +468,20 @@ python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl 
     <p class="gallery-foot">…and twelve more: headcount · attrition · people-ops · operating review · peer builder · benchmarking · rTSR PSU · ISS pay screen · pay-equity readiness · SBC expense forecast · TA reporting · comp reporting — all rendered, all in <a href="https://github.com/skrodzkai/agentic-peopleos/tree/main/examples">examples/ ↗</a></p>
   </section>
 
-  <!-- ============ SECTION 5 — RUN IT ============ -->
+  <!-- ============ SECTION 6 — RUN IT ============ -->
   <section>
     <div class="card runit">
       <h3>Clone it, attack it, verify it</h3>
       <pre>python3 examples/visible-handoff/run.py
 python3 examples/visible-handoff/evals/test_handoff.py
+python3 tools/verify_evidence.py --portfolio --verify-sources --verify-rendered
 python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
     --registry examples/visible-handoff/approval_registry.json</pre>
       <p class="note">Python 3, standard library. No API keys, no vendors, no telemetry.</p>
     </div>
   </section>
 
-  <!-- ============ SECTION 6 — ABOUT THE BUILDER ============ -->
+  <!-- ============ SECTION 7 — ABOUT THE BUILDER ============ -->
   <section>
     <p class="kicker">Who builds this</p>
     <h2>Built from inside the function</h2>
@@ -456,7 +492,7 @@ python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl 
     </div>
   </section>
 
-  <!-- ============ SECTION 7 — FOOTER / honesty strip ============ -->
+  <!-- ============ SECTION 8 — FOOTER / honesty strip ============ -->
   <footer>
     <p class="honesty">Synthetic Acme Corp data throughout, except the executive-comp peer universe and proxy-pay figures, which are real, public, SEC-disclosed data with documented provenance — an illustrative, dated snapshot. The ISS and Glass Lewis models are illustrative reconstructions from public methodology, not affiliated with and not the output of either firm. No secrets, no live systems, no proprietary logic. MIT license.</p>
     <p class="foot-right">Agentic PeopleOS · <a href="https://github.com/skrodzkai/agentic-peopleos">github.com/skrodzkai/agentic-peopleos</a></p>
