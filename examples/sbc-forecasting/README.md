@@ -13,9 +13,16 @@ python3 run.py                                          # draft dashboard + dige
 python3 run.py --publish --approved-by "Chief Financial Officer"
 python3 evals/test_sbc_forecast_agent.py               # agent evals
 python3 ../../foundation/compute/tests/test_sbc_forecast.py  # engine tests (incl. the equity-spend reconciliation)
+python3 ../../tools/verify_evidence.py --verify-sources output/*.evidence.json
 ```
 
 ![SBC forecast dashboard](output/report.sample.png)
+
+The dashboard and digest each ship a machine-readable evidence sidecar:
+[dashboard evidence](output/report.sample.evidence.json) ·
+[digest evidence](output/day1-digest.sample.evidence.json). Together they make six material claims
+traceable to hashed source snapshots, versioned transformations, explicit assumptions, passing checks,
+and caveats; the verifier re-hashes every committed input offline.
 
 **Why it matters.** SBC is a large, non-cash P&L line a company must guide on, and the honest first move is to
 separate the **certain** from the **assumed**. The locked-in runoff is certain — it is the amortization of

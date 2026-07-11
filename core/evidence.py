@@ -80,6 +80,11 @@ def canonical(value):
                       allow_nan=False)
 
 
+def format_manifest(value):
+    """Deterministic, review-friendly JSON; hashes still use compact canonical JSON."""
+    return json.dumps(value, sort_keys=True, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+
+
 def hash_bytes(value):
     return "sha256:" + hashlib.sha256(value).hexdigest()
 
@@ -708,7 +713,7 @@ def write_manifest(path, manifest):
     fd, tmp_name = tempfile.mkstemp(prefix=target.name + ".", dir=str(target.parent))
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(canonical(manifest) + "\n")
+            handle.write(format_manifest(manifest))
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp_name, target)

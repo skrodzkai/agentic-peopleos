@@ -1,0 +1,754 @@
+{
+  "artifact": {
+    "agent_id": "agent.executive-comp-benchmarking",
+    "artifact_type": "dashboard",
+    "as_of": "2026-07-02",
+    "id": "artifact.executive-comp-benchmarking.report",
+    "period": "FY2026 proxy season · real public peers · illustrative snapshot",
+    "semantic_hash": "sha256:8106655ca206213251fdcd1ff38104948ae15c81e3db3c53ee2391a7cbdd6b94",
+    "status": "draft",
+    "title": "Acme Corp Executive Compensation Benchmarking"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.benchmark.band.base",
+      "name": "Base salary target-percentile band",
+      "source_ids": [
+        "source.benchmark.policy"
+      ],
+      "status": "policy",
+      "unit": "percentile_band",
+      "value": "P45–P55",
+      "version": "v1"
+    },
+    {
+      "id": "assumption.benchmark.band.ltie",
+      "name": "LTI / equity target-percentile band",
+      "source_ids": [
+        "source.benchmark.policy"
+      ],
+      "status": "policy",
+      "unit": "percentile_band",
+      "value": "P50–P65",
+      "version": "v1"
+    },
+    {
+      "id": "assumption.benchmark.band.sti",
+      "name": "Annual cash incentive target-percentile band",
+      "source_ids": [
+        "source.benchmark.policy"
+      ],
+      "status": "policy",
+      "unit": "percentile_band",
+      "value": "P50–P60",
+      "version": "v1"
+    },
+    {
+      "id": "assumption.benchmark.band.tdc",
+      "name": "Total direct comp (SCT) target-percentile band",
+      "source_ids": [
+        "source.benchmark.policy"
+      ],
+      "status": "policy",
+      "unit": "percentile_band",
+      "value": "P50–P65",
+      "version": "v1"
+    },
+    {
+      "id": "assumption.benchmark.band.total_cash",
+      "name": "Total cash (actual) target-percentile band",
+      "source_ids": [
+        "source.benchmark.policy"
+      ],
+      "status": "policy",
+      "unit": "percentile_band",
+      "value": "P50–P60",
+      "version": "v1"
+    },
+    {
+      "id": "assumption.benchmark.incumbent-policy",
+      "name": "Representative incumbent policy",
+      "source_ids": [
+        "source.benchmark.policy"
+      ],
+      "status": "policy",
+      "unit": "text",
+      "value": "one non-former, non-interim incumbent per company and role",
+      "version": "v1"
+    },
+    {
+      "id": "assumption.benchmark.min-peer-n",
+      "name": "Minimum peer observations",
+      "source_ids": [
+        "source.benchmark.policy"
+      ],
+      "status": "policy",
+      "unit": "peers",
+      "value": 6,
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.benchmark.actual-not-target",
+      "severity": "warning",
+      "text": "Peer figures are actual SCT-disclosed pay rather than target compensation opportunity"
+    },
+    {
+      "id": "caveat.benchmark.foreign-excluded",
+      "severity": "info",
+      "text": "Foreign private issuers use a different disclosure basis and are excluded from the US SCT distribution"
+    },
+    {
+      "id": "caveat.benchmark.synthetic-subject",
+      "severity": "info",
+      "text": "The subject company and its executive-pay inputs are synthetic"
+    },
+    {
+      "id": "caveat.benchmark.thin-peer-set",
+      "severity": "warning",
+      "text": "The widest shortfall is based on a peer set below the preferred ten-observation comfort threshold"
+    },
+    {
+      "id": "caveat.benchmark.transition-excluded",
+      "severity": "info",
+      "text": "Partial-year transition officers are excluded when their pay is not representative of a full-year incumbent"
+    }
+  ],
+  "checks": [
+    {
+      "details": "Counts tie to rendered positions; suppressed roles remain below the peer floor and never receive a percentile",
+      "id": "check.benchmark.coverage-integrity",
+      "implementation": "examples.executive-comp-benchmarking.run.build_report",
+      "name": "Coverage and suppression integrity",
+      "status": "passed"
+    },
+    {
+      "details": "Every percentile, quartile, target band, status, gap, role, and element is finite and internally consistent",
+      "id": "check.benchmark.position-integrity",
+      "implementation": "examples.executive-comp-benchmarking.run.build_report",
+      "name": "Position integrity",
+      "status": "passed"
+    },
+    {
+      "details": "Every public observation has a valid SEC archive URL, disclosure basis, currency, extraction date, and component-total reconciliation",
+      "id": "check.benchmark.source-provenance",
+      "implementation": "foundation.compute.benchmarking.load_proxy_comp",
+      "name": "Proxy source provenance",
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.base",
+        "assumption.benchmark.band.sti",
+        "assumption.benchmark.band.total_cash",
+        "assumption.benchmark.band.ltie",
+        "assumption.benchmark.band.tdc"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "6",
+      "id": "claim.benchmark.below-target",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "6 of 20 positions are below the policy band.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.counts.v1",
+      "unit": "positions",
+      "value": 6
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [],
+      "caveat_ids": [
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "$8.47M",
+      "id": "claim.benchmark.ceo-tdc",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "Synthetic CEO SCT Total is $8.47M.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "USD",
+      "value": 8470000.0
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.tdc",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.synthetic-subject",
+        "caveat.benchmark.actual-not-target"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P42.9",
+      "id": "claim.benchmark.ceo-tdc-percentile",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "Synthetic CEO SCT Total is at percentile 42.9.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 42.9
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [],
+      "caveat_ids": [
+        "caveat.benchmark.foreign-excluded"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "2",
+      "id": "claim.benchmark.foreign-excluded",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.monday-com-ltd",
+        "source.sec.the-descartes-systems-group-inc"
+      ],
+      "statement": "2 foreign private issuers are excluded from the US SCT distribution.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.counts.v1",
+      "unit": "issuers",
+      "value": 2
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "14",
+      "id": "claim.benchmark.peer-count",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp"
+      ],
+      "statement": "The comparable distribution contains 14 US SCT peers.",
+      "status": "supported",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.counts.v1",
+      "unit": "peers",
+      "value": 14
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "20",
+      "id": "claim.benchmark.position-count",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "The dashboard contains 20 role-element positions.",
+      "status": "supported",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.counts.v1",
+      "unit": "positions",
+      "value": 20
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.min-peer-n",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "2",
+      "id": "claim.benchmark.suppressed-role",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp"
+      ],
+      "statement": "CHRO is suppressed with 2 comparable peer observations.",
+      "status": "supported",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.suppression.v1",
+      "unit": "peers",
+      "value": 2
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [],
+      "caveat_ids": [
+        "caveat.benchmark.transition-excluded"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "3",
+      "id": "claim.benchmark.transition-excluded",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp"
+      ],
+      "statement": "3 partial-year transition observations are excluded.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.counts.v1",
+      "unit": "observations",
+      "value": 3
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.ltie",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.thin-peer-set",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "25.0pt",
+      "id": "claim.benchmark.widest-gap",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CLO LTI / equity is 25.0 percentile points below the target band.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile_points",
+      "value": 25.0
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:fa8c0af4eae3edbe5ce069123015a318c789bdf52380260098a661aee9da081d",
+      "hash_scope": "file_bytes",
+      "id": "source.benchmark.policy",
+      "kind": "model",
+      "label": "Benchmarking policy, exclusions, and target bands",
+      "uri": "repo:foundation/compute/benchmarking.py",
+      "version": "benchmarking-v1"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:4e41712f34df30112ca6919597024f848e7c398c730fb9118fcfd7779bb0229d",
+      "hash_scope": "file_bytes",
+      "id": "source.benchmark.proxy-comp",
+      "kind": "dataset",
+      "label": "Mixed public-peer and synthetic-subject proxy compensation snapshot",
+      "uri": "repo:foundation/data/acme/proxy_comp.csv",
+      "version": "proxy-comp-2026-07-02"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "synthetic",
+      "content_hash": "sha256:071d9e0b025f68cc042d30243dfd72c2df93bc73a57f5cc1757db37b7d83a111",
+      "hash_scope": "canonical_record",
+      "id": "source.benchmark.synthetic-subject",
+      "kind": "dataset",
+      "label": "Synthetic Acme executive-pay inputs",
+      "uri": "urn:synthetic:acme-executive-pay",
+      "version": "generator-seed-30414"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:de667f651940c2a2c91b6ecd7d6a83a3cb0bb98221c1d005759fe583f37eeac5",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.appfolio-inc",
+      "kind": "filing",
+      "label": "AppFolio, Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1433195/000143319526000031/appf-20260428.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:8017f4b25b022f32e6dda0a52d97e4de3b9ce6ea3932412d887533f4d08eba05",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.bentley-systems-incorporated",
+      "kind": "filing",
+      "label": "Bentley Systems, Incorporated executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1031308/000110465926042019/tm261386-1_def14a.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:5742ade3d375296e0539f0cb919a62ffb3f6d799b93f074c6c03748c4f8d060a",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.bill-holdings-inc",
+      "kind": "filing",
+      "label": "Bill Holdings, Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1786352/000119312525251571/d25146ddef14a.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:14af50f043deae2cc3778844e52ab7e200e05a0e612e350fd5d265f4b8322a4f",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.commvault-systems-inc",
+      "kind": "filing",
+      "label": "Commvault Systems, Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1169561/000116956126000018/cvlt-20260624.htm",
+      "version": "FY2026/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:d0356b3a810bbcde347b08a5e08e277345fe94e0ffe0ed54ebdde619f1c14da1",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.gitlab-inc",
+      "kind": "filing",
+      "label": "GitLab Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1653482/000165348226000085/gtlb-20260501.htm",
+      "version": "FY2026/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:9d8eef3098d95dd3636b2b9c725b4b07c95473941f738c9c62bcaf4da2c236d6",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.guidewire-software-inc",
+      "kind": "filing",
+      "label": "Guidewire Software, Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1528396/000152839625000233/gdwre-20251030.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:1d0a162f37b090f93094aab47b266633a1589ec18d63718f6968261d92a8459e",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.klaviyo-inc",
+      "kind": "filing",
+      "label": "Klaviyo, Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1835830/000183583026000018/kvyo-20260429.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:138042c61fc8be49e099abe9faaffa313e0bb475534331111c4934b67487f0f9",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.manhattan-associates-inc",
+      "kind": "filing",
+      "label": "Manhattan Associates, Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1056696/000119312526140024/manh-20260402.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:db54c64c0665cf724a9ba7cbe72e20293166e46438c341080a0a276ae9bd202f",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.monday-com-ltd",
+      "kind": "filing",
+      "label": "monday.com Ltd. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1845338/000117891326000870/zk2634436.htm",
+      "version": "FY2025/20-F"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:7d28251b12f273b07dda8139efa93d749c022d3ffdcf45b602f83fefa9a7356f",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.paylocity-holding-corporation",
+      "kind": "filing",
+      "label": "Paylocity Holding Corporation executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1591698/000159169825000102/pcty-20251021.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:4972975919c5e045ffb53c3a97ca5db45252491d5ca009566d1c212208e39c1a",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.pegasystems-inc",
+      "kind": "filing",
+      "label": "Pegasystems Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1013857/000101385726000031/pega-20260424.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:07bda6b11a18ec90c98bc99ea0bf0f1ac89cff542382ec104a93782a051471c8",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.procore-technologies-inc",
+      "kind": "filing",
+      "label": "Procore Technologies, Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1611052/000119312526177306/d808364ddef14a.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:0a782e67b10c6dcf597fa6fde4ca3fb735e1948acaeb22e806e4c8fe3fb1942f",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.q2-holdings-inc",
+      "kind": "filing",
+      "label": "Q2 Holdings, Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1410384/000141038426000029/qtwo-20260428.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:dea0efb53e0c135c98be233b60efd045908b5139a0b28333e04234d6285ccd8e",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.qualys-inc",
+      "kind": "filing",
+      "label": "Qualys, Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1107843/000114036126016101/ny20064597x1_def14a.htm",
+      "version": "FY2025/DEF 14A"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:68ea77472d2f713fffd2b1e1f21d1e6d7c48113834b1e0c1f73a09ec7f4d21fc",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.the-descartes-systems-group-inc",
+      "kind": "filing",
+      "label": "The Descartes Systems Group Inc. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1050140/000092963826001765/exhibit99-1.htm",
+      "version": "FY2026/6-K"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:fe653b4cdedc4149e2918987fb2e0f5c63230593b55ee927e8fb75bf239074ed",
+      "hash_scope": "canonical_record",
+      "id": "source.sec.zeta-global-holdings-corp",
+      "kind": "filing",
+      "label": "Zeta Global Holdings Corp. executive-compensation disclosure",
+      "uri": "https://www.sec.gov/Archives/edgar/data/1851003/000119312526177408/zeta-20260424.htm",
+      "version": "FY2025/DEF 14A"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Count comparable US SCT peers, positioned role-element observations, exclusions, and below-band calls",
+      "id": "transform.benchmark.counts.v1",
+      "implementation": "foundation.compute.benchmarking.benchmark",
+      "name": "Benchmark coverage counts",
+      "version": "v1"
+    },
+    {
+      "description": "Select one representative incumbent per peer and role, calculate SCT-basis element distributions, and position the synthetic subject",
+      "id": "transform.benchmark.position.v1",
+      "implementation": "foundation.compute.benchmarking.benchmark",
+      "name": "Executive-pay percentile positioning",
+      "version": "v1"
+    },
+    {
+      "description": "Suppress a role when comparable peer disclosure falls below the policy floor",
+      "id": "transform.benchmark.suppression.v1",
+      "implementation": "foundation.compute.benchmarking.benchmark",
+      "name": "Thin-role suppression",
+      "version": "v1"
+    }
+  ]
+}
