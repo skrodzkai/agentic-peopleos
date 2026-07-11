@@ -1,0 +1,378 @@
+{
+  "artifact": {
+    "agent_id": "agent.equity-spend",
+    "artifact_type": "dashboard",
+    "as_of": "2025-12-31",
+    "id": "artifact.equity-spend.report",
+    "period": "FY2025 company-wide equity plan",
+    "semantic_hash": "sha256:73dec89f7d411f8bca631765da94cfd0e964e5325811c5133e5457ae89c864a8",
+    "status": "draft",
+    "title": "Acme Corp Company-Wide Equity Spend and Burn"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.equity-spend.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.equity-spend.01",
+        "source.equity-spend.02",
+        "source.equity-spend.03",
+        "source.equity-spend.04",
+        "source.equity-spend.05",
+        "source.equity-spend.06",
+        "source.equity-spend.07"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.equity-spend.reference-mode",
+      "severity": "warning",
+      "text": "Synthetic plan data; benchmark cap and EPSC/Plan Cost reconstructions are illustrative."
+    }
+  ],
+  "checks": [
+    {
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.equity-spend.report-contract",
+      "implementation": "examples.equity-spend.run.build_report",
+      "name": "Agent report contract",
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.equity-spend.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.equity-spend.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.equity-spend.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "2.75%",
+      "id": "claim.equity-spend.benchmark-cap",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2025 company-wide equity plan",
+      "source_ids": [
+        "source.equity-spend.01",
+        "source.equity-spend.02",
+        "source.equity-spend.03",
+        "source.equity-spend.04",
+        "source.equity-spend.05",
+        "source.equity-spend.06",
+        "source.equity-spend.07"
+      ],
+      "statement": "Illustrative burn-rate benchmark cap: 2.75%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.equity-spend.report.v1",
+      "unit": "percent",
+      "value": 2.75
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.equity-spend.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.equity-spend.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.equity-spend.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "6.6%",
+      "id": "claim.equity-spend.dilution",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2025 company-wide equity plan",
+      "source_ids": [
+        "source.equity-spend.01",
+        "source.equity-spend.02",
+        "source.equity-spend.03",
+        "source.equity-spend.04",
+        "source.equity-spend.05",
+        "source.equity-spend.06",
+        "source.equity-spend.07"
+      ],
+      "statement": "Outstanding-award dilution: 6.6%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.equity-spend.report.v1",
+      "unit": "percent",
+      "value": 6.62
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.equity-spend.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.equity-spend.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.equity-spend.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "14.4%",
+      "id": "claim.equity-spend.overhang",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2025 company-wide equity plan",
+      "source_ids": [
+        "source.equity-spend.01",
+        "source.equity-spend.02",
+        "source.equity-spend.03",
+        "source.equity-spend.04",
+        "source.equity-spend.05",
+        "source.equity-spend.06",
+        "source.equity-spend.07"
+      ],
+      "statement": "Equity overhang: 14.4%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.equity-spend.report.v1",
+      "unit": "percent",
+      "value": 14.36
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.equity-spend.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.equity-spend.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.equity-spend.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "2.8 yrs",
+      "id": "claim.equity-spend.pool-longevity",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2025 company-wide equity plan",
+      "source_ids": [
+        "source.equity-spend.01",
+        "source.equity-spend.02",
+        "source.equity-spend.03",
+        "source.equity-spend.04",
+        "source.equity-spend.05",
+        "source.equity-spend.06",
+        "source.equity-spend.07"
+      ],
+      "statement": "Estimated equity-pool longevity: 2.8 yrs.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.equity-spend.report.v1",
+      "unit": "years",
+      "value": 2.82
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.equity-spend.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.equity-spend.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.equity-spend.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "$179.8M",
+      "id": "claim.equity-spend.sbc-backlog",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2025 company-wide equity plan",
+      "source_ids": [
+        "source.equity-spend.01",
+        "source.equity-spend.02",
+        "source.equity-spend.03",
+        "source.equity-spend.04",
+        "source.equity-spend.05",
+        "source.equity-spend.06",
+        "source.equity-spend.07"
+      ],
+      "statement": "Locked-in unamortized SBC backlog: $179.8M.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.equity-spend.report.v1",
+      "unit": "USD",
+      "value": 179825244.92
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.equity-spend.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.equity-spend.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.equity-spend.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "13.2%",
+      "id": "claim.equity-spend.sbc-revenue",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2025 company-wide equity plan",
+      "source_ids": [
+        "source.equity-spend.01",
+        "source.equity-spend.02",
+        "source.equity-spend.03",
+        "source.equity-spend.04",
+        "source.equity-spend.05",
+        "source.equity-spend.06",
+        "source.equity-spend.07"
+      ],
+      "statement": "Trailing SBC as a percentage of revenue: 13.2%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.equity-spend.report.v1",
+      "unit": "percent",
+      "value": 13.16
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.equity-spend.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.equity-spend.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.equity-spend.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "2.35%",
+      "id": "claim.equity-spend.vabr",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2025 company-wide equity plan",
+      "source_ids": [
+        "source.equity-spend.01",
+        "source.equity-spend.02",
+        "source.equity-spend.03",
+        "source.equity-spend.04",
+        "source.equity-spend.05",
+        "source.equity-spend.06",
+        "source.equity-spend.07"
+      ],
+      "statement": "Three-year value-adjusted burn rate: 2.35%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.equity-spend.report.v1",
+      "unit": "percent",
+      "value": 2.35
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2025-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:37cd9325f951ae90fbd6051031982830284138b958e717ac196827cbdc151e64",
+      "hash_scope": "file_bytes",
+      "id": "source.equity-spend.01",
+      "kind": "dataset",
+      "label": "Workers",
+      "uri": "repo:foundation/data/acme/workers.csv",
+      "version": "reference-2025-12-31"
+    },
+    {
+      "as_of": "2025-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:723ab78c736555f5b9ef84983712739397bacfe17078da68b95e70f254bf8dd4",
+      "hash_scope": "file_bytes",
+      "id": "source.equity-spend.02",
+      "kind": "dataset",
+      "label": "Equity Grants",
+      "uri": "repo:foundation/data/acme/equity_grants.csv",
+      "version": "reference-2025-12-31"
+    },
+    {
+      "as_of": "2025-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:2a24b85702f3213620edf67a6b256ff3f28f0a2f0d4a3a041f955870050b6991",
+      "hash_scope": "file_bytes",
+      "id": "source.equity-spend.03",
+      "kind": "dataset",
+      "label": "Equity Plans",
+      "uri": "repo:foundation/data/acme/equity_plans.csv",
+      "version": "reference-2025-12-31"
+    },
+    {
+      "as_of": "2025-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:6e78e6d3510d4a2e4df58cb97a7aaa273992940a1b3c51c2927e6a99ebdb199f",
+      "hash_scope": "file_bytes",
+      "id": "source.equity-spend.04",
+      "kind": "dataset",
+      "label": "Directors",
+      "uri": "repo:foundation/data/acme/directors.csv",
+      "version": "reference-2025-12-31"
+    },
+    {
+      "as_of": "2025-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:c26f571ea8291c19364bf9ff607710d8fed1f4c35e89a86692c8f0c43c9ad175",
+      "hash_scope": "file_bytes",
+      "id": "source.equity-spend.05",
+      "kind": "dataset",
+      "label": "Financials",
+      "uri": "repo:foundation/data/acme/financials.csv",
+      "version": "reference-2025-12-31"
+    },
+    {
+      "as_of": "2025-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:1681ec6af1378a8c37c8f916350a54a40c4ae4c2963a5f2cf081d6c4603d8237",
+      "hash_scope": "file_bytes",
+      "id": "source.equity-spend.06",
+      "kind": "dataset",
+      "label": "Shares Outstanding",
+      "uri": "repo:foundation/data/acme/shares_outstanding.csv",
+      "version": "reference-2025-12-31"
+    },
+    {
+      "as_of": "2025-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:65b2f656c0035ff3b9e39e05df9ffbc02405726ecd05deb393611c25913bb338",
+      "hash_scope": "file_bytes",
+      "id": "source.equity-spend.07",
+      "kind": "dataset",
+      "label": "Burn Benchmarks",
+      "uri": "repo:foundation/data/acme/burn_benchmarks.csv",
+      "version": "reference-2025-12-31"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.equity-spend.report.v1",
+      "implementation": "examples.equity-spend.run.build_report",
+      "name": "Company-wide equity spend, burn, overhang, dilution, and pool forecast",
+      "version": "v1"
+    }
+  ]
+}

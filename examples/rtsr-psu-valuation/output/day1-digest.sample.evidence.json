@@ -1,0 +1,244 @@
+{
+  "artifact": {
+    "agent_id": "agent.rtsr-psu-valuation",
+    "artifact_type": "digest",
+    "as_of": "2028-12-31",
+    "id": "artifact.rtsr-psu-valuation.digest",
+    "period": "2026-01-01 to 2028-12-31",
+    "semantic_hash": "sha256:42fac021e81412501cb3b3de4c5d1405c7a2c311f558668898a878dc0a7cfcc0",
+    "status": "draft",
+    "title": "Relative TSR PSU Performance and Valuation"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.rtsr-psu-valuation.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.rtsr-psu-valuation.01",
+        "source.rtsr-psu-valuation.02",
+        "source.rtsr-psu-valuation.03",
+        "source.rtsr-psu-valuation.04",
+        "source.rtsr-psu-valuation.05"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.rtsr-psu-valuation.reference-mode",
+      "severity": "warning",
+      "text": "Synthetic valuation inputs and simplified path assumptions; not an auditor-approved ASC 718 valuation."
+    }
+  ],
+  "checks": [
+    {
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.rtsr-psu-valuation.report-contract",
+      "implementation": "examples.rtsr-psu-valuation.run.build_report",
+      "name": "Agent report contract",
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2028-12-31",
+      "assumption_ids": [
+        "assumption.rtsr-psu-valuation.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.rtsr-psu-valuation.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.rtsr-psu-valuation.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "$101.57",
+      "id": "claim.rtsr-psu-valuation.fair-value",
+      "material": true,
+      "metric_id": null,
+      "period": "2026-01-01 to 2028-12-31",
+      "source_ids": [
+        "source.rtsr-psu-valuation.01",
+        "source.rtsr-psu-valuation.02",
+        "source.rtsr-psu-valuation.03",
+        "source.rtsr-psu-valuation.04",
+        "source.rtsr-psu-valuation.05"
+      ],
+      "statement": "Monte Carlo fair value per target share: $101.57.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.rtsr-psu-valuation.report.v1",
+      "unit": "USD/share",
+      "value": 101.5712
+    },
+    {
+      "as_of": "2028-12-31",
+      "assumption_ids": [
+        "assumption.rtsr-psu-valuation.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.rtsr-psu-valuation.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.rtsr-psu-valuation.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "1.40x",
+      "id": "claim.rtsr-psu-valuation.fair-value-ratio",
+      "material": true,
+      "metric_id": null,
+      "period": "2026-01-01 to 2028-12-31",
+      "source_ids": [
+        "source.rtsr-psu-valuation.01",
+        "source.rtsr-psu-valuation.02",
+        "source.rtsr-psu-valuation.03",
+        "source.rtsr-psu-valuation.04",
+        "source.rtsr-psu-valuation.05"
+      ],
+      "statement": "Monte Carlo fair value relative to spot: 1.40x.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.rtsr-psu-valuation.report.v1",
+      "unit": "multiple",
+      "value": 1.401
+    },
+    {
+      "as_of": "2028-12-31",
+      "assumption_ids": [
+        "assumption.rtsr-psu-valuation.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.rtsr-psu-valuation.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.rtsr-psu-valuation.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "56.25%",
+      "id": "claim.rtsr-psu-valuation.issuer-percentile",
+      "material": true,
+      "metric_id": null,
+      "period": "2026-01-01 to 2028-12-31",
+      "source_ids": [
+        "source.rtsr-psu-valuation.01",
+        "source.rtsr-psu-valuation.02",
+        "source.rtsr-psu-valuation.03",
+        "source.rtsr-psu-valuation.04",
+        "source.rtsr-psu-valuation.05"
+      ],
+      "statement": "Issuer relative-TSR percentile: 56.25%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.rtsr-psu-valuation.report.v1",
+      "unit": "percentile",
+      "value": 56.25
+    },
+    {
+      "as_of": "2028-12-31",
+      "assumption_ids": [
+        "assumption.rtsr-psu-valuation.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.rtsr-psu-valuation.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.rtsr-psu-valuation.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "106.25%",
+      "id": "claim.rtsr-psu-valuation.payout",
+      "material": true,
+      "metric_id": null,
+      "period": "2026-01-01 to 2028-12-31",
+      "source_ids": [
+        "source.rtsr-psu-valuation.01",
+        "source.rtsr-psu-valuation.02",
+        "source.rtsr-psu-valuation.03",
+        "source.rtsr-psu-valuation.04",
+        "source.rtsr-psu-valuation.05"
+      ],
+      "statement": "Indicated PSU payout: 106.25%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.rtsr-psu-valuation.report.v1",
+      "unit": "percent-of-target",
+      "value": 106.25
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2028-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:fd19bfa04d1bf219de3da232fba39254f86a4e16e1780dc9bfd84a6ff78e712d",
+      "hash_scope": "file_bytes",
+      "id": "source.rtsr-psu-valuation.01",
+      "kind": "dataset",
+      "label": "Companies.Sample",
+      "uri": "repo:examples/rtsr-psu-valuation/data/companies.sample.json",
+      "version": "reference-2028-12-31"
+    },
+    {
+      "as_of": "2028-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:a054c2079922178dfeccab73d766655413a77424a6047c392244d8c6572a4373",
+      "hash_scope": "file_bytes",
+      "id": "source.rtsr-psu-valuation.02",
+      "kind": "dataset",
+      "label": "Prices.Sample",
+      "uri": "repo:examples/rtsr-psu-valuation/data/prices.sample.json",
+      "version": "reference-2028-12-31"
+    },
+    {
+      "as_of": "2028-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:2a5cd0988c8725d8a1264c2cdeafb398bbb14b7c57e81fe5441163751236ef22",
+      "hash_scope": "file_bytes",
+      "id": "source.rtsr-psu-valuation.03",
+      "kind": "dataset",
+      "label": "Plan Terms.Sample",
+      "uri": "repo:examples/rtsr-psu-valuation/data/plan_terms.sample.json",
+      "version": "reference-2028-12-31"
+    },
+    {
+      "as_of": "2028-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:435f540ce8b4fb9f335c0cb8d12dfc56ba393ccf748d96edd531a084b2be4fb9",
+      "hash_scope": "file_bytes",
+      "id": "source.rtsr-psu-valuation.04",
+      "kind": "dataset",
+      "label": "Valuation Assumptions.Sample",
+      "uri": "repo:examples/rtsr-psu-valuation/data/valuation_assumptions.sample.json",
+      "version": "reference-2028-12-31"
+    },
+    {
+      "as_of": "2028-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:c4df718cd54e2de9384d63e6f7f6f7e204274d56adf5b696fdc1370125e4860f",
+      "hash_scope": "file_bytes",
+      "id": "source.rtsr-psu-valuation.05",
+      "kind": "dataset",
+      "label": "Payout History.Sample",
+      "uri": "repo:examples/rtsr-psu-valuation/data/payout_history.sample.json",
+      "version": "reference-2028-12-31"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.rtsr-psu-valuation.report.v1",
+      "implementation": "examples.rtsr-psu-valuation.run.build_report",
+      "name": "Relative-TSR performance evaluation and deterministic Monte Carlo valuation",
+      "version": "v1"
+    }
+  ]
+}

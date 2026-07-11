@@ -28,6 +28,7 @@ if str(REPO) not in sys.path:
 
 from foundation.compute.pvp import (  # noqa: E402
     PayVersusPerformance, pvp_table, relationship_series, cap_for_neo_year, alignment)
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 from foundation.render import charts as ch  # noqa: E402
 
 OUT = HERE / "output"
@@ -356,7 +357,7 @@ def _atomic_write(path, text):
 
 
 def _managed_outputs():
-    return (REPORT, DIGEST, OUT / "PUBLISHED.json")
+    return portfolio_ev.managed_outputs(REPORT, DIGEST) + (OUT / "PUBLISHED.json",)
 
 
 def _mark_stale_outputs():
@@ -420,6 +421,8 @@ def main(argv=None):
         report = build_report(load_inputs())
         html = render_html(report)
         digest = render_digest(report)
+        html, digest, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            AGENT, report, html, digest, REPO)
     except Exception as exc:
         return _fail_closed(exc)
 
@@ -427,6 +430,7 @@ def main(argv=None):
         _clear_stale_outputs()
         _atomic_write(REPORT, html)
         _atomic_write(DIGEST, digest)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         pub = OUT / "PUBLISHED.json"
         if args.publish:
             _atomic_write(pub, json.dumps(_publish_record(args.approved_by, report), indent=2) + "\n")

@@ -1,0 +1,254 @@
+{
+  "artifact": {
+    "agent_id": "agent.pay-versus-performance",
+    "artifact_type": "dashboard",
+    "as_of": "2026-12-31",
+    "id": "artifact.pay-versus-performance.report",
+    "period": "SEC Item 402(v) window through FY2026",
+    "semantic_hash": "sha256:8d0572097f35629565042b7369b96a8ce1fc6a664982b9b13cc3ca47a50a1abf",
+    "status": "draft",
+    "title": "Acme Corp Pay-versus-Performance"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.pay-versus-performance.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.pay-versus-performance.01",
+        "source.pay-versus-performance.02"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.pay-versus-performance.reference-mode",
+      "severity": "warning",
+      "text": "Synthetic disclosure reconstruction; not filed disclosure, accounting advice, or an auditor valuation."
+    }
+  ],
+  "checks": [
+    {
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.pay-versus-performance.report-contract",
+      "implementation": "examples.pay-versus-performance.run.build_report",
+      "name": "Agent report contract",
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2026-12-31",
+      "assumption_ids": [
+        "assumption.pay-versus-performance.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.pay-versus-performance.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.pay-versus-performance.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "ALIGNED",
+      "id": "claim.pay-versus-performance.alignment",
+      "material": true,
+      "metric_id": null,
+      "period": "SEC Item 402(v) window through FY2026",
+      "source_ids": [
+        "source.pay-versus-performance.01",
+        "source.pay-versus-performance.02"
+      ],
+      "statement": "Pay-versus-performance directional read: ALIGNED.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.pay-versus-performance.report.v1",
+      "unit": "category",
+      "value": "ALIGNED"
+    },
+    {
+      "as_of": "2026-12-31",
+      "assumption_ids": [
+        "assumption.pay-versus-performance.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.pay-versus-performance.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.pay-versus-performance.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "1.52x",
+      "id": "claim.pay-versus-performance.cap-sct-ratio",
+      "material": true,
+      "metric_id": null,
+      "period": "SEC Item 402(v) window through FY2026",
+      "source_ids": [
+        "source.pay-versus-performance.01",
+        "source.pay-versus-performance.02"
+      ],
+      "statement": "Latest-year PEO CAP-to-SCT ratio: 1.52x.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.pay-versus-performance.report.v1",
+      "unit": "multiple",
+      "value": 1.5231968481522289
+    },
+    {
+      "as_of": "2026-12-31",
+      "assumption_ids": [
+        "assumption.pay-versus-performance.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.pay-versus-performance.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.pay-versus-performance.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "$5.3M",
+      "id": "claim.pay-versus-performance.cap-start",
+      "material": true,
+      "metric_id": null,
+      "period": "SEC Item 402(v) window through FY2026",
+      "source_ids": [
+        "source.pay-versus-performance.01",
+        "source.pay-versus-performance.02"
+      ],
+      "statement": "First covered-year PEO CAP: $5.3M.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.pay-versus-performance.report.v1",
+      "unit": "USD",
+      "value": 5310734.09
+    },
+    {
+      "as_of": "2026-12-31",
+      "assumption_ids": [
+        "assumption.pay-versus-performance.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.pay-versus-performance.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.pay-versus-performance.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "$12.7M",
+      "id": "claim.pay-versus-performance.peo-cap",
+      "material": true,
+      "metric_id": null,
+      "period": "SEC Item 402(v) window through FY2026",
+      "source_ids": [
+        "source.pay-versus-performance.01",
+        "source.pay-versus-performance.02"
+      ],
+      "statement": "Latest-year PEO Compensation Actually Paid: $12.7M.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.pay-versus-performance.report.v1",
+      "unit": "USD",
+      "value": 12713508.72
+    },
+    {
+      "as_of": "2026-12-31",
+      "assumption_ids": [
+        "assumption.pay-versus-performance.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.pay-versus-performance.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.pay-versus-performance.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "$8.3M",
+      "id": "claim.pay-versus-performance.peo-sct",
+      "material": true,
+      "metric_id": null,
+      "period": "SEC Item 402(v) window through FY2026",
+      "source_ids": [
+        "source.pay-versus-performance.01",
+        "source.pay-versus-performance.02"
+      ],
+      "statement": "Latest-year PEO Summary Compensation Table total: $8.3M.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.pay-versus-performance.report.v1",
+      "unit": "USD",
+      "value": 8346596.0
+    },
+    {
+      "as_of": "2026-12-31",
+      "assumption_ids": [
+        "assumption.pay-versus-performance.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.pay-versus-performance.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.pay-versus-performance.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "$156",
+      "id": "claim.pay-versus-performance.tsr-end",
+      "material": true,
+      "metric_id": null,
+      "period": "SEC Item 402(v) window through FY2026",
+      "source_ids": [
+        "source.pay-versus-performance.01",
+        "source.pay-versus-performance.02"
+      ],
+      "statement": "Latest company TSR index value: $156.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.pay-versus-performance.report.v1",
+      "unit": "index",
+      "value": 155.65
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2026-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:186236453d0bf2cb90b47d2037a2b37070aa8b8c93165d95c5e8efac0b6de924",
+      "hash_scope": "file_bytes",
+      "id": "source.pay-versus-performance.01",
+      "kind": "dataset",
+      "label": "Awards.Sample",
+      "uri": "repo:examples/pay-versus-performance/data/awards.sample.json",
+      "version": "reference-2026-12-31"
+    },
+    {
+      "as_of": "2026-12-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:0aa45e237cf62bc60afb7365d77183b5fca40764df06f3bc8f8c978eb4ace753",
+      "hash_scope": "file_bytes",
+      "id": "source.pay-versus-performance.02",
+      "kind": "dataset",
+      "label": "Pvp Financials.Sample",
+      "uri": "repo:examples/pay-versus-performance/data/pvp_financials.sample.json",
+      "version": "reference-2026-12-31"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.pay-versus-performance.report.v1",
+      "implementation": "examples.pay-versus-performance.run.build_report",
+      "name": "Item 402(v) CAP reconciliation and pay-performance relationship analysis",
+      "version": "v1"
+    }
+  ]
+}

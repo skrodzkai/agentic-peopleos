@@ -1,0 +1,254 @@
+{
+  "artifact": {
+    "agent_id": "agent.attrition-reporting",
+    "artifact_type": "dashboard",
+    "as_of": "2026-01-31",
+    "id": "artifact.attrition-reporting.report",
+    "period": "Trailing twelve months through January 2026",
+    "semantic_hash": "sha256:e759166c7d58c483c1b833dc9156ebf70be2f7be2c35a9437473b1872dc64476",
+    "status": "draft",
+    "title": "Acme Corp Attrition Report"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.attrition-reporting.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.attrition-reporting.01",
+        "source.attrition-reporting.02"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.attrition-reporting.reference-mode",
+      "severity": "warning",
+      "text": "Synthetic workforce history; annualization and cohort maturity must be revalidated on production data."
+    }
+  ],
+  "checks": [
+    {
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.attrition-reporting.report-contract",
+      "implementation": "examples.attrition-reporting.run.build_report",
+      "name": "Agent report contract",
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.attrition-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.attrition-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.attrition-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "4.6%",
+      "id": "claim.attrition-reporting.involuntary_turnover_rate",
+      "material": true,
+      "metric_id": "involuntary_turnover_rate",
+      "period": "Trailing twelve months through January 2026",
+      "source_ids": [
+        "source.attrition-reporting.01",
+        "source.attrition-reporting.02"
+      ],
+      "statement": "Involuntary turnover rate: 4.6%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.attrition-reporting.report.v1",
+      "unit": "percent",
+      "value": 4.6
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.attrition-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.attrition-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.attrition-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "1%",
+      "id": "claim.attrition-reporting.new_hire_attrition",
+      "material": true,
+      "metric_id": "new_hire_attrition",
+      "period": "Trailing twelve months through January 2026",
+      "source_ids": [
+        "source.attrition-reporting.01",
+        "source.attrition-reporting.02"
+      ],
+      "statement": "New-hire attrition: 1%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.attrition-reporting.report.v1",
+      "unit": "percent",
+      "value": 1
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.attrition-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.attrition-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.attrition-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "5.7%",
+      "id": "claim.attrition-reporting.regrettable_attrition",
+      "material": true,
+      "metric_id": "regrettable_attrition",
+      "period": "Trailing twelve months through January 2026",
+      "source_ids": [
+        "source.attrition-reporting.01",
+        "source.attrition-reporting.02"
+      ],
+      "statement": "Regrettable attrition: 5.7%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.attrition-reporting.report.v1",
+      "unit": "percent",
+      "value": 5.7
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.attrition-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.attrition-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.attrition-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "18.0%",
+      "id": "claim.attrition-reporting.total_turnover_rate",
+      "material": true,
+      "metric_id": "total_turnover_rate",
+      "period": "Trailing twelve months through January 2026",
+      "source_ids": [
+        "source.attrition-reporting.01",
+        "source.attrition-reporting.02"
+      ],
+      "statement": "Total turnover rate: 18.0%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.attrition-reporting.report.v1",
+      "unit": "percent",
+      "value": 18.0
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.attrition-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.attrition-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.attrition-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "99%",
+      "id": "claim.attrition-reporting.twelve_month_retention",
+      "material": true,
+      "metric_id": "twelve_month_retention",
+      "period": "Trailing twelve months through January 2026",
+      "source_ids": [
+        "source.attrition-reporting.01",
+        "source.attrition-reporting.02"
+      ],
+      "statement": "12-month retention: 99%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.attrition-reporting.report.v1",
+      "unit": "percent",
+      "value": 99
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.attrition-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.attrition-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.attrition-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "13.4%",
+      "id": "claim.attrition-reporting.voluntary_attrition",
+      "material": true,
+      "metric_id": "voluntary_attrition",
+      "period": "Trailing twelve months through January 2026",
+      "source_ids": [
+        "source.attrition-reporting.01",
+        "source.attrition-reporting.02"
+      ],
+      "statement": "Voluntary attrition: 13.4%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.attrition-reporting.report.v1",
+      "unit": "percent",
+      "value": 13.4
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:37cd9325f951ae90fbd6051031982830284138b958e717ac196827cbdc151e64",
+      "hash_scope": "file_bytes",
+      "id": "source.attrition-reporting.01",
+      "kind": "dataset",
+      "label": "Workers",
+      "uri": "repo:foundation/data/acme/workers.csv",
+      "version": "reference-2026-01-31"
+    },
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:5ee713a38f925cd4d41d43e30c9eb9eade542d6817509bd99b462c19e4b04791",
+      "hash_scope": "file_bytes",
+      "id": "source.attrition-reporting.02",
+      "kind": "registry",
+      "label": "Metrics.Registry",
+      "uri": "repo:vault/90-people-analytics/metrics/metrics.registry.json",
+      "version": "reference-2026-01-31"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.attrition-reporting.report.v1",
+      "implementation": "examples.attrition-reporting.run.build_report",
+      "name": "Shared metric-engine attrition and cohort aggregation",
+      "version": "v1"
+    }
+  ]
+}

@@ -40,6 +40,7 @@ python3 foundation/compute/tests/test_regression.py
 python3 foundation/compute/tests/test_peers.py
 # shared renderer + chart toolkit
 python3 foundation/render/tests/test_evidence.py
+python3 foundation/render/tests/test_evidence_portfolio.py
 python3 foundation/render/tests/test_dashboard.py
 python3 foundation/render/tests/test_charts.py
 # measurement governance
@@ -80,6 +81,8 @@ python3 foundation/compute/tests/test_sbc_forecast.py
 python3 tools/verify_evidence.py --verify-sources --verify-rendered \
   examples/sbc-forecasting/output/report.sample.evidence.json \
   examples/sbc-forecasting/output/day1-digest.sample.evidence.json
+# portfolio completeness: all 18 generated dashboards + all 18 digests must carry valid evidence
+python3 tools/verify_evidence.py --portfolio --verify-sources --verify-rendered
 # retention-risk model (glass-box hazard + eval + segment layer)
 python3 foundation/compute/tests/test_retention.py
 python3 foundation/compute/retention.py validate   # re-fits + reproduces coefficients/calibration/bands + provenance

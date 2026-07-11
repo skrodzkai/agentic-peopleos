@@ -108,6 +108,7 @@ jobs:
       - name: Shared dashboard renderer + chart toolkit evals
         run: |
           python3 foundation/render/tests/test_evidence.py
+          python3 foundation/render/tests/test_evidence_portfolio.py
           python3 foundation/render/tests/test_dashboard.py
           python3 foundation/render/tests/test_charts.py
 
@@ -308,6 +309,9 @@ jobs:
           (cd examples/visible-handoff && python3 render_view.py)
           git diff --exit-code -- examples/visible-handoff/output/ledger.sample.html \
             || (echo "::error::ledger.sample.html is stale — run examples/visible-handoff/render_view.py and commit" && exit 1)
+
+      - name: Evidence Graph v1 covers every generated dashboard and digest
+        run: python3 tools/verify_evidence.py --portfolio --verify-sources --verify-rendered
 
       - name: Vault lint
         run: python3 tools/vault_lint.py vault

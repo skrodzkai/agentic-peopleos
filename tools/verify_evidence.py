@@ -11,6 +11,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from core.evidence import coverage, evidence_hash, load_manifest, validate_manifest  # noqa: E402
+from foundation import evidence_portfolio  # noqa: E402
 from foundation.render import evidence as evidence_render  # noqa: E402
 
 
@@ -18,6 +19,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("paths", nargs="*")
     parser.add_argument("--all", action="store_true", help="validate examples/*/output/*.evidence.json")
+    parser.add_argument("--portfolio", action="store_true",
+                        help="require and validate the evidence sidecar for every managed dashboard and digest")
     parser.add_argument("--verify-sources", action="store_true")
     parser.add_argument("--verify-rendered", action="store_true",
                         help="verify sibling HTML/Markdown claim coverage and embedded graph parity")
@@ -26,9 +29,26 @@ def main(argv=None):
     paths = [Path(p) for p in args.paths]
     if args.all:
         paths.extend(sorted(REPO.glob("examples/*/output/*.evidence.json")))
+    missing = []
+    if args.portfolio:
+        for artifact_path in evidence_portfolio.portfolio_artifacts(REPO):
+            if not artifact_path.is_file():
+                missing.append("managed artifact is missing: %s" % artifact_path.relative_to(REPO))
+                continue
+            sidecar = evidence_portfolio.sidecar_path(artifact_path)
+            if not sidecar.is_file():
+                missing.append("managed artifact has no evidence sidecar: %s" % artifact_path.relative_to(REPO))
+                continue
+            paths.append(sidecar)
     paths = sorted({p.resolve() for p in paths})
     if not paths:
-        parser.error("provide a manifest path or --all")
+        parser.error("provide a manifest path, --all, or --portfolio")
+
+    if missing:
+        for violation in missing:
+            print("INVALID portfolio\n  - %s" % violation, file=sys.stderr)
+        print("evidence verification FAILED — portfolio inventory is incomplete", file=sys.stderr)
+        return 1
 
     failures = 0
     for path in paths:

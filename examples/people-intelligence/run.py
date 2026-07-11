@@ -29,6 +29,7 @@ REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 from foundation.render import charts as ch                 # noqa: E402
 
 OUT = HERE / "output"
@@ -448,7 +449,7 @@ def _page(body):
 def _fail_closed(message) -> int:
     # Stale the report, the digest, AND any prior approval record — a fail-closed run must never leave
     # a PUBLISHED.json that looks like a current approval for a report we just invalidated.
-    for p in (REPORT, DIGEST, OUT / "PUBLISHED.json"):
+    for p in portfolio_ev.managed_outputs(REPORT, DIGEST) + (OUT / "PUBLISHED.json",):
         if not p.exists():
             continue
         try:
@@ -485,6 +486,8 @@ def main(argv=None) -> int:
         engine = _load_engine()
         report = build_report(engine)
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            AGENT, report, html_doc, digest_doc, REPO)
     except ReportError as exc:
         return _fail_closed(str(exc))
     except Exception as exc:
@@ -495,12 +498,13 @@ def main(argv=None) -> int:
     #                                  # failed run must never inherit a prior run's "published" flag
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST):
+        for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         if args.publish:
             _atomic_write(pub_path,
                           json.dumps({"approved_by": approver, "scope": SCOPE, "as_of": AS_OF}, indent=2) + "\n")

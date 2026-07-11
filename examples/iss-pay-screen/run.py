@@ -36,6 +36,7 @@ REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 from foundation.render import charts as ch                 # noqa: E402
 
 OUT = HERE / "output"
@@ -195,6 +196,7 @@ def _measure_card(name, sub, value_fmt, band, gauge):
     return (f"<div class='meas'><div class='m-top'><div><div class='m-name'>{_e(name)}</div>"
             f"<div class='m-sub'>{_e(sub)}</div></div>"
             f"<span class='m-band' style='color:{bc};border-color:{bc}'>{_e(band)}</span></div>"
+            f"<div class='m-value mono' style='color:{bc}'>{_e(value_fmt)}</div>"
             f"<div class='m-gauge'>{gauge}</div></div>")
 
 
@@ -402,6 +404,7 @@ border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:12p
 .m-name{font-size:13.5px;font-weight:700;color:#fff;}
 .m-sub{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:10px;color:var(--soft);margin-top:2px;}
 .m-band{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;border:1px solid;text-transform:uppercase;white-space:nowrap;}
+.m-value{font-size:18px;font-weight:800;margin-top:8px;}
 .m-gauge{margin-top:6px;}
 .fpa{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-top:12px;margin-top:6px;border-top:1px solid var(--hair);}
 .fpa-h{font-size:12.5px;font-weight:700;color:var(--cyan2);}
@@ -434,7 +437,7 @@ def _page(body):
 
 # ---------------------------------------------------------------- fail-closed + entrypoint
 def _fail_closed(message) -> int:
-    for p in (REPORT, DIGEST, OUT / "PUBLISHED.json"):
+    for p in portfolio_ev.managed_outputs(REPORT, DIGEST) + (OUT / "PUBLISHED.json",):
         if not p.exists():
             continue
         try:
@@ -475,6 +478,8 @@ def main(argv=None) -> int:
             peers = None                 # overlap is optional; the screen still stands alone
         report = build_report(iss, peers)
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            AGENT, report, html_doc, digest_doc, REPO)
     except ReportError as exc:
         return _fail_closed(str(exc))
     except Exception as exc:
@@ -485,12 +490,13 @@ def main(argv=None) -> int:
     #                                  # failed run must never inherit a prior run's "published" flag
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST, pub_path):
+        for p in portfolio_ev.managed_outputs(REPORT, DIGEST) + (pub_path,):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         if args.publish:
             _atomic_write(pub_path, json.dumps({"approved_by": approver, "scope": SCOPE, "as_of": AS_OF,
                                                 "concern": report["concern"]}, indent=2) + "\n")

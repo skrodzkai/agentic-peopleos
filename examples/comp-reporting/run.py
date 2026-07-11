@@ -77,6 +77,7 @@ def _load_registry():
 
 
 METRICS, REGISTRY_ERROR = _load_registry()
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 
 
 def _md(value) -> str:
@@ -334,7 +335,7 @@ def _one_line(text, limit=300) -> str:
 
 
 def _fail_closed(message) -> int:
-    for p in (REPORT, DIGEST):
+    for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
         try:
             if p.exists():
                 p.rename(p.with_name(p.name + ".stale"))
@@ -379,6 +380,8 @@ def main(argv=None) -> int:
         report = build_report(rows)
         # Render both artifacts fully in memory BEFORE touching disk (atomic + all-or-nothing).
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            "comp-reporting", report, html_doc, digest_doc, REPO)
     except FileNotFoundError as exc:
         return _fail_closed(str(exc))
     except CompContractError as exc:
@@ -389,12 +392,13 @@ def main(argv=None) -> int:
     #                                  # failed run must never inherit a prior run's "published" flag
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST):
+        for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         # The approval record is part of the same all-or-nothing transaction (no false "approved"
         # with no record): structured JSON so the approver name can't inject extra fields/lines.
         if args.publish:

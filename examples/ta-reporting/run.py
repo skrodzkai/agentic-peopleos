@@ -26,6 +26,7 @@ from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[1]
 DATA = HERE / "data" / "requisitions.sample.csv"
 OUT = HERE / "output"
 REPORT = OUT / "report.sample.html"
@@ -63,6 +64,7 @@ def _load_metric_registry():
 
 
 METRICS, REGISTRY_ERROR = _load_metric_registry()
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 if METRICS:
     AGING_DAYS = METRICS.param("requisition_aging", "aging_threshold_days", AGING_DAYS)
     STALE_DAYS = METRICS.param("requisition_stale", "stale_threshold_days", STALE_DAYS)
@@ -495,7 +497,7 @@ def render_digest(report: dict) -> str:
 def _mark_stale() -> bool:
     """A failed run must not leave a prior success looking current. Best-effort."""
     marked = False
-    for path in (REPORT, DIGEST):
+    for path in portfolio_ev.managed_outputs(REPORT, DIGEST):
         try:
             if path.exists():
                 path.rename(path.with_name(path.name + ".stale"))
@@ -506,7 +508,7 @@ def _mark_stale() -> bool:
 
 
 def _clear_stale():
-    for path in (REPORT, DIGEST):
+    for path in portfolio_ev.managed_outputs(REPORT, DIGEST):
         stale = path.with_name(path.name + ".stale")
         if stale.exists():
             stale.unlink()
@@ -566,6 +568,8 @@ def main(argv=None) -> int:
         report = build_report(reqs, as_of)
         # Render both artifacts fully in memory BEFORE touching disk (atomic + all-or-nothing).
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            "ta-reporting", report, html_doc, digest_doc, REPO)
     except FileNotFoundError as exc:
         return _fail_closed(str(exc))
     except DataContractError as exc:
@@ -579,6 +583,7 @@ def main(argv=None) -> int:
         _clear_stale()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         # The approval record is part of the same all-or-nothing transaction (no false "approved").
         if args.publish:
             _atomic_write(pub_path,

@@ -28,7 +28,7 @@ REPO = Path(__file__).resolve().parents[1]
 # Trees/files the public repo must contain to build, test, and document itself.
 REQUIRED_GLOBS = [
     "core/*.py", "core/tests/*.py", "tools/*.py", "schemas/*.json",
-    "foundation/data/generate.py", "foundation/data/acme/*.csv",
+    "foundation/*.py", "foundation/data/generate.py", "foundation/data/acme/*.csv",
     "foundation/compute/*.py", "foundation/compute/tests/*.py",
     "foundation/compute/manifests/*.json",
     "foundation/render/*.py", "foundation/render/tests/*.py",
@@ -52,7 +52,8 @@ REQUIRED_GLOBS = [
 # NB: the .png screenshots are manually-rendered illustrative snapshots (Chrome-headless is not in CI) — they
 # are EXISTENCE-checked here + linked from the READMEs, but not byte-regenerated/diffed in CI like the
 # deterministic .html/.md/.csv artifacts are. That split is intentional.
-_STD_OUTPUTS = ("output/report.sample.html", "output/report.sample.png", "output/day1-digest.sample.md")
+_STD_OUTPUTS = ("output/report.sample.html", "output/report.sample.png", "output/day1-digest.sample.md",
+                "output/report.sample.evidence.json", "output/day1-digest.sample.evidence.json")
 REQUIRED_OUTPUTS = [
     f"examples/{ex}/{a}"
     for ex in ("headcount-reporting", "attrition-reporting", "people-ops-reporting", "operating-review",
@@ -67,11 +68,8 @@ REQUIRED_OUTPUTS = [
     "examples/retention-risk/output/report.sample.html",
     "examples/retention-risk/output/report.sample.png",
     "examples/retention-risk/output/committee-digest.sample.md",
-    # Evidence Graph v1 reference verticals: dashboard + digest each carry a deterministic sidecar.
-    "examples/executive-comp-benchmarking/output/report.sample.evidence.json",
-    "examples/executive-comp-benchmarking/output/day1-digest.sample.evidence.json",
-    "examples/sbc-forecasting/output/report.sample.evidence.json",
-    "examples/sbc-forecasting/output/day1-digest.sample.evidence.json",
+    "examples/retention-risk/output/report.sample.evidence.json",
+    "examples/retention-risk/output/committee-digest.sample.evidence.json",
     "examples/merit-comp-planning/output/equity_refresh_grants.sample.csv",   # the equity-handoff artifact
     "examples/operating-review/output/decision.sample.events.jsonl",
     "examples/operating-review/output/decision.sample.events.jsonl.anchor.json",
@@ -186,6 +184,7 @@ def main():
     for must in ("core/evidence.py", "core/event_log.py", "core/metrics.py",
                  "tools/render_glossary.py", "tools/verify_evidence.py",
                  "schemas/evidence-manifest.schema.json",
+                 "foundation/evidence_portfolio.py",
                  "foundation/compute/engine.py", "foundation/compute/regression.py",
                  "foundation/compute/peers.py", "foundation/compute/rtsr.py",
                  "foundation/compute/retention.py",

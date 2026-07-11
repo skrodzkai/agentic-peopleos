@@ -1,0 +1,254 @@
+{
+  "artifact": {
+    "agent_id": "agent.people-ops-reporting",
+    "artifact_type": "dashboard",
+    "as_of": "2026-01-31",
+    "id": "artifact.people-ops-reporting.report",
+    "period": "Ninety-day service window",
+    "semantic_hash": "sha256:6402890fa56bc7cefee6228dc13fc586a311988fdd062a2f5d9549ab5b1b2218",
+    "status": "draft",
+    "title": "Acme Corp People Ops Service Desk"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.people-ops-reporting.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.people-ops-reporting.01",
+        "source.people-ops-reporting.02"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.people-ops-reporting.reference-mode",
+      "severity": "warning",
+      "text": "Synthetic case history; SLA clocks and category mappings are reference-mode definitions."
+    }
+  ],
+  "checks": [
+    {
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.people-ops-reporting.report-contract",
+      "implementation": "examples.people-ops-reporting.run.build_report",
+      "name": "Agent report contract",
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-ops-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-ops-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-ops-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "75%",
+      "id": "claim.people-ops-reporting.case_csat",
+      "material": true,
+      "metric_id": "case_csat",
+      "period": "Ninety-day service window",
+      "source_ids": [
+        "source.people-ops-reporting.01",
+        "source.people-ops-reporting.02"
+      ],
+      "statement": "Case CSAT: 75%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-ops-reporting.report.v1",
+      "unit": "percent",
+      "value": 75
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-ops-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-ops-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-ops-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "2578",
+      "id": "claim.people-ops-reporting.case_volume",
+      "material": true,
+      "metric_id": "case_volume",
+      "period": "Ninety-day service window",
+      "source_ids": [
+        "source.people-ops-reporting.01",
+        "source.people-ops-reporting.02"
+      ],
+      "statement": "Case volume: 2578.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-ops-reporting.report.v1",
+      "unit": "count",
+      "value": 2578
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-ops-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-ops-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-ops-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "417",
+      "id": "claim.people-ops-reporting.open_case_backlog",
+      "material": true,
+      "metric_id": "open_case_backlog",
+      "period": "Ninety-day service window",
+      "source_ids": [
+        "source.people-ops-reporting.01",
+        "source.people-ops-reporting.02"
+      ],
+      "statement": "Open-case backlog / aging: 417.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-ops-reporting.report.v1",
+      "unit": "count",
+      "value": 417
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-ops-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-ops-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-ops-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "9%",
+      "id": "claim.people-ops-reporting.reopen_rate",
+      "material": true,
+      "metric_id": "reopen_rate",
+      "period": "Ninety-day service window",
+      "source_ids": [
+        "source.people-ops-reporting.01",
+        "source.people-ops-reporting.02"
+      ],
+      "statement": "Reopen rate: 9%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-ops-reporting.report.v1",
+      "unit": "percent",
+      "value": 9
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-ops-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-ops-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-ops-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "60%",
+      "id": "claim.people-ops-reporting.sla_attainment",
+      "material": true,
+      "metric_id": "sla_attainment",
+      "period": "Ninety-day service window",
+      "source_ids": [
+        "source.people-ops-reporting.01",
+        "source.people-ops-reporting.02"
+      ],
+      "statement": "SLA attainment: 60%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-ops-reporting.report.v1",
+      "unit": "percent",
+      "value": 60
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-ops-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-ops-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-ops-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "24.2h",
+      "id": "claim.people-ops-reporting.time_to_resolution",
+      "material": true,
+      "metric_id": "time_to_resolution",
+      "period": "Ninety-day service window",
+      "source_ids": [
+        "source.people-ops-reporting.01",
+        "source.people-ops-reporting.02"
+      ],
+      "statement": "Time to resolution: 24.2h.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-ops-reporting.report.v1",
+      "unit": "hours",
+      "value": 24.2
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:8c5235a32714d9d7935d82ed881b23f92162eb691d7a8224e4a26f2250f6a9f1",
+      "hash_scope": "file_bytes",
+      "id": "source.people-ops-reporting.01",
+      "kind": "dataset",
+      "label": "Cases",
+      "uri": "repo:foundation/data/acme/cases.csv",
+      "version": "reference-2026-01-31"
+    },
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:5ee713a38f925cd4d41d43e30c9eb9eade542d6817509bd99b462c19e4b04791",
+      "hash_scope": "file_bytes",
+      "id": "source.people-ops-reporting.02",
+      "kind": "registry",
+      "label": "Metrics.Registry",
+      "uri": "repo:vault/90-people-analytics/metrics/metrics.registry.json",
+      "version": "reference-2026-01-31"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.people-ops-reporting.report.v1",
+      "implementation": "examples.people-ops-reporting.run.build_report",
+      "name": "Shared metric-engine service-desk aggregation",
+      "version": "v1"
+    }
+  ]
+}
