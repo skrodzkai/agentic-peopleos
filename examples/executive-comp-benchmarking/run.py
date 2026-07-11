@@ -44,6 +44,7 @@ if str(REPO) not in sys.path:
 
 from core import evidence as ev                            # noqa: E402
 from foundation.render import charts as ch                 # noqa: E402
+from foundation.render import evidence as er               # noqa: E402
 
 OUT = HERE / "output"
 REPORT = OUT / "report.sample.html"
@@ -324,6 +325,10 @@ def _source_label(value):
     return re.sub(r"\b[A-Z]{2,5}\b", lambda m: m.group(0).title(), str(value))
 
 
+def _position_claim_id(position):
+    return "claim.benchmark.position.%s.%s" % (position["role"].lower(), position["element"])
+
+
 def _proxy_source_rows():
     from foundation.compute import benchmarking as benchmark_engine
     peers, subject = benchmark_engine.load_proxy_comp()
@@ -454,6 +459,11 @@ def build_evidence(report, artifact_id, artifact_type, semantic_payload):
         distribution_sources, "transform.benchmark.counts.v1", checks,
         assumption_ids=["assumption.benchmark.incumbent-policy"])
     builder.claim(
+        "claim.benchmark.role-count", "The dashboard benchmarks %d executive roles." % len(report["roles"]),
+        len(report["roles"]), str(len(report["roles"])), "roles", AS_OF, evidence_as_of,
+        distribution_sources + subject_source, "transform.benchmark.counts.v1", checks,
+        assumption_ids=["assumption.benchmark.incumbent-policy"])
+    builder.claim(
         "claim.benchmark.position-count", "The dashboard contains %d role-element positions." %
         report["n_positions"], report["n_positions"], str(report["n_positions"]), "positions", AS_OF,
         evidence_as_of, distribution_sources + subject_source, "transform.benchmark.counts.v1", checks,
@@ -494,6 +504,19 @@ def build_evidence(report, artifact_id, artifact_type, semantic_payload):
         str(len(report["transition_excluded"])), "observations", AS_OF, evidence_as_of,
         distribution_sources, "transform.benchmark.counts.v1", checks, status="caveated",
         caveat_ids=["caveat.benchmark.transition-excluded"])
+    for position in report["positions"]:
+        builder.claim(
+            _position_claim_id(position),
+            "%s %s: subject %s, percentile P%.1f, peer P25 %s, median %s, P75 %s, target P%d–P%d, status %s." %
+            (position["role"], report["el_label"][position["element"]], _money(position["subject_value"]),
+             position["percentile"], _money(position["peer_p25"]), _money(position["peer_median"]),
+             _money(position["peer_p75"]), position["target_lo"], position["target_hi"], position["status"]),
+            position["percentile"], "P%.1f" % position["percentile"], "percentile", AS_OF,
+            evidence_as_of, distribution_sources + subject_source, "transform.benchmark.position.v1", checks,
+            material=False, status="caveated",
+            assumption_ids=["assumption.benchmark.band.%s" % position["element"],
+                            "assumption.benchmark.incumbent-policy"],
+            caveat_ids=["caveat.benchmark.actual-not-target", "caveat.benchmark.synthetic-subject"])
     return builder.build()
 
 
@@ -577,10 +600,11 @@ def _hero_strip(pct, lo, hi, label):
     return f"<svg viewBox='0 0 {int(w)} {int(h)}' width='100%' xmlns='http://www.w3.org/2000/svg'>" + "".join(b) + "</svg>"
 
 
-def _status_chip(status, gap):
+def _status_chip(status, gap, evidence_id=None):
     label = {"below": "below", "within": "on target", "above": "above"}[status]
     g = f" · {gap:.0f}pt" if gap else ""
-    return f"<span class='schip {status}'>{_e(label)}{g}</span>"
+    content = er.trigger(label + g, evidence_id) if evidence_id else _e(label) + g
+    return f"<span class='schip {status}'>{content}</span>"
 
 
 def _matrix(report):
@@ -597,7 +621,8 @@ def _matrix(report):
                 cells.append("<td class='mcell na'>–</td>")
                 continue
             cells.append(f"<td class='mcell {p['status']}' title='P{p['percentile']:.0f} vs target "
-                         f"P{p['target_lo']}-{p['target_hi']}'>P{p['percentile']:.0f}</td>")
+                         f"P{p['target_lo']}-{p['target_hi']}'>"
+                         f"{er.trigger('P%.0f' % p['percentile'], _position_claim_id(p))}</td>")
         rows.append(f"<tr><th class='rl'>{_e(role)}</th>{''.join(cells)}</tr>")
     return ("<table class='matrix'><thead><tr><th class='rl'></th>" + head + "</tr></thead><tbody>"
             + "".join(rows) + "</tbody></table>")
@@ -615,12 +640,13 @@ def _gap_list(report):
         return "<div class='t-sub'>No position is below the committee's target band.</div>"
     gmax = max(p["gap"] for p in below) or 1
     rows = []
-    for p in below:
+    for i, p in enumerate(below):
         w = max(4, round(100 * p["gap"] / gmax))
+        evidence_id = "claim.benchmark.widest-gap" if i == 0 else _position_claim_id(p)
         rows.append(
             f"<div class='gaprow'><span class='gl mono'>{_e(p['role'])} · {_e(_short_el(report['el_label'][p['element']]))}</span>"
             f"<span class='gbar'><span style='width:{w}%'></span></span>"
-            f"<span class='gv mono'>P{p['percentile']:.0f} → target P{p['target_lo']} · {p['gap']:.0f}pt</span></div>")
+            f"<span class='gv mono'>{er.trigger('P%.0f → target P%d · %.0fpt' % (p['percentile'], p['target_lo'], p['gap']), evidence_id)}</span></div>")
     return "<div class='gaps'>" + "".join(rows) + "</div>"
 
 
@@ -631,16 +657,17 @@ def _role_table(report, role):
         if p is None:
             continue
         lo, hi = report["el_band"][key]
+        evidence_id = _position_claim_id(p)
         rows.append(
             f"<tr><td class='nm'>{_e(report['el_label'][key])}</td>"
-            f"<td class='mono r'>{_e(_money(p['subject_value']))}</td>"
+            f"<td class='mono r'>{er.trigger(_money(p['subject_value']), evidence_id)}</td>"
             f"<td class='pos'>{_posbar(p['percentile'], lo, hi, p['status'])}"
-            f"<span class='pctag mono'>P{p['percentile']:.0f}</span></td>"
-            f"<td class='mono r muted'>{_e(_money(p['peer_p25']))}</td>"
-            f"<td class='mono r'>{_e(_money(p['peer_median']))}</td>"
-            f"<td class='mono r muted'>{_e(_money(p['peer_p75']))}</td>"
-            f"<td class='mono r sm'>P{p['target_lo']}–{p['target_hi']}</td>"
-            f"<td>{_status_chip(p['status'], p['gap'])}</td></tr>")
+            f"<span class='pctag mono'>{er.trigger('P%.0f' % p['percentile'], evidence_id)}</span></td>"
+            f"<td class='mono r muted'>{er.trigger(_money(p['peer_p25']), evidence_id)}</td>"
+            f"<td class='mono r'>{er.trigger(_money(p['peer_median']), evidence_id)}</td>"
+            f"<td class='mono r muted'>{er.trigger(_money(p['peer_p75']), evidence_id)}</td>"
+            f"<td class='mono r sm'>{er.trigger('P%d–P%d' % (p['target_lo'], p['target_hi']), evidence_id)}</td>"
+            f"<td>{_status_chip(p['status'], p['gap'], evidence_id)}</td></tr>")
     return (
         "<table class='ptable postbl'><thead><tr>"
         "<th>Pay element</th><th class='r'>" + _e(COMPANY) + "</th>"
@@ -650,7 +677,7 @@ def _role_table(report, role):
         "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
 
 
-def render_html(report):
+def render_html(report, evidence_manifest=None):
     result = report["result"]
     hero = report["hero"]
     body = []
@@ -663,25 +690,30 @@ def render_html(report):
                 "<div class='spacer'></div>"
                 "<span class='status'>Draft · awaiting committee approval</span></header>")
 
-    body.append("<section class='insight'>"
-                "<svg class='glyph' viewBox='0 0 24 24'><path d='M12 2 L13.7 8.3 L20 10 L13.7 11.7 L12 18 "
-                "L10.3 11.7 L4 10 L10.3 8.3 Z' fill='#1ba7ff'/><circle cx='18.5' cy='4.5' r='1.6' fill='#f7b955'/>"
-                "<circle cx='5' cy='17' r='1.2' fill='#7c8cff'/></svg>"
-                "<div><div class='tag'>Generated insight · positioning vs real peer proxy pay</div>"
-                f"<p>{report['narrative']}</p></div></section>")
+    insight = ("<section class='insight'>"
+               "<svg class='glyph' viewBox='0 0 24 24'><path d='M12 2 L13.7 8.3 L20 10 L13.7 11.7 L12 18 "
+               "L10.3 11.7 L4 10 L10.3 8.3 Z' fill='#1ba7ff'/><circle cx='18.5' cy='4.5' r='1.6' fill='#f7b955'/>"
+               "<circle cx='5' cy='17' r='1.2' fill='#7c8cff'/></svg>"
+               "<div><div class='tag'>Generated insight · positioning vs real peer proxy pay</div>"
+               f"<p>{report['narrative']}</p></div></section>")
+    body.append(er.scope(insight, ["claim.benchmark.below-target", "claim.benchmark.ceo-tdc-percentile",
+                                   "claim.benchmark.suppressed-role", "claim.benchmark.foreign-excluded"],
+                         "Open evidence for the generated insight"))
 
     # hero — the CEO total-direct-comp percentile on a 0–100 scale, with the target band + median
     lo, hi = report["el_band"][HERO_ELEMENT]
-    facts = [("Peers", str(report["n_peers"])), ("Roles", str(len(report["roles"]))),
-             ("Positions", str(report["n_positions"])), ("Below target", str(report["n_below"]))]
-    factrow = "".join(f"<div class='sf'><span class='sf-v mono'>{_e(v)}</span>"
-                      f"<span class='sf-l'>{_e(l)}</span></div>" for l, v in facts)
+    facts = [("Peers", str(report["n_peers"]), "claim.benchmark.peer-count"),
+             ("Roles", str(len(report["roles"])), "claim.benchmark.role-count"),
+             ("Positions", str(report["n_positions"]), "claim.benchmark.position-count"),
+             ("Below target", str(report["n_below"]), "claim.benchmark.below-target")]
+    factrow = "".join(f"<div class='sf'><span class='sf-v mono'>{er.trigger(v, claim_id)}</span>"
+                      f"<span class='sf-l'>{_e(label)}</span></div>" for label, v, claim_id in facts)
     strip = _hero_strip(hero["percentile"], lo, hi, f"{HERO_ROLE} TDC")
     body.append("<section class='beacon'><div class='head'>"
                 f"<div><div class='label'>Headline · {_e(HERO_ROLE)} total comp (SCT Total basis)</div>"
-                f"<div class='hero'><span class='v mono'>{_e(_money(hero['subject_value']))}</span>"
-                f"<span class='pct'>{ch.ordinal(round(hero['percentile']))} percentile of {report['n_peers']} peers "
-                f"· target P{lo}–{hi}</span></div></div>"
+                f"<div class='hero'><span class='v mono'>{er.trigger(_money(hero['subject_value']), 'claim.benchmark.ceo-tdc')}</span>"
+                f"<span class='pct'>{er.trigger(ch.ordinal(round(hero['percentile'])) + ' percentile', 'claim.benchmark.ceo-tdc-percentile')} "
+                f"of {er.trigger(str(report['n_peers']), 'claim.benchmark.peer-count')} peers · target P{lo}–{hi}</span></div></div>"
                 f"<div class='subjfacts'>{factrow}</div></div>"
                 f"<div class='chart'>{strip}"
                 "<div class='cap'>Percentile of the peer distribution (real public peers, actual SCT pay); "
@@ -706,7 +738,8 @@ def render_html(report):
         thin = (" · <span class='thin'>thin peer set — read with care</span>"
                 if role_n < _THIN_PEER_N else "")
         n_tx = sum(1 for t in report["transition_excluded"] if t["role"] == role)
-        tx = (f" · <span class='thin'>{n_tx} partial-year transition row{'s' if n_tx != 1 else ''} excluded</span>"
+        tx = (f" · <span class='thin'>{er.trigger(str(n_tx), 'claim.benchmark.transition-excluded')} "
+              f"partial-year transition row{'s' if n_tx != 1 else ''} excluded</span>"
               if n_tx else "")
         subtitle = (f"Each element vs the peer distribution · <b>{role_n} peers</b> disclose this role · "
                     f"actual SCT pay · committee target band shaded{thin}{tx}")
@@ -720,7 +753,7 @@ def render_html(report):
         min_n = _min_n()
         chips = "".join(
             f"<div class='supp'><span class='sup-r mono'>{_e(s['role'])}</span>"
-            f"<span class='sup-n'>peer n = {s['peer_n']} &lt; {min_n}</span>"
+            f"<span class='sup-n'>peer n = {er.trigger(str(s['peer_n']), 'claim.benchmark.suppressed-role')} &lt; {min_n}</span>"
             f"<span class='sup-w'>{_e(s['reason'])}</span></div>" for s in report["suppressed"])
         body.append("<section class='tile wide'><div class='t-head'><div>"
                     "<h3>Suppressed roles · thin peer disclosure</h3>"
@@ -739,7 +772,8 @@ def render_html(report):
                 "<span class='pill'>Actual SCT pay (not target)</span>"
                 "<span class='pill'>Committee approves</span></div></footer>")
 
-    return _page("".join(body))
+    page = _page("".join(body))
+    return er.decorate_page(page, evidence_manifest) if evidence_manifest is not None else page
 
 
 def _min_n():
@@ -747,50 +781,59 @@ def _min_n():
     return MIN_PEER_N
 
 
-def render_digest(report):
+def render_digest(report, evidence_manifest=None):
     result = report["result"]
     hero = report["hero"]
     supp = report["suppressed"]
     roles_txt = ", ".join(_md(r) for r in report["roles"])
-    lines = [
-        f"# {_md(COMPANY)} — Executive Comp Benchmarking (Compensation Committee) digest",
-        f"_{PERIOD} · draft for committee review_", "",
+    positioned = er.markdown_refs(
         f"- Positioned **{_md(COMPANY)}**'s **{len(report['roles'])} benchmarked NEOs** "
         f"({roles_txt}) across **{report['n_positions']} pay positions** vs "
         f"**{report['n_peers']} real US-SCT peers'** DEF 14A proxy pay.",
+        ["claim.benchmark.role-count", "claim.benchmark.position-count", "claim.benchmark.peer-count"])
+    below_line = er.markdown_refs(
         f"- **{report['n_below']} of {report['n_positions']}** positions are **below** the committee's "
         f"target band"
         + (f" — {_md(report['concentration'][0])}" if report['concentration'][0] else "")
         + f"; annual cash is {'at or above target' if not report['cash_below'] else 'mixed vs target'}.",
+        ["claim.benchmark.below-target"])
+    hero_line = er.markdown_refs(
         f"- {_md(HERO_ROLE)} total comp (SCT Total basis) **{_money(hero['subject_value'])}** sits at the "
         f"**~{ch.ordinal(round(hero['percentile']))} percentile** (peer median **{_money(hero['peer_median'])}**; "
         f"target P{report['el_band'][HERO_ELEMENT][0]}–{report['el_band'][HERO_ELEMENT][1]}).",
+        ["claim.benchmark.ceo-tdc", "claim.benchmark.ceo-tdc-percentile"])
+    lines = [
+        f"# {_md(COMPANY)} — Executive Comp Benchmarking (Compensation Committee) digest",
+        f"_{PERIOD} · draft for committee review_", "",
+        positioned, below_line, hero_line,
     ]
     if report["below_sorted"]:
         widest = report["below_sorted"][0]
         thin = " *(thin peer set — read with care)*" if widest["peer_n"] < _THIN_PEER_N else ""
-        lines.append(
+        lines.append(er.markdown_refs(
             f"- Widest shortfall: **{_md(widest['role'])} {_md(report['el_label'][widest['element']])}** at "
             f"**P{widest['percentile']:.0f}** vs target **P{widest['target_lo']}** "
-            f"(**{widest['gap']:.0f}pt** below the band){thin}.")
+            f"(**{widest['gap']:.0f}pt** below the band){thin}.", ["claim.benchmark.widest-gap"]))
     if supp:
         supp_names = ", ".join(f"{_md(s['role'])} (n={s['peer_n']})" for s in supp)
-        lines.append(
+        lines.append(er.markdown_refs(
             f"- Suppressed (thin peer disclosure, n &lt; {_min_n()}): "
-            f"**{supp_names}** — shown, not given a spurious percentile.")
+            f"**{supp_names}** — shown, not given a spurious percentile.",
+            ["claim.benchmark.suppressed-role"]))
     if report.get("foreign_excluded"):
         # NOTE: name the COUNT only, not the tickers/companies — the benchmarking output is ticker-scanned
         # (it must stay ticker-free); the excluded issuers are named in the allow-listed provenance doc.
         n_fx = len(report["foreign_excluded"])
-        lines.append(
+        lines.append(er.markdown_refs(
             f"- **{n_fx} foreign private issuer{'s' if n_fx != 1 else ''} excluded** from the SCT distribution "
-            f"(20-F / furnished 6-K basis, not a US Summary Compensation Table — see governance/proxy-comp-data.md).")
+            f"(20-F / furnished 6-K basis, not a US Summary Compensation Table — see governance/proxy-comp-data.md).",
+            ["claim.benchmark.foreign-excluded"]))
     if report.get("transition_excluded"):
         n_tx = len(report["transition_excluded"])
-        lines.append(
+        lines.append(er.markdown_refs(
             f"- **{n_tx} partial-year transition officer{'s' if n_tx != 1 else ''} excluded** from the distribution "
             f"(appointed near fiscal year-end — a stub figure, not representative; the full-year officer is used "
-            f"instead — see governance/proxy-comp-data.md).")
+            f"instead — see governance/proxy-comp-data.md).", ["claim.benchmark.transition-excluded"]))
     lines += [
         "",
         "_Peer figures are **actual US SCT-disclosed** proxy pay (DEF 14A; equity at grant-date fair value), "
@@ -965,11 +1008,16 @@ def main(argv=None) -> int:
     try:
         result = _load_benchmark()
         report = build_report(result)
-        html_doc, digest_doc = render_html(report), render_digest(report)
         report_manifest = build_evidence(report, "artifact.executive-comp-benchmarking.report",
-                                         "dashboard", html_doc)
+                                         "dashboard", result)
         digest_manifest = build_evidence(report, "artifact.executive-comp-benchmarking.digest",
-                                         "digest", digest_doc)
+                                         "digest", result)
+        html_doc = render_html(report, report_manifest)
+        digest_doc = render_digest(report, digest_manifest)
+        render_violations = er.coverage_violations(html_doc, report_manifest)
+        render_violations += er.coverage_violations(digest_doc, digest_manifest)
+        if render_violations:
+            raise ReportError("evidence render coverage failed: %s" % render_violations[0])
     except ReportError as exc:
         return _fail_closed(str(exc))
     except Exception as exc:

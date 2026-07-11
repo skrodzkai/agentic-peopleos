@@ -107,6 +107,7 @@ jobs:
 
       - name: Shared dashboard renderer + chart toolkit evals
         run: |
+          python3 foundation/render/tests/test_evidence.py
           python3 foundation/render/tests/test_dashboard.py
           python3 foundation/render/tests/test_charts.py
 
@@ -160,7 +161,7 @@ jobs:
         run: |
           python3 evals/test_benchmarking_agent.py
           python3 run.py
-          python3 ../../tools/verify_evidence.py --verify-sources \
+          python3 ../../tools/verify_evidence.py --verify-sources --verify-rendered \
             output/report.sample.evidence.json output/day1-digest.sample.evidence.json
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
             output/report.sample.evidence.json output/day1-digest.sample.evidence.json \
@@ -203,7 +204,7 @@ jobs:
         run: |
           python3 evals/test_sbc_forecast_agent.py
           python3 run.py
-          python3 ../../tools/verify_evidence.py --verify-sources \
+          python3 ../../tools/verify_evidence.py --verify-sources --verify-rendered \
             output/report.sample.evidence.json output/day1-digest.sample.evidence.json
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
             output/report.sample.evidence.json output/day1-digest.sample.evidence.json \
