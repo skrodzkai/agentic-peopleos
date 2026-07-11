@@ -71,6 +71,7 @@ jobs:
 
       - name: Core spine evals
         run: |
+          python3 core/tests/test_evidence.py
           python3 core/tests/test_event_log.py
           python3 core/tests/test_approval_registry.py
           python3 core/tests/test_content.py

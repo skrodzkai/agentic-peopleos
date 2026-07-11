@@ -1,0 +1,204 @@
+#!/usr/bin/env python3
+"""Adversarial evals for the claims-to-evidence kernel."""
+import copy
+import json
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from core import evidence as ev  # noqa: E402
+
+
+passed = 0
+
+
+def ok(condition, label):
+    global passed
+    assert condition, "FAILED: " + label
+    passed += 1
+
+
+ROOT = Path(tempfile.mkdtemp())
+DATA = ROOT / "data" / "facts.csv"
+DATA.parent.mkdir()
+DATA.write_text("metric,value\nsbc,45.2\n", encoding="utf-8")
+
+
+def valid_builder(reverse=False):
+    builder = ev.EvidenceBuilder(
+        artifact_id="artifact.sbc.2026q2",
+        agent_id="agent.sbc-forecasting",
+        title="SBC Forecast",
+        artifact_type="dashboard",
+        as_of="2026-06-30",
+        period="FY2026",
+        semantic_payload={"forecast": 45.2, "period": "FY2026"},
+    )
+    local = ev.repo_snapshot(DATA, ROOT, "source.sbc-data", "SBC facts", "dataset", "v1",
+                             "2026-06-30", "synthetic")
+    external = ev.canonical_record_snapshot(
+        "source.policy", "Approved definition", "policy", "https://example.com/policy",
+        "2026.1", "2026-06-30", {"metric": "sbc", "basis": "GAAP"}, "public")
+    for source in ([external, local] if reverse else [local, external]):
+        builder.source(**source)
+    builder.transformation("transform.sbc-forecast.v1", "SBC forecast", "v1",
+                           "foundation.compute.sbc_forecast.compute",
+                           "Aggregate award expense under the stated assumptions")
+    builder.assumption("assumption.forfeiture.v1", "Forfeiture rate", 5.0, "percent", "v1",
+                       "illustrative", ["source.policy"])
+    builder.check("check.sbc-reconcile", "SBC reconciliation", "passed",
+                  "foundation.compute.tests.test_sbc_forecast", "Components tie to total")
+    builder.caveat("caveat.illustrative", "warning", "The forward grant rate is illustrative")
+    builder.claim(
+        "claim.sbc-forecast", "FY2026 SBC expense is forecast at $45.2M.", 45_200_000,
+        "$45.2M", "USD", "FY2026", "2026-06-30", ["source.sbc-data", "source.policy"],
+        "transform.sbc-forecast.v1", ["check.sbc-reconcile"], metric_id="sbc_expense",
+        status="caveated", assumption_ids=["assumption.forfeiture.v1"],
+        caveat_ids=["caveat.illustrative"],
+        change={
+            "prior_claim_id": "claim.sbc-forecast@2026q1",
+            "prior_value": 41_800_000,
+            "prior_display_value": "$41.8M",
+            "absolute": 3_400_000,
+            "percent": 8.133971291866029,
+            "comparability": "comparable",
+            "drivers": [
+                {"type": "business_change", "label": "New grants", "effect": 2_100_000, "unit": "USD"},
+                {"type": "assumption_change", "label": "Updated assumptions", "effect": 1_300_000,
+                 "unit": "USD"},
+            ],
+        },
+    )
+    return builder
+
+
+manifest = valid_builder().build()
+ok(ev.validate_manifest(manifest) == [], "a complete manifest validates")
+ok(ev.coverage(manifest) == {"claims": 1, "material": 1, "supported": 0, "caveated": 1,
+                             "blocked": 0, "traceable": 1}, "coverage distinguishes caveated traceability")
+ok(ev.hash_json({"b": 2, "a": 1}) == ev.hash_json({"a": 1, "b": 2}),
+   "canonical hashes ignore object insertion order")
+ok(ev.canonical(valid_builder().build()) == ev.canonical(valid_builder(reverse=True).build()),
+   "builder sorts graph nodes for byte-stable output")
+
+# The immediate support graph contains every referenced node and its detached evidence hash.
+subgraph = ev.inspect_claim(manifest, "claim.sbc-forecast")
+ok(subgraph["claim"]["display_value"] == "$45.2M", "claim inspection returns the claim")
+ok({s["id"] for s in subgraph["sources"]} == {"source.sbc-data", "source.policy"},
+   "claim inspection resolves sources")
+ok(subgraph["transformation"]["id"] == "transform.sbc-forecast.v1",
+   "claim inspection resolves the transformation")
+ok(subgraph["checks"][0]["status"] == "passed" and subgraph["evidence_hash"] == ev.evidence_hash(manifest),
+   "claim inspection carries checks and a detached hash")
+
+# File provenance is canonical and source verification detects post-snapshot drift.
+source = manifest["sources"][0] if manifest["sources"][0]["uri"].startswith("repo:") else manifest["sources"][1]
+ok(source["uri"] == "repo:data/facts.csv", "repo source stores a canonical relative URI")
+ok(ev.validate_manifest(manifest, root=ROOT, verify_sources=True) == [], "source bytes verify against the root")
+DATA.write_text("metric,value\nsbc,99.9\n", encoding="utf-8")
+ok(any("source hash mismatch" in v for v in ev.validate_manifest(manifest, root=ROOT, verify_sources=True)),
+   "source mutation invalidates the evidence snapshot")
+DATA.write_text("metric,value\nsbc,45.2\n", encoding="utf-8")
+
+# Traversal and symlink escapes do not receive repo provenance.
+OUTSIDE = Path(tempfile.mkdtemp()) / "outside.csv"
+OUTSIDE.write_text("not,inside\n", encoding="utf-8")
+try:
+    ev.repo_snapshot(OUTSIDE, ROOT, "source.escape", "Escape", "dataset", "v1", "2026-06-30")
+    ok(False, "outside path must be rejected")
+except ev.EvidenceError:
+    ok(True, "outside path is rejected")
+link = ROOT / "data" / "escape.csv"
+try:
+    os.symlink(OUTSIDE, link)
+    try:
+        ev.repo_snapshot(link, ROOT, "source.symlink", "Symlink", "dataset", "v1", "2026-06-30")
+        ok(False, "symlink escape must be rejected")
+    except ev.EvidenceError:
+        ok(True, "symlink escape is rejected")
+except (OSError, NotImplementedError):
+    pass
+
+# Dangling references and global id reuse fail closed.
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["source_ids"] = ["source.missing"]
+ok(any("references missing source" in v for v in ev.validate_manifest(bad)),
+   "missing source reference is rejected")
+bad = copy.deepcopy(manifest)
+bad["checks"][0]["id"] = bad["sources"][0]["id"]
+bad["claims"][0]["check_ids"] = [bad["checks"][0]["id"]]
+ok(any("node id" in v and "reused" in v for v in ev.validate_manifest(bad)),
+   "node ids are globally unique across the graph")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["supporting_claim_ids"] = ["claim.sbc-forecast"]
+ok(any("cannot support itself" in v for v in ev.validate_manifest(bad)),
+   "a claim cannot support itself")
+
+# A material claim cannot hide behind a failed/not-run check.
+bad = copy.deepcopy(manifest)
+bad["checks"][0]["status"] = "failed"
+ok(any("relies on check" in v for v in ev.validate_manifest(bad)),
+   "supported/caveated claim rejects a failed check")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["check_ids"] = []
+ok(any("needs at least one check" in v for v in ev.validate_manifest(bad)),
+   "material claim without checks is rejected")
+
+# Change arithmetic and decomposition are verified, not trusted as labels.
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["change"]["absolute"] = 3_300_000
+ok(any("absolute does not equal" in v for v in ev.validate_manifest(bad)),
+   "current-minus-prior mismatch is rejected")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["change"]["drivers"][0]["effect"] = 2_000_000
+ok(any("driver effects do not reconcile" in v for v in ev.validate_manifest(bad)),
+   "change drivers must reconcile")
+
+# Approved/published artifacts require an approved review covering every material claim.
+bad = copy.deepcopy(manifest)
+bad["artifact"]["status"] = "approved"
+ok(any("without approved review" in v for v in ev.validate_manifest(bad)),
+   "approved artifact without claim-level approval is rejected")
+approved = valid_builder()
+approved.artifact["status"] = "approved"
+approved.review("review.comp-committee", "approved", "Compensation Committee Chair",
+                "2026-07-10T18:00:00Z", ["claim.sbc-forecast"], "Reviewed synthetic reference output")
+ok(ev.validate_manifest(approved.build()) == [], "approved review can cover every material claim")
+
+# Duplicate keys, unknown fields, malformed hashes, and non-finite numbers are controlled errors.
+dup_path = ROOT / "duplicate.json"
+dup_path.write_text('{"schema_version":"1.0","schema_version":"9.9"}', encoding="utf-8")
+try:
+    ev.load_manifest(dup_path)
+    ok(False, "duplicate JSON key must be rejected")
+except ev.EvidenceError:
+    ok(True, "duplicate JSON key is rejected")
+bad = copy.deepcopy(manifest)
+bad["artifact"]["surprise"] = True
+ok(any("unknown field" in v for v in ev.validate_manifest(bad)), "unknown field is rejected")
+bad = copy.deepcopy(manifest)
+bad["sources"][0]["content_hash"] = "sha256:nope"
+ok(any("content_hash" in v for v in ev.validate_manifest(bad)), "malformed content hash is rejected")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["value"] = float("inf")
+ok(any("finite JSON scalar" in v for v in ev.validate_manifest(bad)), "non-finite claim value is rejected")
+
+# The formal schema is committed, parseable, and version-aligned with the runtime validator.
+schema = json.loads((Path(__file__).resolve().parents[2] / "schemas/evidence-manifest.schema.json").read_text())
+ok(schema["properties"]["schema_version"]["const"] == ev.SCHEMA_VERSION,
+   "JSON Schema and runtime validator share a version")
+ok(set(ev._COLLECTIONS) <= set(schema["properties"]), "JSON Schema declares every graph collection")
+
+# Atomic write round-trips canonical bytes and the CLI validates/inspects without traceback.
+out = ROOT / "artifact.evidence.json"
+ev.write_manifest(out, manifest)
+ok(out.read_text(encoding="utf-8") == ev.canonical(manifest) + "\n", "writer emits canonical JSON")
+ok(ev.load_manifest(out) == manifest, "written manifest round-trips")
+ok(ev._main(["validate", str(out), "--root", str(ROOT), "--verify-sources"]) == 0,
+   "CLI validates a manifest and its source bytes")
+ok(ev._main(["inspect", str(out), "--claim", "claim.missing"]) == 1,
+   "CLI fails closed on a missing inspected claim")
+
+print("OK — %d evidence-graph kernel checks passed." % passed)
