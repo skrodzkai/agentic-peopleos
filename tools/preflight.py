@@ -27,7 +27,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 # Trees/files the public repo must contain to build, test, and document itself.
 REQUIRED_GLOBS = [
-    "core/*.py", "core/tests/*.py", "tools/*.py",
+    "core/*.py", "core/tests/*.py", "tools/*.py", "schemas/*.json",
     "foundation/data/generate.py", "foundation/data/acme/*.csv",
     "foundation/compute/*.py", "foundation/compute/tests/*.py",
     "foundation/compute/manifests/*.json",
@@ -178,7 +178,9 @@ def main():
 
     # 1. critical trees exist (and aren't empty)
     required = _required_files()
-    for must in ("core/event_log.py", "core/metrics.py", "tools/render_glossary.py",
+    for must in ("core/evidence.py", "core/event_log.py", "core/metrics.py",
+                 "tools/render_glossary.py", "tools/verify_evidence.py",
+                 "schemas/evidence-manifest.schema.json",
                  "foundation/compute/engine.py", "foundation/compute/regression.py",
                  "foundation/compute/peers.py", "foundation/compute/rtsr.py",
                  "foundation/compute/retention.py",
