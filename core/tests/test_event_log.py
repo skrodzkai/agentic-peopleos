@@ -3,6 +3,7 @@
 
 Each check answers 'what bad thing did this prevent?'
 """
+import copy
 import sys
 import tempfile
 from pathlib import Path
@@ -37,6 +38,18 @@ def fresh():
     return Path(tempfile.mkdtemp()) / "events.jsonl"
 
 
+AUTH = {
+    "bundle_id": "bundle.test.january",
+    "bundle_hash": "sha256:" + "1" * 64,
+    "artifacts": [{
+        "artifact_id": "artifact.test.report",
+        "content_hash": "sha256:" + "2" * 64,
+        "evidence_hash": "sha256:" + "3" * 64,
+    }],
+    "material_claim_ids_hash": "sha256:" + "4" * 64,
+}
+
+
 # --- happy chain: request -> recommendation -> approval -> action -----------
 p = fresh()
 log = EventLog(p)
@@ -46,17 +59,20 @@ log.append({"ts": "2026-01-15T09:00:00Z", "actor": actor(id="agent.coordinator")
 rec = log.append({"ts": "2026-01-15T09:01:00Z", "actor": actor(id="agent.ta-reporting"),
                   "channel": "people-analytics", "type": "recommendation", "case_ref": "C1",
                   "correlation_id": "C1", "requires_approval": True, "scope": "publish.ta_report",
+                  "authorization": AUTH,
                   "payload": {"report": "draft"}})
 appr = log.append({"ts": "2026-01-15T09:05:00Z", "actor": actor("human", "hr.business-partner", "hr_approver"),
                    "channel": "people-analytics", "type": "approval", "case_ref": "C1",
                    "correlation_id": "C1", "scope": "publish.ta_report", "causation_id": rec["event_id"],
+                   "authorization": AUTH,
                    "idempotency_key": "react:dana:msg2:white_check_mark",
                    "approval": {"decision": "approved", "entitled": True, "scope": "publish.ta_report",
                                 "by": "hr.business-partner"}, "payload": {}})
 log.append({"ts": "2026-01-15T09:06:00Z", "actor": actor(id="agent.ta-reporting"),
             "channel": "people-analytics", "type": "action", "case_ref": "C1",
             "correlation_id": "C1", "gated": True, "scope": "publish.ta_report",
-            "causation_id": appr["event_id"], "payload": {"published": True}})
+            "causation_id": appr["event_id"], "authorization": AUTH,
+            "payload": {"published": True}})
 ok(validate_log(p) == [], "valid chain passes")
 ok(len(log.events()) == 4, "four events recorded")
 ok(log.events()[0]["prev_hash"] == event_log.GENESIS, "first event links to GENESIS")
@@ -65,8 +81,11 @@ ok(log.events()[0]["prev_hash"] == event_log.GENESIS, "first event links to GENE
 before = len(log.events())
 dup = log.append({"ts": "2026-01-15T09:05:00Z", "actor": actor("human", "hr.business-partner", "hr_approver"),
                   "channel": "people-analytics", "type": "approval", "case_ref": "C1",
-                  "correlation_id": "C1", "idempotency_key": "react:dana:msg2:white_check_mark",
-                  "approval": {"decision": "approved", "entitled": True, "by": "hr.business-partner"},
+                  "correlation_id": "C1", "scope": "publish.ta_report",
+                  "causation_id": rec["event_id"], "authorization": AUTH,
+                  "idempotency_key": "react:dana:msg2:white_check_mark",
+                  "approval": {"decision": "approved", "entitled": True,
+                               "scope": "publish.ta_report", "by": "hr.business-partner"},
                   "payload": {}})
 ok(len(log.events()) == before, "duplicate idempotency_key is a no-op (exactly-once)")
 ok(validate_log(p) == [], "log still valid after idempotent re-append")
@@ -93,21 +112,27 @@ ok(validate_log(p3), "a removed event breaks the chain / sequence")
 p4 = fresh()
 log4 = EventLog(p4)
 r = log4.append({"ts": "t", "actor": actor(), "channel": "c", "type": "recommendation",
-                 "case_ref": "C9", "correlation_id": "C9", "requires_approval": True, "payload": {}})
+                 "case_ref": "C9", "correlation_id": "C9", "requires_approval": True,
+                 "scope": "publish.ta_report", "authorization": AUTH, "payload": {}})
 log4.append({"ts": "t", "actor": actor(), "channel": "c", "type": "action", "case_ref": "C9",
-             "correlation_id": "C9", "gated": True, "scope": "publish.ta_report", "payload": {"published": True}})
+             "correlation_id": "C9", "gated": True, "scope": "publish.ta_report",
+             "authorization": AUTH, "payload": {"published": True}})
 ok(any("laundered" in v for v in validate_log(p4)), "gated action without approval is flagged (no decision laundering)")
 
 # --- non-entitled approval is recorded but never counts as authorization ----
 p5 = fresh()
 log5 = EventLog(p5)
 rr = log5.append({"ts": "t", "actor": actor(), "channel": "c", "type": "recommendation",
-                  "case_ref": "C5", "correlation_id": "C5", "requires_approval": True, "payload": {}})
+                  "case_ref": "C5", "correlation_id": "C5", "requires_approval": True,
+                  "scope": "publish.ta_report", "authorization": AUTH, "payload": {}})
 log5.append({"ts": "t", "actor": actor("human", "obs.engineering", "viewer"), "channel": "c",
              "type": "approval", "case_ref": "C5", "correlation_id": "C5",
-             "approval": {"decision": "approved", "entitled": False, "by": "obs.engineering"}, "payload": {}})
+             "scope": "publish.ta_report", "authorization": AUTH,
+             "approval": {"decision": "approved", "entitled": False, "by": "obs.engineering",
+                          "scope": "publish.ta_report"}, "payload": {}})
 log5.append({"ts": "t", "actor": actor(), "channel": "c", "type": "action", "case_ref": "C5",
-             "correlation_id": "C5", "gated": True, "scope": "publish.ta_report", "payload": {}})
+             "correlation_id": "C5", "gated": True, "scope": "publish.ta_report",
+             "authorization": AUTH, "payload": {}})
 v5 = validate_log(p5)
 ok(any("non-entitled" in v for v in v5), "approval by a non-entitled actor is flagged")
 ok(any("laundered" in v for v in v5), "an action riding a non-entitled approval is still laundered")
@@ -158,6 +183,9 @@ def _ev(t, **kw):
     base = {"ts": "t", "actor": actor(), "channel": "people-analytics", "type": t,
             "case_ref": "X", "correlation_id": "X", "payload": {}}
     base.update(kw)
+    scope = base.get("scope") or (base.get("approval") or {}).get("scope")
+    if t in ("approval", "action") or (t == "recommendation" and base.get("requires_approval") is True):
+        base.setdefault("authorization", AUTH)
     return base
 
 
@@ -206,7 +234,7 @@ ok(any("HMAC" in v for v in validate_log(ph, secret=KEY)),
 # (4) Duplicate JSON keys are rejected.
 pd = fresh()
 pd.write_text('{"type":"fyi","type":"action","ts":"t","actor":{"id":"a","display":"A","kind":"agent","role":"r"},'
-              '"channel":"c","payload":{},"schema_version":"1.0","sequence":0,'
+              f'"channel":"c","payload":{{}},"schema_version":"{event_log.SCHEMA_VERSION}","sequence":0,'
               f'"prev_hash":"{event_log.GENESIS}","event_id":"x","event_hash":"y"}}\n')
 ok(any("duplicate JSON key" in v for v in validate_log(pd)), "a line with duplicate JSON keys is rejected")
 
@@ -222,7 +250,7 @@ ok(any("content-addressed" in v for v in validate_log(pe)), "a non-content-addre
 
 # (7) Validator is at least as strict as the writer (missing required field caught).
 pm = fresh()
-bad = {"ts": "t", "channel": "c", "type": "fyi", "schema_version": "1.0", "sequence": 0,
+bad = {"ts": "t", "channel": "c", "type": "fyi", "schema_version": event_log.SCHEMA_VERSION, "sequence": 0,
        "prev_hash": event_log.GENESIS, "event_id": "x", "event_hash": "y"}  # no actor, no payload
 pm.write_text(event_log.canonical(bad) + "\n")
 ok(any("missing field" in v for v in validate_log(pm)), "validator catches missing required fields")
@@ -235,7 +263,7 @@ def _restamped(ev):
     e = dict(ev)
     for f in ("event_id", "event_hash", "hmac"):
         e.pop(f, None)
-    e.setdefault("schema_version", "1.0")
+    e.setdefault("schema_version", event_log.SCHEMA_VERSION)
     e.setdefault("sequence", 0)
     e.setdefault("prev_hash", event_log.GENESIS)
     e["event_id"] = event_log._sha(event_log.canonical(e))[:32]
@@ -295,16 +323,18 @@ def _chain(rec_scope, appr_scope, action_scope, *, gated=True, rv=RV, with_actio
     p = fresh(); lg = EventLog(p)
     rec = lg.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "recommendation",
                      "case_ref": "K", "correlation_id": "K", "requires_approval": True,
-                     "scope": rec_scope, "payload": {}})
+                     "scope": rec_scope, "authorization": AUTH, "payload": {}})
     ap = lg.append({"ts": "t", "actor": _m("hr.business-partner"), "channel": CH, "type": "approval",
                     "case_ref": "K", "correlation_id": "K", "scope": appr_scope,
                     "causation_id": rec["event_id"],
+                    "authorization": AUTH,
                     "approval": {"decision": "approved", "entitled": True, "by": "hr.business-partner",
                                  "scope": appr_scope, "registry_version": rv}, "payload": {}})
     if with_action:
         a = {"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "action",
              "case_ref": "K", "correlation_id": "K", "scope": action_scope,
-             "causation_id": ap["event_id"], "payload": {"published": True}}
+             "causation_id": ap["event_id"], "authorization": AUTH,
+             "payload": {"published": True}}
         if gated:
             a["gated"] = True
         lg.append(a)
@@ -323,10 +353,11 @@ ok(validate_log(_chain("publish.ta_report", "publish.ta_report", "publish.ta_rep
 pg = fresh(); lgg = EventLog(pg)
 recg = lgg.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "recommendation",
                    "case_ref": "G", "correlation_id": "G", "requires_approval": True,
-                   "scope": "publish.ta_report", "payload": {}})
+                   "scope": "publish.ta_report", "authorization": AUTH, "payload": {}})
 lgg.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "action",
             "case_ref": "G", "correlation_id": "G", "scope": "publish.ta_report",  # NOTE: no gated flag
-            "causation_id": recg["event_id"], "payload": {"published": True}})
+            "causation_id": recg["event_id"], "authorization": AUTH,
+            "payload": {"published": True}})
 ok(any("laundered" in v for v in validate_log(pg, registry=reg)),
    "a scoped action with no approval is laundered even without the gated flag")
 
@@ -354,12 +385,12 @@ except LedgerError:
 ps2 = fresh(); lps2 = EventLog(ps2)
 recps2 = lps2.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "recommendation",
                       "case_ref": "S", "correlation_id": "S", "requires_approval": True,
-                      "scope": "publish.ta_report", "payload": {}})
+                      "scope": "publish.ta_report", "authorization": AUTH, "payload": {}})
 # restamp a scopeless, ungated action onto the same correlation (bypass the writer)
 import json as _j2  # noqa: E402
 scopeless = {"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "action",
              "case_ref": "S", "correlation_id": "S", "causation_id": recps2["event_id"],
-             "payload": {"published": True}, "schema_version": "1.0", "sequence": 1,
+             "payload": {"published": True}, "schema_version": event_log.SCHEMA_VERSION, "sequence": 1,
              "prev_hash": recps2["event_hash"]}
 scopeless["event_id"] = event_log._sha(event_log.canonical(scopeless))[:32]
 scopeless["event_hash"] = event_log._sha(event_log.canonical(scopeless))
@@ -403,7 +434,7 @@ def _stamp(e, seq, prev):
     e = dict(e)
     for f in ("event_id", "event_hash", "hmac"):
         e.pop(f, None)
-    e["schema_version"] = "1.0"
+    e["schema_version"] = event_log.SCHEMA_VERSION
     e["sequence"] = seq
     e["prev_hash"] = prev
     e["event_id"] = event_log._sha(event_log.canonical(e))[:32]
@@ -415,16 +446,18 @@ def _stamp(e, seq, prev):
 # hash-bound forged chain with channel:"" previously validated clean against the registry.
 rec21 = _stamp({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": "", "type": "recommendation",
                 "case_ref": "E", "correlation_id": "E", "requires_approval": True,
-                "scope": "publish.ta_report", "payload": {}}, 0, event_log.GENESIS)
+                "scope": "publish.ta_report", "authorization": AUTH, "payload": {}}, 0, event_log.GENESIS)
 ap21 = _stamp({"ts": "t", "actor": _m("hr.business-partner"), "channel": "", "type": "approval",
                "case_ref": "E", "correlation_id": "E", "scope": "publish.ta_report",
                "causation_id": rec21["event_id"],
+               "authorization": AUTH,
                "approval": {"decision": "approved", "entitled": True, "by": "hr.business-partner",
                             "scope": "publish.ta_report", "registry_version": RV}, "payload": {}},
               1, rec21["event_hash"])
 act21 = _stamp({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": "", "type": "action",
                 "case_ref": "E", "correlation_id": "E", "scope": "publish.ta_report", "gated": True,
-                "causation_id": ap21["event_id"], "payload": {"published": True}}, 2, ap21["event_hash"])
+                "causation_id": ap21["event_id"], "authorization": AUTH,
+                "payload": {"published": True}}, 2, ap21["event_hash"])
 p21 = fresh(); p21.write_text("\n".join(event_log.canonical(e) for e in (rec21, ap21, act21)) + "\n")
 ok(any("channel must be a non-empty string" in v for v in validate_log(p21, registry=reg)),
    "an empty channel is flagged on replay (no ACL/identity bypass)")
@@ -440,40 +473,42 @@ except LedgerError:
 p22 = fresh(); l22 = EventLog(p22)
 rec22 = l22.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "recommendation",
                     "case_ref": "L", "correlation_id": "L", "requires_approval": True,
-                    "scope": "publish.ta_report", "payload": {}})
+                    "scope": "publish.ta_report", "authorization": AUTH, "payload": {}})
 ap22 = l22.append({"ts": "t", "actor": _m("hr.business-partner"), "channel": CH, "type": "approval",
                    "case_ref": "L", "correlation_id": "L", "scope": "publish.ta_report",
-                   "causation_id": rec22["event_id"],
+                   "causation_id": rec22["event_id"], "authorization": AUTH,
                    "approval": {"decision": "approved", "entitled": True, "by": "hr.business-partner",
                                 "scope": "publish.ta_report", "registry_version": RV}, "payload": {}})
 l22.append({"ts": "t", "actor": _m("hr.business-partner"), "channel": CH, "type": "approval",
             "case_ref": "L", "correlation_id": "L", "scope": "publish.ta_report",
-            "causation_id": rec22["event_id"],
+            "causation_id": rec22["event_id"], "authorization": AUTH,
             "approval": {"decision": "denied", "entitled": True, "by": "hr.business-partner",
                          "scope": "publish.ta_report", "registry_version": RV}, "payload": {}})
 l22.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "action",
             "case_ref": "L", "correlation_id": "L", "scope": "publish.ta_report", "gated": True,
-            "causation_id": ap22["event_id"], "payload": {"published": True}})
+            "causation_id": ap22["event_id"], "authorization": AUTH,
+            "payload": {"published": True}})
 ok(any("laundered" in v for v in validate_log(p22, registry=reg)),
    "an action riding an approval that a later denial revoked is laundered (latest decision wins)")
 
 p22b = fresh(); l22b = EventLog(p22b)
 recb = l22b.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "recommendation",
                     "case_ref": "Lb", "correlation_id": "Lb", "requires_approval": True,
-                    "scope": "publish.ta_report", "payload": {}})
+                    "scope": "publish.ta_report", "authorization": AUTH, "payload": {}})
 l22b.append({"ts": "t", "actor": _m("hr.business-partner"), "channel": CH, "type": "approval",
              "case_ref": "Lb", "correlation_id": "Lb", "scope": "publish.ta_report",
-             "causation_id": recb["event_id"],
+             "causation_id": recb["event_id"], "authorization": AUTH,
              "approval": {"decision": "denied", "entitled": True, "by": "hr.business-partner",
                           "scope": "publish.ta_report", "registry_version": RV}, "payload": {}})
 apb = l22b.append({"ts": "t", "actor": _m("hr.business-partner"), "channel": CH, "type": "approval",
                    "case_ref": "Lb", "correlation_id": "Lb", "scope": "publish.ta_report",
-                   "causation_id": recb["event_id"],
+                   "causation_id": recb["event_id"], "authorization": AUTH,
                    "approval": {"decision": "approved", "entitled": True, "by": "hr.business-partner",
                                 "scope": "publish.ta_report", "registry_version": RV}, "payload": {}})
 l22b.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "action",
              "case_ref": "Lb", "correlation_id": "Lb", "scope": "publish.ta_report", "gated": True,
-             "causation_id": apb["event_id"], "payload": {"published": True}})
+             "causation_id": apb["event_id"], "authorization": AUTH,
+             "payload": {"published": True}})
 ok(validate_log(p22b, registry=reg) == [],
    "denied-then-approved leaves a valid standing approval (latest decision wins)")
 
@@ -492,6 +527,116 @@ by_mismatch = _restamped({"ts": "t", "actor": _m("hr.business-partner"), "channe
                                        "scope": "publish.ta_report", "registry_version": RV}, "payload": {}})
 ok(any("attribution laundering" in v for v in validate_log(by_mismatch, registry=reg)),
    "an approval.by disagreeing with the event actor is caught on replay")
+
+# (24) CRITICAL (Evidence Graph v1): every governed decision boundary requires a well-formed,
+# exact authorization envelope. The writer fails closed before a recommendation can enter the log.
+ok(raises_msg(LedgerError, lambda: EventLog(fresh()).append({
+    "ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "recommendation",
+    "case_ref": "EG1", "correlation_id": "EG1", "requires_approval": True,
+    "scope": "publish.ta_report", "payload": {},
+}), "missing authorization envelope"),
+   "writer refuses a publication recommendation with no evidence authorization")
+ok(raises_msg(LedgerError, lambda: EventLog(fresh()).append({
+    "ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "recommendation",
+    "case_ref": "EG1B", "correlation_id": "EG1B", "requires_approval": True,
+    "scope": "send.compensation_dashboard", "payload": {},
+}), "missing authorization envelope"),
+   "writer binds non-publish governed scopes to evidence too")
+bad_auth_shape = {**AUTH, "unexpected": True}
+ok(raises_msg(LedgerError, lambda: EventLog(fresh()).append({
+    "ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "recommendation",
+    "case_ref": "EG2", "correlation_id": "EG2", "requires_approval": True,
+    "scope": "publish.ta_report", "authorization": bad_auth_shape, "payload": {},
+}), "unknown field"),
+   "writer refuses a malformed publication authorization")
+ok(raises_msg(LedgerError, lambda: EventLog(fresh()).append({
+    "ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "recommendation",
+    "case_ref": "EG2", "requires_approval": True, "scope": "publish.ta_report",
+    "authorization": AUTH, "payload": {},
+}), "correlation_id"),
+   "writer refuses a governed decision event with no correlation id")
+ok(raises_msg(LedgerError, lambda: EventLog(fresh()).append({
+    "ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "action",
+    "case_ref": "EG2", "correlation_id": "EG2", "scope": {"not": "a string"},
+    "payload": {},
+}), "scope must be a non-empty string"),
+   "writer refuses a non-string action scope")
+ok(raises_msg(LedgerError, lambda: EventLog(fresh()).append({
+    "ts": "t", "actor": _m("hr.business-partner"), "channel": CH, "type": "approval",
+    "case_ref": "EG2", "correlation_id": "EG2",
+    "approval": {"decision": "approved", "entitled": True, "by": "hr.business-partner",
+                 "scope": ["publish.ta_report"]}, "payload": {},
+}), "approval.scope must be a non-empty string"),
+   "writer refuses a non-string nested approval scope")
+
+# (25) One changed rendered-artifact hash produces a different (but individually well-formed)
+# envelope. It cannot be substituted between recommendation, approval, and action.
+AUTH_CHANGED = copy.deepcopy(AUTH)
+AUTH_CHANGED["bundle_hash"] = "sha256:" + "5" * 64
+AUTH_CHANGED["artifacts"][0]["content_hash"] = "sha256:" + "6" * 64
+p25 = fresh(); l25 = EventLog(p25)
+r25 = l25.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH,
+                  "type": "recommendation", "case_ref": "EG3", "correlation_id": "EG3",
+                  "requires_approval": True, "scope": "publish.ta_report",
+                  "authorization": AUTH, "payload": {}})
+a25 = l25.append({"ts": "t", "actor": _m("hr.business-partner"), "channel": CH,
+                  "type": "approval", "case_ref": "EG3", "correlation_id": "EG3",
+                  "scope": "publish.ta_report", "causation_id": r25["event_id"],
+                  "authorization": AUTH_CHANGED,
+                  "approval": {"decision": "approved", "entitled": True,
+                               "by": "hr.business-partner", "scope": "publish.ta_report",
+                               "registry_version": RV}, "payload": {}})
+l25.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH, "type": "action",
+            "case_ref": "EG3", "correlation_id": "EG3", "scope": "publish.ta_report",
+            "causation_id": a25["event_id"], "authorization": AUTH_CHANGED,
+            "payload": {"published": True}})
+v25 = validate_log(p25, registry=reg)
+ok(any("artifact substitution" in v for v in v25),
+   "a changed rendered-artifact authorization cannot be substituted at approval")
+ok(any("laundered" in v for v in v25),
+   "an action cannot ride an approval whose artifact bundle did not match the recommendation")
+
+# (26) An approval is one-shot. The first exact action consumes it; replaying the same approval
+# is rejected, while a fresh approval over the same exact bundle authorizes one later action.
+p26 = fresh(); l26 = EventLog(p26)
+r26 = l26.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH,
+                  "type": "recommendation", "case_ref": "EG4", "correlation_id": "EG4",
+                  "requires_approval": True, "scope": "publish.ta_report",
+                  "authorization": AUTH, "payload": {}})
+a26 = l26.append({"ts": "t", "actor": _m("hr.business-partner"), "channel": CH,
+                  "type": "approval", "case_ref": "EG4", "correlation_id": "EG4",
+                  "scope": "publish.ta_report", "causation_id": r26["event_id"],
+                  "authorization": AUTH,
+                  "approval": {"decision": "approved", "entitled": True,
+                               "by": "hr.business-partner", "scope": "publish.ta_report",
+                               "registry_version": RV}, "payload": {}})
+for attempt in (1, 2):
+    l26.append({"ts": "t%d" % attempt, "actor": _m("agent.ta-reporting"), "channel": CH,
+                "type": "action", "case_ref": "EG4", "correlation_id": "EG4",
+                "scope": "publish.ta_report", "causation_id": a26["event_id"],
+                "authorization": AUTH, "payload": {"attempt": attempt}})
+ok(any("already consumed" in v for v in validate_log(p26, registry=reg)),
+   "reusing a consumed approval fails replay validation")
+
+p26b = fresh(); l26b = EventLog(p26b)
+r26b = l26b.append({"ts": "t", "actor": _m("agent.ta-reporting"), "channel": CH,
+                    "type": "recommendation", "case_ref": "EG5", "correlation_id": "EG5",
+                    "requires_approval": True, "scope": "publish.ta_report",
+                    "authorization": AUTH, "payload": {}})
+for cycle in (1, 2):
+    a26b = l26b.append({"ts": "a%d" % cycle, "actor": _m("hr.business-partner"), "channel": CH,
+                        "type": "approval", "case_ref": "EG5", "correlation_id": "EG5",
+                        "scope": "publish.ta_report", "causation_id": r26b["event_id"],
+                        "authorization": AUTH,
+                        "approval": {"decision": "approved", "entitled": True,
+                                     "by": "hr.business-partner", "scope": "publish.ta_report",
+                                     "registry_version": RV}, "payload": {"cycle": cycle}})
+    l26b.append({"ts": "x%d" % cycle, "actor": _m("agent.ta-reporting"), "channel": CH,
+                 "type": "action", "case_ref": "EG5", "correlation_id": "EG5",
+                 "scope": "publish.ta_report", "causation_id": a26b["event_id"],
+                 "authorization": AUTH, "payload": {"cycle": cycle}})
+ok(validate_log(p26b, registry=reg) == [],
+   "a fresh exact approval authorizes one later action after the prior approval was consumed")
 
 # --- head-count anchor: the suffix-truncation defense the forward chain can't provide ---
 from core.event_log import write_anchor, compute_anchor, verify_anchor, GENESIS  # noqa: E402
@@ -653,5 +798,15 @@ _env = {**_os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])}
 _r = _sp.run([sys.executable, "-m", "core.event_log", "validate", str(pr), "--anhor", "x"],
              capture_output=True, text=True, env=_env)
 ok(_r.returncode == 2 and "unknown flag" in _r.stderr, "the CLI errors on an unknown/typo'd flag")
+
+# Malformed JSON values are controlled validation failures, never post-parse tracebacks.
+_shape = fresh(); _shape.write_text("[]\n", encoding="utf-8")
+ok(any("event must be an object" in v for v in validate_log(_shape)),
+   "a non-object JSONL row fails closed")
+_nan = fresh(); _nan.write_text('{"value":NaN}\n', encoding="utf-8")
+ok(any("non-finite JSON number" in v for v in validate_log(_nan)),
+   "non-standard NaN JSON fails closed before canonical hashing")
+ok(raises_msg(LedgerError, lambda: EventLog(fresh()).append([]), "event must be an object"),
+   "the writer rejects a non-object event with a controlled error")
 
 print(f"OK — {passed} ledger checks passed.")

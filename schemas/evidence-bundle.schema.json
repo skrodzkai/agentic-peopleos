@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skrodzkai.github.io/agentic-peopleos/schemas/evidence-bundle.schema.json",
+  "title": "Agentic PeopleOS Evidence Bundle",
+  "description": "A deterministic authorization target for exact rendered artifacts and their evidence manifests.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "bundle_id", "agent_id", "as_of", "period", "artifacts"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "bundle_id": {"$ref": "#/$defs/id"},
+    "agent_id": {"$ref": "#/$defs/id"},
+    "as_of": {"$ref": "#/$defs/date"},
+    "period": {"type": "string", "minLength": 1},
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/artifact"}
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^(?![\\s\\S]*[\\r\\n])[a-z0-9][a-z0-9._:@/-]{0,159}$"},
+    "date": {"type": "string", "pattern": "^(?![\\s\\S]*[\\r\\n])[0-9]{4}-[0-9]{2}-[0-9]{2}$", "format": "date"},
+    "hash": {"type": "string", "pattern": "^(?![\\s\\S]*[\\r\\n])sha256:[0-9a-f]{64}$"},
+    "idList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/id"}
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_id", "artifact_type", "content_uri", "evidence_uri", "content_hash", "evidence_hash", "semantic_hash", "material_claim_ids"],
+      "properties": {
+        "artifact_id": {"$ref": "#/$defs/id"},
+        "artifact_type": {"enum": ["dashboard", "digest", "report", "dataset", "decision_packet"]},
+        "content_uri": {"type": "string", "maxLength": 2000, "pattern": "^(?![\\s\\S]*[\\r\\n])(repo:|urn:).+"},
+        "evidence_uri": {"type": "string", "maxLength": 2000, "pattern": "^(?![\\s\\S]*[\\r\\n])(repo:|urn:).+"},
+        "content_hash": {"$ref": "#/$defs/hash"},
+        "evidence_hash": {"$ref": "#/$defs/hash"},
+        "semantic_hash": {"$ref": "#/$defs/hash"},
+        "material_claim_ids": {"$ref": "#/$defs/idList"}
+      }
+    }
+  }
+}

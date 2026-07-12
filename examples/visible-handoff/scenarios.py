@@ -42,8 +42,13 @@ def main() -> int:
         # Re-home the generated ledger/transcript to stable, committed sample names so the
         # two scenarios don't clobber each other (run_handoff writes events.jsonl/transcript.md).
         sample_ledger = OUT / f"{label}.events.sample.jsonl"
-        sample_ledger.write_text((OUT / "events.jsonl").read_text(encoding="utf-8"), encoding="utf-8")
-        (OUT / f"{label}.transcript.sample.md").write_text(r["transcript"], encoding="utf-8")
+        sample_ledger.write_bytes((OUT / "events.jsonl").read_bytes())
+        (OUT / f"{label}.transcript.sample.md").write_bytes(r["transcript"].encode("utf-8"))
+        # This command is the explicit from-scratch sample regeneration boundary. Remove the prior
+        # generated checkpoint before writing the new matching one; write_anchor otherwise (correctly)
+        # refuses to normalize a same-height head rewrite.
+        sample_anchor = sample_ledger.with_suffix(sample_ledger.suffix + ".anchor.json")
+        sample_anchor.unlink(missing_ok=True)
         # commit a matching head-count anchor beside each sample ledger (truncation defense)
         write_anchor(sample_ledger)
 

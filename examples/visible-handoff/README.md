@@ -2,17 +2,18 @@
 
 A coordinator agent asks the TA-reporting agent for the weekly report. The reporter posts a
 **recommendation with cited evidence** to `#people-analytics` and stops. An **entitled** human
-approves with a ✓. Only then does the gated action (publish) run. Every step is one row in a
-hash-chained ledger; the chat is just the human-readable surface.
+approves with a ✓. Only then does the gated action (publish) run. Every decision event carries the
+same content-addressed evidence bundle, and every step is one row in a hash-chained ledger; the chat
+is just the human-readable surface.
 
-This is the answer to *"what bad thing did this prevent?"* — provable in code, transcript,
+This makes the answer to *"what bad thing did this catch or refuse?"* inspectable in code, transcript,
 ledger, and evals. All data is synthetic (Acme Corp). No real Slack, no network, stdlib only.
 
 ![Decision ledger — visible handoff](output/ledger.sample.png)
 
 *The decision ledger for this handoff (render it yourself: `python3 render_view.py`).*
 
-## What it prevents (and proves with an eval)
+## What it refuses or makes fail validation (proved with an eval)
 
 | Threat | Defense | Eval |
 |---|---|---|
@@ -20,6 +21,8 @@ ledger, and evals. All data is synthetic (Acme Corp). No real Slack, no network,
 | A forged "approved" flag in the log | `validate_log(..., registry=reg)` re-derives entitlement | `core/tests/test_event_log.py` |
 | Decision laundering (action with no approval) | action must bind to an entitled approval by causation **and** scope | both |
 | Scope confusion (approval for X authorizes Y) | action scope must equal the approved scope | `test_event_log.py` |
+| Artifact substitution after review | recommendation, approval, and action must carry the exact rendered/evidence bundle | both |
+| One approval reused for two publishes | first valid action consumes the approval once | `test_event_log.py` |
 | Replayed reaction double-approving | idempotency key → exactly-once | both |
 | Retracted reaction "still counts" | only a present, entitled reaction authorizes | `test_handoff.py` |
 | A channel message saying "approve everything" | messages are never approvals; injection logged + ignored | `test_handoff.py` |
@@ -32,11 +35,18 @@ ledger, and evals. All data is synthetic (Acme Corp). No real Slack, no network,
 python3 examples/visible-handoff/run.py
 cat examples/visible-handoff/output/transcript.md     # the conversation surface
 cat examples/visible-handoff/output/events.jsonl      # the decision ledger (one row per event)
+cat examples/visible-handoff/output/evidence-bundle.json  # exact rendered/evidence authorization target
 
 # full integrity check — re-verifies the approval registry, not just the chain
 python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
   --registry examples/visible-handoff/approval_registry.json \
-  --anchor examples/visible-handoff/output/events.jsonl.anchor.json --min-count 1
+    --anchor examples/visible-handoff/output/events.jsonl.anchor.json --min-count 1
+
+# resolve every decision authorization to that exact bundle
+python3 -m core.evidence_bundle validate \
+  examples/visible-handoff/output/evidence-bundle.json \
+  --ledger examples/visible-handoff/output/events.jsonl \
+  --verify-artifacts
 ```
 
 The `--anchor` file is a committed checkpoint (`{count, head_hash}`) the ledger must **extend** —
@@ -70,6 +80,9 @@ action. Regenerate: `python3 examples/visible-handoff/scenarios.py`.
 
 - **Chat (`transcript.md`)** is the source of record for the *conversation*.
 - **The ledger (`events.jsonl`)** is the source of record for *decisions, actions, approvals*.
+- **The evidence bundle (`evidence-bundle.json`)** is the content address of the exact artifacts and
+  material claims that decision authorized.
 - The HRIS/ATS (out of scope here) remains the source of record for employee/candidate *data*.
 
-See [`SPEC.md`](SPEC.md) for the event schema, the binding rules, and the integrity model.
+See [`SPEC.md`](SPEC.md) for the event schema, the binding rules, and the integrity model, and
+[`governance/evidence-graph.md`](../../governance/evidence-graph.md) for the full evidence contract.

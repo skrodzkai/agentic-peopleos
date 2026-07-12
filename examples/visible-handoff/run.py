@@ -12,8 +12,9 @@ in code, transcript, ledger, and evals. Run it:
 
     python3 run.py
 
-Writes output/transcript.md (the conversation) and output/events.jsonl (the ledger),
-then validates the ledger. All data is synthetic (Acme Corp). No real Slack, no network.
+Writes output/transcript.md (the conversation), output/events.jsonl (the ledger), and
+output/evidence-bundle.json (the exact authorization target), then validates the ledger.
+All data is synthetic (Acme Corp). No real Slack, no network.
 """
 from __future__ import annotations
 
@@ -30,6 +31,8 @@ from core.event_log import EventLog, validate_log          # noqa: E402
 from core.approval_registry import ApprovalRegistry, ACME          # noqa: E402
 from core.messaging import SimulatedChat                    # noqa: E402
 from core import content                                    # noqa: E402
+from core import evidence_bundle as evidence_bundle_core    # noqa: E402
+from foundation import evidence_portfolio as portfolio_ev   # noqa: E402
 
 CHANNEL = "people-analytics"
 CASE = "TA-2026-W03"
@@ -84,17 +87,38 @@ def run_handoff(out_dir=OUT, *, approver_id="hr.business-partner", inject=False,
     # 2) Reporter computes the report (cited evidence) and recommends, awaiting approval.
     ta = _load_ta_report()
     report = ta.build_report(ta.load_requisitions(), ta._date(ta.DEFAULT_AS_OF))
+    html_doc, digest_doc = ta.render_html(report), ta.render_digest(report)
+    html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+        "ta-reporting", report, html_doc, digest_doc, REPO)
+    evidence_bundle = evidence_bundle_core.build_bundle(
+        "bundle.visible-handoff.ta-2026-w03",
+        [(html_doc, report_evidence), (digest_doc, digest_evidence)],
+        artifact_uris={
+            report_evidence["artifact"]["id"]: (
+                "repo:examples/ta-reporting/output/report.sample.html",
+                "repo:examples/ta-reporting/output/report.sample.evidence.json"),
+            digest_evidence["artifact"]["id"]: (
+                "repo:examples/ta-reporting/output/day1-digest.sample.md",
+                "repo:examples/ta-reporting/output/day1-digest.sample.evidence.json"),
+        },
+    )
+    authorization = evidence_bundle_core.authorization_envelope(evidence_bundle)
+    bundle_path = out_dir / "evidence-bundle.json"
+    evidence_bundle_core.write_bundle(bundle_path, evidence_bundle)
     k = report["kpis"]
     summary = (f"Weekly TA report ready (as of {report['as_of_display']}). "
                f"{k['total_open']} open reqs, {k['at_risk']} at risk, avg {k['avg_days_open']} days open.\n\n"
                f"**What needs attention:** {report['narrative']}\n\n"
-               f"_Source: ta-reporting agent · cite: examples/ta-reporting_  — requesting approval to publish.")
+               f"_Source: ta-reporting agent · cite: examples/ta-reporting · exact evidence bundle: "
+               f"{authorization['bundle_hash'][:19]}…_  — requesting approval to publish.")
     rec_msg = chat.post(CHANNEL, reporter, type="recommendation", case_ref=CASE, ts=T[1],
                         text=summary, requires_approval=True)
     rec = log.append({"ts": T[1], "actor": reporter, "channel": CHANNEL, "type": "recommendation",
                       "case_ref": CASE, "correlation_id": CASE, "requires_approval": True, "scope": SCOPE,
+                      "authorization": authorization,
                       "payload": {"kpis": k, "narrative": report["narrative"],
-                                  "as_of": report["as_of"], "source": "examples/ta-reporting"}})
+                                  "as_of": report["as_of"], "source": "examples/ta-reporting",
+                                  "bundle_id": authorization["bundle_id"]}})
 
     # 2b) Optional injection attempt via a channel message — must be ignored.
     if inject:
@@ -121,6 +145,7 @@ def run_handoff(out_dir=OUT, *, approver_id="hr.business-partner", inject=False,
             ev = log.append({"ts": T[3], "actor": _actor(reg, approver_id), "channel": CHANNEL,
                              "type": "approval", "case_ref": CASE, "correlation_id": CASE,
                              "scope": SCOPE, "causation_id": rec["event_id"],
+                             "authorization": authorization,
                              "idempotency_key": f"react:{approver_id}:{rec_msg}:approve",
                              "approval": {"decision": d, "entitled": entitled, "by": approver_id,
                                           "scope": SCOPE, "reason": reason,
@@ -132,7 +157,7 @@ def run_handoff(out_dir=OUT, *, approver_id="hr.business-partner", inject=False,
         if duplicate:
             process()  # re-processed reaction — idempotent, no second approval
 
-    # 4) Gated action — only on a genuine, entitled approval, bound to it by causation + scope.
+    # 4) Gated action — only on a genuine, entitled approval, bound by causation + scope + exact bundle.
     if decision == "approved":
         who = _actor(reg, approver_id)["display"]
         chat.post(CHANNEL, reporter, type="action", case_ref=CASE, ts=T[4],
@@ -140,7 +165,9 @@ def run_handoff(out_dir=OUT, *, approver_id="hr.business-partner", inject=False,
         log.append({"ts": T[4], "actor": reporter, "channel": CHANNEL, "type": "action",
                     "case_ref": CASE, "correlation_id": CASE, "gated": True, "scope": SCOPE,
                     "causation_id": approval_event["event_id"],
-                    "payload": {"published": True, "distribution": "people-analytics digest"}})
+                    "authorization": authorization,
+                    "payload": {"published": True, "distribution": "people-analytics digest",
+                                "bundle_id": authorization["bundle_id"]}})
         action_taken = True
     else:
         why = "approval retracted" if retract else "no entitled approval"
@@ -150,11 +177,13 @@ def run_handoff(out_dir=OUT, *, approver_id="hr.business-partner", inject=False,
                     "case_ref": CASE, "correlation_id": CASE, "payload": {"reason": why}})
         action_taken = False
 
-    (out_dir / "transcript.md").write_text(chat.transcript(CHANNEL), encoding="utf-8")
+    (out_dir / "transcript.md").write_bytes(chat.transcript(CHANNEL).encode("utf-8"))
     # Take a head-count anchor next to the ledger so a later validate can detect suffix truncation
     # (deterministic: {count, head_hash}, no wall-clock — the committed anchor is byte-stable).
     anchor_path = log.checkpoint()
     return {"ledger_path": ledger_path, "anchor_path": anchor_path,
+            "bundle_path": bundle_path, "evidence_bundle": evidence_bundle,
+            "authorization": authorization,
             "action_taken": action_taken, "decision": decision,
             "violations": validate_log(ledger_path, registry=reg, anchor=anchor_path),
             "events": log.events(), "transcript": chat.transcript(CHANNEL)}
@@ -165,6 +194,7 @@ def main() -> int:
     print(f"visible-handoff — case {CASE}")
     print(f"  decision: {r['decision']} | action taken: {r['action_taken']}")
     print(f"  ledger: {len(r['events'])} events → output/events.jsonl ({'OK' if not r['violations'] else 'INVALID'})")
+    print(f"  exact authorization: {r['authorization']['bundle_hash'][:19]}… → output/evidence-bundle.json")
     print(f"  transcript → output/transcript.md")
     if r["violations"]:
         for v in r["violations"]:

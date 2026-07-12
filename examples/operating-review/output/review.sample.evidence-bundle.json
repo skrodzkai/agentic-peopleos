@@ -1,0 +1,44 @@
+{
+  "agent_id": "agent.operating-review",
+  "artifacts": [
+    {
+      "artifact_id": "artifact.operating-review.digest",
+      "artifact_type": "digest",
+      "content_hash": "sha256:d6fb6e08bf1e7bf5be565cb044e9c14d9d3b105cc52990e899eb02fcf1371d8b",
+      "content_uri": "repo:examples/operating-review/output/day1-digest.sample.md",
+      "evidence_hash": "sha256:ecf633f82a76af4049217ed3b754dde9208a3fb6f1bb9722281f366da78d61e4",
+      "evidence_uri": "repo:examples/operating-review/output/day1-digest.sample.evidence.json",
+      "material_claim_ids": [
+        "claim.operating-review.breached-cases",
+        "claim.operating-review.headcount",
+        "claim.operating-review.instrumentation",
+        "claim.operating-review.net_headcount_growth",
+        "claim.operating-review.sla_attainment",
+        "claim.operating-review.voluntary_attrition"
+      ],
+      "semantic_hash": "sha256:393515da222da736ecd6c4ba8084e33f361ba7f266075e2d78ee1b503b4f4dfb"
+    },
+    {
+      "artifact_id": "artifact.operating-review.report",
+      "artifact_type": "dashboard",
+      "content_hash": "sha256:c876d7643f7c856b1218819e694b62fc439210a16972d681797986e6198d6e9d",
+      "content_uri": "repo:examples/operating-review/output/report.sample.html",
+      "evidence_hash": "sha256:13c0179afa9539960f2b54623f6d3a328a18fcba5d1e0e86beacc6dbe74f3724",
+      "evidence_uri": "repo:examples/operating-review/output/report.sample.evidence.json",
+      "material_claim_ids": [
+        "claim.operating-review.breached-cases",
+        "claim.operating-review.headcount",
+        "claim.operating-review.instrumentation",
+        "claim.operating-review.net_headcount_growth",
+        "claim.operating-review.open_case_backlog",
+        "claim.operating-review.sla_attainment",
+        "claim.operating-review.voluntary_attrition"
+      ],
+      "semantic_hash": "sha256:c077dc653ced9b0ac8dcb2c0554cc8392737696064efc6be97afdfb982bb2ed6"
+    }
+  ],
+  "as_of": "2026-01-31",
+  "bundle_id": "bundle.operating-review.2026-01",
+  "period": "January 2026 operating review",
+  "schema_version": "1.0"
+}

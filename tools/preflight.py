@@ -77,10 +77,12 @@ REQUIRED_OUTPUTS = [
     "examples/merit-comp-planning/output/equity_refresh_grants.sample.csv",   # the equity-handoff artifact
     "examples/operating-review/output/decision.sample.events.jsonl",
     "examples/operating-review/output/decision.sample.events.jsonl.anchor.json",
+    "examples/operating-review/output/review.sample.evidence-bundle.json",
     "examples/visible-handoff/output/ledger.sample.html",
     "examples/visible-handoff/output/ledger.sample.png",
     "examples/visible-handoff/output/events.jsonl",
     "examples/visible-handoff/output/transcript.md",
+    "examples/visible-handoff/output/evidence-bundle.json",
     # the visible-handoff README also links the approved/denied sample ledgers + transcripts — enumerate them
     # so a generator change that drops one can't pass preflight while the README points at a missing file
     "examples/visible-handoff/output/approved.events.sample.jsonl",
@@ -185,9 +187,10 @@ def main():
 
     # 1. critical trees exist (and aren't empty)
     required = _required_files()
-    for must in ("core/evidence.py", "core/event_log.py", "core/metrics.py",
+    for must in ("core/evidence.py", "core/evidence_bundle.py", "core/event_log.py", "core/metrics.py",
                  "tools/render_glossary.py", "tools/verify_evidence.py",
                  "schemas/evidence-manifest.schema.json",
+                 "schemas/evidence-bundle.schema.json", "schemas/evidence-authorization.schema.json",
                  "foundation/evidence_portfolio.py",
                  "foundation/compute/engine.py", "foundation/compute/regression.py",
                  "foundation/compute/peers.py", "foundation/compute/rtsr.py",
