@@ -77,6 +77,7 @@ def _load_registry():
 
 
 METRICS, REGISTRY_ERROR = _load_registry()
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 
 
 def _md(value) -> str:
@@ -243,6 +244,7 @@ table.data{width:100%;border-collapse:collapse;border-top:1px solid var(--line);
 table.data th{text-align:left;color:var(--cyan);background:#0a1f2c;padding:7px 8px;font-size:10px;text-transform:uppercase;font-weight:800;}
 table.data td{padding:7px 8px;border-top:1px solid rgba(141,177,206,.20);}table.data .c{text-align:center;}
 .footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:24px;border-top:1px solid #14364a;padding-top:14px;color:var(--soft);font-size:11px;}
+@media(max-width:620px){table.data{display:block;max-width:100%;overflow-x:auto}.brand-row{flex-wrap:wrap;gap:10px}.status{white-space:normal}}
 """
 
 
@@ -334,7 +336,7 @@ def _one_line(text, limit=300) -> str:
 
 
 def _fail_closed(message) -> int:
-    for p in (REPORT, DIGEST):
+    for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
         try:
             if p.exists():
                 p.rename(p.with_name(p.name + ".stale"))
@@ -348,7 +350,7 @@ def _fail_closed(message) -> int:
 def _atomic_write(path: Path, text: str):
     """Write fully to a temp sibling, then os.replace — a crash never leaves a partial file."""
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_bytes(text.encode("utf-8"))
     os.replace(tmp, path)
 
 
@@ -379,6 +381,8 @@ def main(argv=None) -> int:
         report = build_report(rows)
         # Render both artifacts fully in memory BEFORE touching disk (atomic + all-or-nothing).
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            "comp-reporting", report, html_doc, digest_doc, REPO)
     except FileNotFoundError as exc:
         return _fail_closed(str(exc))
     except CompContractError as exc:
@@ -389,12 +393,13 @@ def main(argv=None) -> int:
     #                                  # failed run must never inherit a prior run's "published" flag
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST):
+        for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         # The approval record is part of the same all-or-nothing transaction (no false "approved"
         # with no record): structured JSON so the approver name can't inject extra fields/lines.
         if args.publish:

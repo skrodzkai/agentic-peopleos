@@ -117,24 +117,82 @@
   ],
   "checks": [
     {
+      "attestation": "producer",
       "details": "Counts tie to rendered positions; suppressed roles remain below the peer floor and never receive a percentile",
       "id": "check.benchmark.coverage-integrity",
       "implementation": "examples.executive-comp-benchmarking.run.build_report",
       "name": "Coverage and suppression integrity",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
       "status": "passed"
     },
     {
+      "attestation": "producer",
       "details": "Every percentile, quartile, target band, status, gap, role, and element is finite and internally consistent",
       "id": "check.benchmark.position-integrity",
       "implementation": "examples.executive-comp-benchmarking.run.build_report",
       "name": "Position integrity",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
       "status": "passed"
     },
     {
+      "attestation": "producer",
       "details": "Every public observation has a valid SEC archive URL, disclosure basis, currency, extraction date, and component-total reconciliation",
       "id": "check.benchmark.source-provenance",
       "implementation": "foundation.compute.benchmarking.load_proxy_comp",
       "name": "Proxy source provenance",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.sec.monday-com-ltd",
+        "source.sec.the-descartes-systems-group-inc"
+      ],
       "status": "passed"
     }
   ],
@@ -1456,8 +1514,8 @@
       ],
       "caveat_ids": [
         "caveat.benchmark.actual-not-target",
-        "caveat.benchmark.thin-peer-set",
-        "caveat.benchmark.synthetic-subject"
+        "caveat.benchmark.synthetic-subject",
+        "caveat.benchmark.thin-peer-set"
       ],
       "change": null,
       "check_ids": [

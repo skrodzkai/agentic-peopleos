@@ -1,0 +1,278 @@
+{
+  "artifact": {
+    "agent_id": "agent.retention-risk",
+    "artifact_type": "dashboard",
+    "as_of": "2026-01-31",
+    "id": "artifact.retention-risk.report",
+    "period": "Panel month 36; out-of-time test months 30–35",
+    "semantic_hash": "sha256:43d9cede337892bdf661b69b91617b3fc884ff51c8efefc44f4046bd1f46462f",
+    "status": "draft",
+    "title": "Acme Corp Retention Risk Committee View"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.retention-risk.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.retention-risk.01",
+        "source.retention-risk.02",
+        "source.retention-risk.03"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.retention-risk.reference-mode",
+      "severity": "warning",
+      "text": "Synthetic, segment-first planning signal; fairness is not validated and individual adverse action is prohibited."
+    }
+  ],
+  "checks": [
+    {
+      "attestation": "producer",
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.retention-risk.report-contract",
+      "implementation": "examples.retention-risk.run.build_report",
+      "name": "Agent report contract",
+      "source_ids": [
+        "source.retention-risk.01",
+        "source.retention-risk.02",
+        "source.retention-risk.03"
+      ],
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.retention-risk.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.retention-risk.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.retention-risk.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "2.7×",
+      "id": "claim.retention-risk.below-above-ratio",
+      "material": true,
+      "metric_id": null,
+      "period": "Panel month 36; out-of-time test months 30–35",
+      "source_ids": [
+        "source.retention-risk.01",
+        "source.retention-risk.02",
+        "source.retention-risk.03"
+      ],
+      "statement": "Below-band risk relative to above-band risk: 2.7×.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.retention-risk.report.v1",
+      "unit": "multiple",
+      "value": 2.6939048585798
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.retention-risk.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.retention-risk.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.retention-risk.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "11.5%",
+      "id": "claim.retention-risk.model-risk",
+      "material": true,
+      "metric_id": null,
+      "period": "Panel month 36; out-of-time test months 30–35",
+      "source_ids": [
+        "source.retention-risk.01",
+        "source.retention-risk.02",
+        "source.retention-risk.03"
+      ],
+      "statement": "Model six-month voluntary-exit risk: 11.5%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.retention-risk.report.v1",
+      "unit": "percent",
+      "value": 11.5347
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.retention-risk.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.retention-risk.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.retention-risk.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "10.5%",
+      "id": "claim.retention-risk.observed-risk",
+      "material": true,
+      "metric_id": null,
+      "period": "Panel month 36; out-of-time test months 30–35",
+      "source_ids": [
+        "source.retention-risk.01",
+        "source.retention-risk.02",
+        "source.retention-risk.03"
+      ],
+      "statement": "Observed six-month voluntary-exit risk: 10.5%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.retention-risk.report.v1",
+      "unit": "percent",
+      "value": 10.475900000000001
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.retention-risk.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.retention-risk.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.retention-risk.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "0.835",
+      "id": "claim.retention-risk.roc-auc",
+      "material": true,
+      "metric_id": null,
+      "period": "Panel month 36; out-of-time test months 30–35",
+      "source_ids": [
+        "source.retention-risk.01",
+        "source.retention-risk.02",
+        "source.retention-risk.03"
+      ],
+      "statement": "Out-of-time ROC-AUC: 0.835.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.retention-risk.report.v1",
+      "unit": "auc",
+      "value": 0.8345410107846656
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.retention-risk.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.retention-risk.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.retention-risk.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "26",
+      "id": "claim.retention-risk.segment-count",
+      "material": true,
+      "metric_id": null,
+      "period": "Panel month 36; out-of-time test months 30–35",
+      "source_ids": [
+        "source.retention-risk.01",
+        "source.retention-risk.02",
+        "source.retention-risk.03"
+      ],
+      "statement": "Rendered and suppressed segment ledger size: 26.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.retention-risk.report.v1",
+      "unit": "segments",
+      "value": 26
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.retention-risk.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.retention-risk.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.retention-risk.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "4.6×",
+      "id": "claim.retention-risk.top-decile-lift",
+      "material": true,
+      "metric_id": null,
+      "period": "Panel month 36; out-of-time test months 30–35",
+      "source_ids": [
+        "source.retention-risk.01",
+        "source.retention-risk.02",
+        "source.retention-risk.03"
+      ],
+      "statement": "Top-decile lift versus the base rate: 4.6×.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.retention-risk.report.v1",
+      "unit": "multiple",
+      "value": 4.621414141414141
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:5b15612dbb6a234c38076508570ec67111e892009a8cdac87892b7c1736fea70",
+      "hash_scope": "file_bytes",
+      "id": "source.retention-risk.01",
+      "kind": "dataset",
+      "label": "Retention Panel",
+      "uri": "repo:foundation/data/acme/retention_panel.csv",
+      "version": "reference-2026-01-31"
+    },
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:6915aa6d71270f56a1a2ac94c8b5784b3565e22b9c7ec243fe479ef689a136da",
+      "hash_scope": "file_bytes",
+      "id": "source.retention-risk.02",
+      "kind": "model",
+      "label": "Retention Model Manifest",
+      "uri": "repo:foundation/compute/manifests/retention_model_manifest.json",
+      "version": "reference-2026-01-31"
+    },
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:a6b353aed8666161fa2b18dda9bb3c9b52f1c9d2b23e1eab8fcda2d5617fc4b6",
+      "hash_scope": "file_bytes",
+      "id": "source.retention-risk.03",
+      "kind": "policy",
+      "label": "Retention Risk Model Card",
+      "uri": "repo:governance/retention-risk-model-card.md",
+      "version": "reference-2026-01-31"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.retention-risk.report.v1",
+      "implementation": "examples.retention-risk.run.build_report",
+      "name": "Published glass-box hazard model and segment reconciliation",
+      "version": "v1"
+    }
+  ]
+}

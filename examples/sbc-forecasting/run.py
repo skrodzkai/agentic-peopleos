@@ -159,9 +159,10 @@ def _narrative(result):
     a = result["assumptions"]
     parts = [
         f"{_m(li['backlog_unrecognized_usd'])} of SBC expense is already locked in from grants made — it "
-        f"rolls off over ~{li['wavg_remaining_years']:.1f} years, from {_m(sched[0]['gross_expense'])} in "
+        f"rolls off over {li['wavg_remaining_years']:.1f} yr, from {_m(sched[0]['gross_expense'])} in "
         f"FY{sched[0]['fy']} down to {_m(sched[-1]['gross_expense'])} by FY{sched[-1]['fy']} as those grants "
-        f"finish vesting. This runoff is not a choice; it ties to the equity-spend backlog.",
+        f"finish vesting (the final non-zero runoff is FY{li['runoff_complete_fy']}). This runoff is not a "
+        f"choice; it ties to the equity-spend backlog.",
         f"Holding grants at the trailing-12-month run-rate ({_m(a['new_grant_run_rate_usd'])}/yr, illustrative) "
         f"and haircutting for a {a['forfeiture_rate_annual_pct']:.0f}% estimated forfeiture rate, total SBC "
         f"lands near {_m(tf[0]['total'])} in FY{tf[0]['fy']} rising toward {_m(tf[-1]['total'])} by "
@@ -237,16 +238,23 @@ def build_evidence(report, artifact_id, artifact_type, semantic_payload):
 
     builder.check("check.sbc.backlog-reconciliation", "Backlog reconciliation", "passed",
                   "examples.sbc-forecasting.run.build_report",
-                  "Displayed gross runoff ties exactly to the backlog and cross-checks the equity-spend arm")
+                  "Displayed gross runoff ties exactly to the backlog and cross-checks the equity-spend arm",
+                  ["source.sbc.equity-grants", "source.sbc.workers", "source.sbc.directors",
+                   "source.sbc.equity-plans", "source.sbc.policy"])
     builder.check("check.sbc.schedule-integrity", "Runoff schedule integrity", "passed",
                   "examples.sbc-forecasting.run.build_report",
-                  "Every displayed amount is finite; cumulative expense is monotonic and equals the running sum")
+                  "Every displayed amount is finite; cumulative expense is monotonic and equals the running sum",
+                  ["source.sbc.equity-grants", "source.sbc.policy"])
     builder.check("check.sbc.total-decomposition", "Forecast decomposition", "passed",
                   "examples.sbc-forecasting.run.build_report",
-                  "Every total equals forfeiture-adjusted locked-in expense plus the new-grant overlay")
+                  "Every total equals forfeiture-adjusted locked-in expense plus the new-grant overlay",
+                  ["source.sbc.equity-grants", "source.sbc.financials", "source.sbc.policy"])
     builder.check("check.sbc.source-schema", "Source schema and referential integrity", "passed",
                   "foundation.compute.sbc_forecast._load",
-                  "Headers, dates, recipients, plans, awards, period spines, and economics validate fail closed")
+                  "Headers, dates, recipients, plans, awards, period spines, and economics validate fail closed",
+                  ["source.sbc.equity-grants", "source.sbc.workers", "source.sbc.directors",
+                   "source.sbc.equity-plans", "source.sbc.shares", "source.sbc.financials",
+                   "source.sbc.policy"])
 
     builder.caveat("caveat.sbc.full-vesting", "warning",
                    "Gross locked-in runoff assumes continued service until the separate forfeiture overlay")
@@ -355,18 +363,17 @@ def render_html(report, evidence_manifest=None):
     # 1) locked-in runoff — the certain part
     body.append(dash.section("Locked-in SBC runoff — amortization of grants already made"))
     mx = max((s["gross_expense"] for s in sched), default=1) or 1
-    body.append(dash.bars([
-        {"label": er.value(f"FY{s['fy']}", "claim.sbc.runoff.fy%d" % s["fy"]),
-         "value": er.value(round(s["gross_expense"] / 1e6, 1), "claim.sbc.runoff.fy%d" % s["fy"],
-                           raw=round(s["gross_expense"] / 1e6, 1)),
-         "max": mx / 1e6, "color": "var(--cyan)"} for s in sched if s["gross_expense"] > 0]))
-    body.append(dash.data_table(
+    runoff_ids = ["claim.sbc.runoff.fy%d" % s["fy"] for s in sched]
+    body.append(er.scope(dash.bars([
+        {"label": f"FY{s['fy']}",
+         "value": round(s["gross_expense"] / 1e6, 1),
+         "max": mx / 1e6, "color": "var(--cyan)"} for s in sched if s["gross_expense"] > 0]),
+                         runoff_ids, "Open evidence for the locked-in runoff series"))
+    body.append(er.scope(dash.data_table(
         ["Fiscal year", "Gross expense", "Forfeiture-adj (illus.)", "Cumulative"],
-        [[er.value(f"FY{s['fy']}", "claim.sbc.runoff.fy%d" % s["fy"]),
-          er.value(_m(s["gross_expense"]), "claim.sbc.runoff.fy%d" % s["fy"]),
-          er.value(_m(s["forfeiture_adj_expense"]), "claim.sbc.runoff.fy%d" % s["fy"]),
-          er.value(_m(s["cumulative_gross"]), "claim.sbc.runoff.fy%d" % s["fy"])]
-         for s in sched], center_from=1))
+        [[f"FY{s['fy']}", _m(s["gross_expense"]), _m(s["forfeiture_adj_expense"]),
+          _m(s["cumulative_gross"])] for s in sched], center_from=1), runoff_ids,
+                         "Open evidence for the locked-in runoff table"))
     body.append("<div style='font-size:11.5px;color:var(--soft);line-height:1.55;margin:8px 0 2px'>"
                 f"The gross runoff sums exactly to the {_m(li['backlog_unrecognized_usd'])} unamortized backlog "
                 "(it just splits it by fiscal year); it is the same straight-line amortization the equity-spend "
@@ -386,17 +393,17 @@ def render_html(report, evidence_manifest=None):
                          "Open the evidence behind the forecast series"))
     total_rows = []
     for i, t in enumerate(tf):
-        support_id = "claim.sbc.total.fy%d" % t["fy"]
-        total_id = "claim.sbc.first-year-total" if i == 0 else support_id
-        pct_id = "claim.sbc.first-year-revenue-pct" if i == 0 else support_id
+        total_value = (er.value(_m(t["total"]), "claim.sbc.first-year-total")
+                       if i == 0 else _m(t["total"]))
+        pct_value = (er.value(f"{t['pct_ttm_revenue']:.1f}%", "claim.sbc.first-year-revenue-pct")
+                     if i == 0 else f"{t['pct_ttm_revenue']:.1f}%")
         total_rows.append([
-            er.value(f"FY{t['fy']}", support_id), er.value(_m(t["locked_in"]), support_id),
-            er.value(_m(t["new_grants"]), support_id), er.value(_m(t["total"]), total_id),
-            er.value(f"{t['pct_ttm_revenue']:.1f}%", pct_id),
+            f"FY{t['fy']}", _m(t["locked_in"]), _m(t["new_grants"]), total_value, pct_value,
         ])
-    body.append(dash.data_table(
+    body.append(er.scope(dash.data_table(
         ["Fiscal year", "Locked-in (forf-adj)", "New grants (illus.)", "Total SBC", "% of TTM rev"],
-        total_rows, center_from=1))
+        total_rows, center_from=1), ["claim.sbc.total.fy%d" % t["fy"] for t in tf],
+                         "Open evidence for the total forecast table"))
     body.append("<div style='font-size:11.5px;color:var(--soft);line-height:1.55;margin:8px 0 2px'>"
                 f"New-grant layer assumes the company keeps granting at its trailing-12-month run-rate "
                 f"(<b>{_m(a['new_grant_run_rate_usd'])}/yr</b>), each vintage straight-line over "
@@ -424,19 +431,25 @@ def render_digest(report, evidence_manifest=None):
     result, li, tf = report["r"], report["li"], report["tf"]
     sched = li["schedule"]
     a = result["assumptions"]
-    narrative = er.markdown_refs(f"- {report['narrative']}",
-                                 ["claim.sbc.backlog", "claim.sbc.remaining-vesting",
-                                  "claim.sbc.first-year-locked", "claim.sbc.runoff-complete",
-                                  "claim.sbc.first-year-total"])
+    narrative = er.markdown_refs(f"- {report['narrative']}", [
+        er.reference(_m(li["backlog_unrecognized_usd"]), "claim.sbc.backlog"),
+        er.reference(f"{li['wavg_remaining_years']:.1f} yr", "claim.sbc.remaining-vesting"),
+        er.reference(_m(sched[0]["gross_expense"]), "claim.sbc.first-year-locked"),
+        er.reference(f"FY{li['runoff_complete_fy']}", "claim.sbc.runoff-complete",
+                     f"final non-zero runoff is FY{li['runoff_complete_fy']}"),
+        er.reference(_m(tf[0]["total"]), "claim.sbc.first-year-total"),
+    ])
     runoff = er.markdown_refs(
         f"- Locked-in runoff: {' -> '.join(_m(s['gross_expense']) for s in sched if s['gross_expense'] > 0)} "
         f"(FY{sched[0]['fy']} onward), completing FY{li['runoff_complete_fy']}. Reconciles to the "
         f"{_m(li['backlog_unrecognized_usd'])} equity-spend backlog.",
-        ["claim.sbc.runoff.fy%d" % s["fy"] for s in sched])
+        [er.reference(_m(s["gross_expense"]), "claim.sbc.runoff.fy%d" % s["fy"])
+         for s in sched if s["gross_expense"] > 0])
     total = er.markdown_refs(
         f"- Total forecast (locked-in + illustrative {_m(a['new_grant_run_rate_usd'])}/yr run-rate, "
         f"{a['forfeiture_rate_annual_pct']:.0f}% forfeiture): {' -> '.join(_m(t['total']) for t in tf)}.",
-        ["claim.sbc.total.fy%d" % t["fy"] for t in tf])
+        [er.reference(_m(t["total"]), "claim.sbc.total.fy%d" % t["fy"],
+                      (_m(t["total"]) + ".") if t is tf[-1] else "") for t in tf])
     lines = [f"# {COMPANY} — SBC forecast digest", f"_As of fiscal close {result['as_of']} · draft for review_",
              "", narrative, runoff, total]
     lines += ["", "_Locked-in gross runoff is pure amortization of grants already made — it assumes continued "
@@ -462,7 +475,7 @@ def _fail_closed(message) -> int:
 
 def _atomic_write(path: Path, text: str):
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_bytes(text.encode("utf-8"))
     os.replace(tmp, path)
 
 

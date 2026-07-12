@@ -12,16 +12,17 @@ import base64
 import html
 import json
 import re
+from collections import defaultdict
 from dataclasses import dataclass
+from html.parser import HTMLParser
 
 from core import evidence as core_evidence
 
 
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9._:@/-]{0,159}$")
-_HTML_ID_RE = re.compile(r"data-evidence-id=['\"]([^'\"]+)['\"]")
-_HTML_SCOPE_RE = re.compile(r"data-evidence-scope=['\"]([^'\"]+)['\"]")
 _MD_RE = re.compile(r"<!--\s*evidence:([a-z0-9][a-z0-9._:@/-]{0,159})\s*-->")
 _EMBED_RE = re.compile(r"<script type='application/octet-stream' id='evidence-manifest'[^>]*>([^<]+)</script>")
+_INTERACTIVE = {"a", "button"}
 
 
 class EvidenceRenderError(ValueError):
@@ -34,6 +35,13 @@ class EvidenceValue:
     claim_id: str
     label: str = ""
     raw: object = None
+
+
+@dataclass(frozen=True)
+class MarkdownReference:
+    display: str
+    claim_id: str
+    anchor: str = ""
 
 
 def _claim_id(value):
@@ -78,32 +86,201 @@ def scope(body_html, claim_ids, label="Open evidence for this section", css_clas
              html.escape(joined, quote=True)))
 
 
-def markdown_refs(text, claim_ids):
-    """Attach invisible, grep-friendly evidence references to a Markdown statement."""
-    refs = "".join("<!-- evidence:%s -->" % _claim_id(claim_id) for claim_id in claim_ids)
-    return str(text) + refs
+def reference(display, claim_id, anchor=""):
+    """Declare the exact visible Markdown value and optional unique context to annotate."""
+    return MarkdownReference(str(display), _claim_id(claim_id), str(anchor or ""))
+
+
+def _bounded_starts(text, needle):
+    starts = []
+    offset = 0
+    while True:
+        found = text.find(needle, offset)
+        if found < 0:
+            return starts
+        end = found + len(needle)
+        left_ok = not needle[:1].isalnum() or found == 0 or not text[found - 1].isalnum()
+        right_ok = not needle[-1:].isalnum() or end == len(text) or not text[end].isalnum()
+        if left_ok and right_ok:
+            starts.append(found)
+        offset = found + 1
+
+
+def markdown_refs(text, references):
+    """Attach each claim marker immediately after its exact visible Markdown value.
+
+    All spans are planned against the original text and must be unique and
+    non-overlapping. This prevents a short value from matching a date/title or a
+    marker inserted for an earlier claim.
+    """
+    original = str(text)
+    plans = []
+    for item in references:
+        if not isinstance(item, MarkdownReference):
+            raise EvidenceRenderError("markdown_refs requires reference(display, claim_id, anchor) objects")
+        anchor = item.anchor or item.display
+        if anchor.count(item.display) != 1:
+            raise EvidenceRenderError("Markdown anchor for %s must contain its display exactly once" %
+                                      item.claim_id)
+        starts = _bounded_starts(original, anchor)
+        if len(starts) != 1:
+            raise EvidenceRenderError("Markdown anchor for %s must be unique (found %d)" %
+                                      (item.claim_id, len(starts)))
+        start = starts[0] + anchor.index(item.display)
+        plans.append((start, start + len(item.display), item.claim_id))
+    ordered = sorted(plans)
+    for left, right in zip(ordered, ordered[1:]):
+        if right[0] < left[1]:
+            raise EvidenceRenderError("Markdown evidence spans overlap for %s and %s" %
+                                      (left[2], right[2]))
+    output = original
+    for _start, end, claim_id in sorted(plans, reverse=True):
+        output = output[:end] + "<!-- evidence:%s -->" % claim_id + output[end:]
+    return output
+
+
+class _EvidenceHTMLParser(HTMLParser):
+    """Parse rendered evidence semantics and reject structurally unsafe triggers."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.violations = []
+        self.triggers = defaultdict(list)
+        self.scopes = set()
+        self._button_stack = []
+        self._interactive_stack = []
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        names = [name.lower() for name, _value in attrs]
+        if len(names) != len(set(names)):
+            self.violations.append("HTML contains duplicate attributes on <%s>" % tag)
+        attr = {name.lower(): (value or "") for name, value in attrs}
+        for name, value in attrs:
+            lowered = (value or "").lower()
+            if "<button" in lowered or "data-evidence-id=" in lowered:
+                self.violations.append("evidence markup appears inside the %s attribute of <%s>" %
+                                       (name, tag))
+        classes = set(attr.get("class", "").split())
+        if tag in _INTERACTIVE:
+            if self._interactive_stack:
+                self.violations.append("nested interactive element <%s> inside <%s>" %
+                                       (tag, self._interactive_stack[-1]))
+            self._interactive_stack.append(tag)
+        evidence_id = attr.get("data-evidence-id")
+        is_trigger = tag == "button" and "evidence-trigger" in classes
+        if evidence_id is not None and not is_trigger:
+            self.violations.append("data-evidence-id must appear on an evidence-trigger button")
+        context = None
+        if is_trigger:
+            if not evidence_id or not _ID_RE.fullmatch(evidence_id):
+                self.violations.append("evidence trigger has an invalid or missing claim id")
+            else:
+                context = {"claim_id": evidence_id, "text": []}
+        if tag == "button":
+            self._button_stack.append(context)
+        scope_ids = attr.get("data-evidence-scope")
+        if scope_ids is not None:
+            ids = scope_ids.split()
+            if not ids or any(not _ID_RE.fullmatch(claim_id) for claim_id in ids):
+                self.violations.append("data-evidence-scope contains an invalid claim id")
+            else:
+                self.scopes.update(ids)
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        self.handle_endtag(tag)
+
+    def handle_data(self, data):
+        if self._button_stack and self._button_stack[-1] is not None:
+            self._button_stack[-1]["text"].append(data)
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if tag == "button":
+            if not self._button_stack:
+                self.violations.append("HTML closes a button that was never opened")
+            else:
+                context = self._button_stack.pop()
+                if context is not None:
+                    self.triggers[context["claim_id"]].append("".join(context["text"]))
+        if tag in _INTERACTIVE:
+            if not self._interactive_stack:
+                self.violations.append("HTML closes interactive <%s> that was never opened" % tag)
+            elif self._interactive_stack[-1] != tag:
+                self.violations.append("interactive HTML closes <%s> while <%s> is open" %
+                                       (tag, self._interactive_stack[-1]))
+                if tag in self._interactive_stack:
+                    self._interactive_stack = self._interactive_stack[:self._interactive_stack.index(tag)]
+            else:
+                self._interactive_stack.pop()
+
+    @property
+    def references(self):
+        return set(self.triggers) | set(self.scopes)
+
+
+def _parse_html(content):
+    parser = _EvidenceHTMLParser()
+    try:
+        parser.feed(content)
+        parser.close()
+    except (TypeError, ValueError) as exc:
+        parser.violations.append("HTML evidence parse failed: %s" % exc)
+    if parser._button_stack:
+        parser.violations.append("HTML contains an unclosed button")
+    if parser._interactive_stack:
+        parser.violations.append("HTML contains an unclosed interactive element")
+    return parser
 
 
 def referenced_claims(content, artifact_type):
     if artifact_type in ("dashboard", "report"):
-        out = set(_HTML_ID_RE.findall(content))
-        for group in _HTML_SCOPE_RE.findall(content):
-            out.update(group.split())
-        return out
+        return _parse_html(content).references
     if artifact_type in ("digest", "decision_packet"):
         return set(_MD_RE.findall(content))
     return set()
 
 
 def coverage_violations(content, manifest, require_shell=True):
-    """Verify every material claim is referenced and no rendered reference dangles."""
+    """Verify references point to the correct visible values in structurally safe markup."""
+    manifest_issues = core_evidence.validate_manifest(manifest)
+    if manifest_issues:
+        return ["invalid evidence manifest: %s" % issue for issue in manifest_issues]
     artifact = manifest.get("artifact", {}) if isinstance(manifest, dict) else {}
     artifact_type = artifact.get("artifact_type")
     claims = {claim.get("id"): claim for claim in manifest.get("claims", [])
               if isinstance(claim, dict) and claim.get("id")}
     material = {claim_id for claim_id, claim in claims.items() if claim.get("material")}
-    refs = referenced_claims(content, artifact_type)
     violations = []
+    parser = None
+    if artifact_type in ("dashboard", "report"):
+        parser = _parse_html(content)
+        refs = parser.references
+        violations.extend(parser.violations)
+        for claim_id, displays in sorted(parser.triggers.items()):
+            claim = claims.get(claim_id)
+            if claim is None:
+                continue
+            for display in displays:
+                if display != claim.get("display_value"):
+                    violations.append("trigger for '%s' renders %r, expected display_value %r" %
+                                      (claim_id, display, claim.get("display_value")))
+        for claim_id in sorted(material):
+            if not parser.triggers.get(claim_id):
+                violations.append("material claim '%s' has no direct display-value trigger" % claim_id)
+    else:
+        refs = referenced_claims(content, artifact_type)
+        for match in _MD_RE.finditer(content):
+            claim_id = match.group(1)
+            claim = claims.get(claim_id)
+            if claim is None:
+                continue
+            line_start = content.rfind("\n", 0, match.start()) + 1
+            before = content[line_start:match.start()]
+            if not before.endswith(claim.get("display_value", "")):
+                violations.append("Markdown reference for '%s' is not attached to display_value %r" %
+                                  (claim_id, claim.get("display_value")))
     for claim_id in sorted(refs - set(claims)):
         violations.append("render references missing claim '%s'" % claim_id)
     for claim_id in sorted(material - refs):
@@ -115,6 +292,9 @@ def coverage_violations(content, manifest, require_shell=True):
 
 
 def coverage_report(content, manifest):
+    if core_evidence.validate_manifest(manifest):
+        return {"material": 0, "material_referenced": 0, "all_claims": 0,
+                "all_referenced": 0, "unknown_references": 0}
     claims = {claim["id"]: claim for claim in manifest.get("claims", []) if isinstance(claim, dict)}
     material = {claim_id for claim_id, claim in claims.items() if claim.get("material")}
     refs = referenced_claims(content, manifest.get("artifact", {}).get("artifact_type"))
@@ -132,7 +312,8 @@ def extract_embedded_manifest(content):
     if not match:
         raise EvidenceRenderError("HTML artifact has no embedded evidence manifest")
     try:
-        return json.loads(base64.b64decode(match.group(1), validate=True).decode("utf-8"))
+        return json.loads(base64.b64decode(match.group(1), validate=True).decode("utf-8"),
+                          object_pairs_hook=core_evidence._no_dup_keys)
     except (ValueError, UnicodeDecodeError) as exc:
         raise EvidenceRenderError("embedded evidence manifest is not valid base64 JSON: %s" % exc)
 
@@ -219,10 +400,10 @@ body.append(E('div','evidence-value-big',c.display_value));meta(c.unit+' · '+c.
 const ss=section('Sources');(c.source_ids||[]).forEach(sid=>{const s=index.sources.get(sid);if(s)card(ss,s.label,s.kind+' · '+s.version+' · as of '+s.as_of+' · '+s.content_hash.slice(0,19)+'…',sourceHref(s.uri));});
 if(c.transformation_id){const t=index.transformations.get(c.transformation_id);if(t){const s=section('Transformation');card(s,t.name,t.implementation+' · '+t.version+' · '+t.description);}}
 if((c.assumption_ids||[]).length){const s=section('Assumptions');c.assumption_ids.forEach(aid=>{const a=index.assumptions.get(aid);if(a)card(s,a.name,String(a.value)+' '+a.unit+' · '+a.status+' · '+a.version);});}
-if((c.check_ids||[]).length){const s=section('Checks');c.check_ids.forEach(cid=>{const x=index.checks.get(cid);if(x){const d=E('div','evidence-card');d.append(badge(x.status,x.status));d.append(E('div','evidence-card-title',x.name));d.append(E('div','evidence-card-sub',x.details+' · '+x.implementation));s.append(d);}});}
+if((c.check_ids||[]).length){const s=section('Checks');c.check_ids.forEach(cid=>{const x=index.checks.get(cid);if(x){const d=E('div','evidence-card');d.append(badge(x.status,x.status));d.append(badge(x.attestation||'unclassified',''));d.append(E('div','evidence-card-title',x.name));d.append(E('div','evidence-card-sub',x.details+' · '+x.implementation+' · '+(x.source_ids||[]).length+' hashed input(s)'));s.append(d);}});}
 if((c.caveat_ids||[]).length){const s=section('Caveats');c.caveat_ids.forEach(cid=>{const x=index.caveats.get(cid);if(x){const d=E('div','evidence-card');d.append(badge(x.severity,x.severity));d.append(E('div','evidence-note',x.text));s.append(d);}});}
 if(c.change){const s=section('Change from prior cycle');card(s,c.change.prior_display_value+' → '+c.display_value,c.change.comparability+' · change '+String(c.change.absolute));(c.change.drivers||[]).forEach(d=>card(s,d.label,String(d.effect)+' '+d.unit+' · '+d.type));}
-const reviews=(manifest.reviews||[]).filter(r=>(r.claim_ids||[]).includes(id)),decisions=(manifest.decisions||[]).filter(d=>(d.claim_ids||[]).includes(id));
+const reviews=(manifest.reviews||[]).filter(r=>(r.claim_ids||[]).includes(id)).sort((a,b)=>b.reviewed_at.localeCompare(a.reviewed_at)),decisions=(manifest.decisions||[]).filter(d=>(d.claim_ids||[]).includes(id));
 if(reviews.length){const s=section('Reviews');reviews.forEach(r=>card(s,r.actor_role,r.status+' · '+r.reviewed_at+' · '+r.notes));}
 if(decisions.length){const s=section('Decisions');decisions.forEach(d=>card(s,d.decision_type,d.status+' · '+d.owner_role+' · '+d.decided_at));}
 meta('Evidence manifest '+document.getElementById('evidence-shell').dataset.evidenceHash);}
@@ -248,6 +429,9 @@ def decorate_page(html_doc, manifest):
         raise EvidenceRenderError("evidence decoration requires a complete HTML document")
     if "id='evidence-manifest'" in html_doc:
         raise EvidenceRenderError("HTML document is already evidence-decorated")
+    render_violations = coverage_violations(html_doc, manifest, require_shell=False)
+    if render_violations:
+        raise EvidenceRenderError("cannot decorate invalid evidence markup: %s" % render_violations[0])
     encoded = base64.b64encode(core_evidence.canonical(manifest).encode("utf-8")).decode("ascii")
     cov = core_evidence.coverage(manifest)
     manifest_hash = core_evidence.evidence_hash(manifest)

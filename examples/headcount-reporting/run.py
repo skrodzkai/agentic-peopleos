@@ -27,6 +27,7 @@ REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 from foundation.render import dashboard as dash          # noqa: E402
 
 OUT = HERE / "output"
@@ -117,7 +118,7 @@ def _narrative(hc, fte, ng, so, ml):
     if ng:
         sign = "grew" if ng["value"] >= 0 else "shrank"
         e = ng["extras"]
-        parts.append(f"Headcount {sign} by {abs(ng['value'])} over the trailing 12 months "
+        parts.append(f"Headcount net change {ng['value']:+d} ({sign} by {abs(ng['value'])}) over the trailing 12 months "
                      f"({e['hires']} hires, {e['total_exits']} exits).")
     if so and so["extras"].get("sub_scale_pct"):
         parts.append(f"{so['extras']['sub_scale_pct']}% of managers are sub-scale (<3 reports) — "
@@ -213,7 +214,7 @@ def render_digest(report):
 # ---------- fail-closed + entrypoint ----------
 
 def _fail_closed(message) -> int:
-    for p in (REPORT, DIGEST):
+    for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
         try:
             if p.exists():
                 p.rename(p.with_name(p.name + ".stale"))
@@ -226,7 +227,7 @@ def _fail_closed(message) -> int:
 
 def _atomic_write(path: Path, text: str):
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_bytes(text.encode("utf-8"))
     os.replace(tmp, path)
 
 
@@ -249,6 +250,8 @@ def main(argv=None) -> int:
         engine = _load_engine()
         report = build_report(engine)
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            AGENT, report, html_doc, digest_doc, REPO)
     except ReportError as exc:
         return _fail_closed(str(exc))
     except Exception as exc:  # missing dataset, invalid registry, etc.
@@ -259,12 +262,13 @@ def main(argv=None) -> int:
     #                                  # failed run must never inherit a prior run's "published" flag
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST):
+        for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         # The approval record is part of the same all-or-nothing transaction — if it can't be
         # written, the publish fails closed (no false "approved" with no record).
         if args.publish:

@@ -54,6 +54,7 @@ table.data tbody tr:hover{background:var(--hover);}
 .tile h3{margin:0 0 4px;font-size:14.5px;font-weight:700;color:var(--text);}.tile .sub{color:var(--muted);font-size:12px;}
 .pending{margin:6px 0;font-size:12.5px;color:var(--soft);}.pending b{color:var(--muted);}
 .footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:24px;border-top:1px solid var(--rule);padding-top:14px;color:var(--soft);font-size:11px;font-family:var(--mono);}
+@media(max-width:620px){table.data{display:block;max-width:100%;overflow-x:auto}.brand-row{flex-wrap:wrap;gap:10px}.status{white-space:normal}}
 """
 
 _TONES = {"neutral": "metric", "good": "metric good", "warn": "metric warn", "bad": "metric bad"}

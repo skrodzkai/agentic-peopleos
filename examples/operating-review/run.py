@@ -27,6 +27,7 @@ REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 from foundation.render import dashboard as dash          # noqa: E402
 
 OUT = HERE / "output"
@@ -137,7 +138,9 @@ def render_html(report):
     body.append(dash.section("Leadership diversity (people-managers)"))
     body.append(dash.kpi_cards([{"value": f"{v}%", "label": f"Group {g}"} for g, v in sorted(lead.items())]))
     # Coverage map
-    body.append(dash.section("Instrumentation coverage (measured vs defined)"))
+    instrumented = sum(ok for ok, _ in report["coverage"].values())
+    defined = sum(total for _, total in report["coverage"].values())
+    body.append(dash.section(f"Instrumentation coverage (measured vs defined) · {instrumented}/{defined}"))
     rows = [[DOMAIN_TITLES.get(d, d), f"{ok}/{tot}", "●" * ok + "○" * (tot - ok)]
             for d, (ok, tot) in report["coverage"].items()]
     body.append(dash.data_table(["Domain", "Instrumented", "Coverage"], rows))
@@ -230,7 +233,7 @@ def publish_decision(approver_id, commit_fn):
 # ---------- fail-closed + entrypoint ----------
 
 def _fail_closed(message) -> int:
-    for p in (REPORT, DIGEST):
+    for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
         try:
             if p.exists():
                 p.rename(p.with_name(p.name + ".stale"))
@@ -267,6 +270,8 @@ def main(argv=None) -> int:
         engine = _load_engine()
         report = build_report(engine)
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            AGENT, report, html_doc, digest_doc, REPO)
     except ReportError as exc:
         return _fail_closed(str(exc))
     except Exception as exc:
@@ -276,15 +281,16 @@ def main(argv=None) -> int:
         """Write the report + digest atomically. Called by the publish gate AFTER an entitled
         approval but BEFORE the ledger records the published action, so the ledger never lies."""
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST):
+        for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         try:
             _atomic_write(REPORT, html_doc)
             _atomic_write(DIGEST, digest_doc)
+            portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         except OSError:
-            for p in (REPORT, DIGEST):
+            for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
                 try:
                     p.with_name(p.name + ".tmp").unlink()
                 except OSError:

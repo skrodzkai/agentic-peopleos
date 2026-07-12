@@ -1,0 +1,248 @@
+{
+  "artifact": {
+    "agent_id": "agent.iss-pay-screen",
+    "artifact_type": "dashboard",
+    "as_of": "2026-07-02",
+    "id": "artifact.iss-pay-screen.report",
+    "period": "FY2026 proxy season",
+    "semantic_hash": "sha256:23299cd3f10aef698c6223343e0137bfe42cf55375848587ce2588ec140089db",
+    "status": "draft",
+    "title": "Acme Corp ISS Pay-for-Performance Screen"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.iss-pay-screen.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.iss-pay-screen.01",
+        "source.iss-pay-screen.02",
+        "source.iss-pay-screen.03"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.iss-pay-screen.reference-mode",
+      "severity": "warning",
+      "text": "Public-methodology reconstruction on synthetic issuer data; not ISS output or a voting recommendation."
+    }
+  ],
+  "checks": [
+    {
+      "attestation": "producer",
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.iss-pay-screen.report-contract",
+      "implementation": "examples.iss-pay-screen.run.build_report",
+      "name": "Agent report contract",
+      "source_ids": [
+        "source.iss-pay-screen.01",
+        "source.iss-pay-screen.02",
+        "source.iss-pay-screen.03"
+      ],
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.iss-pay-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.iss-pay-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.iss-pay-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "24",
+      "id": "claim.iss-pay-screen.comparison-group",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026 proxy season",
+      "source_ids": [
+        "source.iss-pay-screen.01",
+        "source.iss-pay-screen.02",
+        "source.iss-pay-screen.03"
+      ],
+      "statement": "ISS-derived comparison group size: 24.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.iss-pay-screen.report.v1",
+      "unit": "companies",
+      "value": 24
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.iss-pay-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.iss-pay-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.iss-pay-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "Medium",
+      "id": "claim.iss-pay-screen.concern",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026 proxy season",
+      "source_ids": [
+        "source.iss-pay-screen.01",
+        "source.iss-pay-screen.02",
+        "source.iss-pay-screen.03"
+      ],
+      "statement": "Anticipated ISS quantitative concern: Medium.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.iss-pay-screen.report.v1",
+      "unit": "category",
+      "value": "Medium"
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.iss-pay-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.iss-pay-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.iss-pay-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "1.26×",
+      "id": "claim.iss-pay-screen.mom",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026 proxy season",
+      "source_ids": [
+        "source.iss-pay-screen.01",
+        "source.iss-pay-screen.02",
+        "source.iss-pay-screen.03"
+      ],
+      "statement": "Multiple of median CEO pay: 1.26×.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.iss-pay-screen.report.v1",
+      "unit": "multiple",
+      "value": 1.257
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.iss-pay-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.iss-pay-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.iss-pay-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "-7%",
+      "id": "claim.iss-pay-screen.pta",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026 proxy season",
+      "source_ids": [
+        "source.iss-pay-screen.01",
+        "source.iss-pay-screen.02",
+        "source.iss-pay-screen.03"
+      ],
+      "statement": "Pay-TSR Alignment: -7%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.iss-pay-screen.report.v1",
+      "unit": "percent",
+      "value": -6.7
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.iss-pay-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.iss-pay-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.iss-pay-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "-62",
+      "id": "claim.iss-pay-screen.rda",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026 proxy season",
+      "source_ids": [
+        "source.iss-pay-screen.01",
+        "source.iss-pay-screen.02",
+        "source.iss-pay-screen.03"
+      ],
+      "statement": "Relative Degree of Alignment: -62.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.iss-pay-screen.report.v1",
+      "unit": "points",
+      "value": -62.5
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2026-07-02",
+      "classification": "synthetic",
+      "content_hash": "sha256:2dd3bd603444fc98be32531bbd145368193d81c7debddaadb003a72f11912dcf",
+      "hash_scope": "file_bytes",
+      "id": "source.iss-pay-screen.01",
+      "kind": "dataset",
+      "label": "Iss Universe",
+      "uri": "repo:foundation/data/acme/iss_universe.csv",
+      "version": "reference-2026-07-02"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "synthetic",
+      "content_hash": "sha256:54f58125b6ffd72b87c8bdd9556f602f3b330c00c0f035f7629e097bcfaa517e",
+      "hash_scope": "file_bytes",
+      "id": "source.iss-pay-screen.02",
+      "kind": "dataset",
+      "label": "Exec Pay Tsr",
+      "uri": "repo:foundation/data/acme/exec_pay_tsr.csv",
+      "version": "reference-2026-07-02"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "public",
+      "content_hash": "sha256:e1acfdb3e7fbb89fbe7cfcd8908ba325ab1b287b1fbc2e733218e23d29b19afa",
+      "hash_scope": "file_bytes",
+      "id": "source.iss-pay-screen.03",
+      "kind": "dataset",
+      "label": "Peer Universe",
+      "uri": "repo:foundation/data/acme/peer_universe.csv",
+      "version": "reference-2026-07-02"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.iss-pay-screen.report.v1",
+      "implementation": "examples.iss-pay-screen.run.build_report",
+      "name": "Illustrative ISS pay-for-performance reconstruction",
+      "version": "v1"
+    }
+  ]
+}

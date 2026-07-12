@@ -1,0 +1,328 @@
+{
+  "artifact": {
+    "agent_id": "agent.people-intelligence",
+    "artifact_type": "digest",
+    "as_of": "2026-01-31",
+    "id": "artifact.people-intelligence.digest",
+    "period": "Q4 FY2026 executive view",
+    "semantic_hash": "sha256:0fc493c0802193cb16062d4c99ff76c49f1757c589f17e19c5caf4d688f75d84",
+    "status": "draft",
+    "title": "Acme Corp People Intelligence Executive View"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.people-intelligence.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.people-intelligence.01",
+        "source.people-intelligence.02",
+        "source.people-intelligence.03",
+        "source.people-intelligence.04"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.people-intelligence.reference-mode",
+      "severity": "warning",
+      "text": "Synthetic company data and illustrative SaaS benchmark anchors; not external market guidance."
+    }
+  ],
+  "checks": [
+    {
+      "attestation": "producer",
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.people-intelligence.report-contract",
+      "implementation": "examples.people-intelligence.run.build_report",
+      "name": "Agent report contract",
+      "source_ids": [
+        "source.people-intelligence.01",
+        "source.people-intelligence.02",
+        "source.people-intelligence.03",
+        "source.people-intelligence.04"
+      ],
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-intelligence.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-intelligence.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-intelligence.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "0.982",
+      "id": "claim.people-intelligence.compa_ratio",
+      "material": true,
+      "metric_id": "compa_ratio",
+      "period": "Q4 FY2026 executive view",
+      "source_ids": [
+        "source.people-intelligence.01",
+        "source.people-intelligence.02",
+        "source.people-intelligence.03",
+        "source.people-intelligence.04"
+      ],
+      "statement": "Compa-ratio: 0.982.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-intelligence.report.v1",
+      "unit": "ratio",
+      "value": 0.982
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-intelligence.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-intelligence.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-intelligence.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "2023",
+      "id": "claim.people-intelligence.headcount",
+      "material": true,
+      "metric_id": "headcount",
+      "period": "Q4 FY2026 executive view",
+      "source_ids": [
+        "source.people-intelligence.01",
+        "source.people-intelligence.02",
+        "source.people-intelligence.03",
+        "source.people-intelligence.04"
+      ],
+      "statement": "Headcount: 2023.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-intelligence.report.v1",
+      "unit": "count",
+      "value": 2023
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-intelligence.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-intelligence.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-intelligence.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "-124",
+      "id": "claim.people-intelligence.net_headcount_growth",
+      "material": true,
+      "metric_id": "net_headcount_growth",
+      "period": "Q4 FY2026 executive view",
+      "source_ids": [
+        "source.people-intelligence.01",
+        "source.people-intelligence.02",
+        "source.people-intelligence.03",
+        "source.people-intelligence.04"
+      ],
+      "statement": "Net headcount growth: -124.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-intelligence.report.v1",
+      "unit": "count",
+      "value": -124
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-intelligence.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-intelligence.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-intelligence.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "26.2%",
+      "id": "claim.people-intelligence.operating_leverage",
+      "material": true,
+      "metric_id": "operating_leverage",
+      "period": "Q4 FY2026 executive view",
+      "source_ids": [
+        "source.people-intelligence.01",
+        "source.people-intelligence.02",
+        "source.people-intelligence.03",
+        "source.people-intelligence.04"
+      ],
+      "statement": "Operating leverage (revenue/FTE growth): 26.2%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-intelligence.report.v1",
+      "unit": "percent",
+      "value": 26.2
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-intelligence.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-intelligence.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-intelligence.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "7%",
+      "id": "claim.people-intelligence.out_of_band_rate",
+      "material": true,
+      "metric_id": "out_of_band_rate",
+      "period": "Q4 FY2026 executive view",
+      "source_ids": [
+        "source.people-intelligence.01",
+        "source.people-intelligence.02",
+        "source.people-intelligence.03",
+        "source.people-intelligence.04"
+      ],
+      "statement": "Out-of-band rate: 7%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-intelligence.report.v1",
+      "unit": "percent",
+      "value": 7
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-intelligence.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-intelligence.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-intelligence.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "$432K",
+      "id": "claim.people-intelligence.revenue-per-fte",
+      "material": true,
+      "metric_id": "revenue_per_fte",
+      "period": "Q4 FY2026 executive view",
+      "source_ids": [
+        "source.people-intelligence.01",
+        "source.people-intelligence.02",
+        "source.people-intelligence.03",
+        "source.people-intelligence.04"
+      ],
+      "statement": "Revenue per FTE: $432K.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-intelligence.report.v1",
+      "unit": "USD/FTE",
+      "value": 431939
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.people-intelligence.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.people-intelligence.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.people-intelligence.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "13.4%",
+      "id": "claim.people-intelligence.voluntary_attrition",
+      "material": true,
+      "metric_id": "voluntary_attrition",
+      "period": "Q4 FY2026 executive view",
+      "source_ids": [
+        "source.people-intelligence.01",
+        "source.people-intelligence.02",
+        "source.people-intelligence.03",
+        "source.people-intelligence.04"
+      ],
+      "statement": "Voluntary attrition: 13.4%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.people-intelligence.report.v1",
+      "unit": "percent",
+      "value": 13.4
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:37cd9325f951ae90fbd6051031982830284138b958e717ac196827cbdc151e64",
+      "hash_scope": "file_bytes",
+      "id": "source.people-intelligence.01",
+      "kind": "dataset",
+      "label": "Workers",
+      "uri": "repo:foundation/data/acme/workers.csv",
+      "version": "reference-2026-01-31"
+    },
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:c26f571ea8291c19364bf9ff607710d8fed1f4c35e89a86692c8f0c43c9ad175",
+      "hash_scope": "file_bytes",
+      "id": "source.people-intelligence.02",
+      "kind": "dataset",
+      "label": "Financials",
+      "uri": "repo:foundation/data/acme/financials.csv",
+      "version": "reference-2026-01-31"
+    },
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:9e783c34605ea808e3400a240271e346340311ec31f51e3bb319ea550c94ccf8",
+      "hash_scope": "file_bytes",
+      "id": "source.people-intelligence.03",
+      "kind": "dataset",
+      "label": "Comp Bands",
+      "uri": "repo:foundation/data/acme/comp_bands.csv",
+      "version": "reference-2026-01-31"
+    },
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:5ee713a38f925cd4d41d43e30c9eb9eade542d6817509bd99b462c19e4b04791",
+      "hash_scope": "file_bytes",
+      "id": "source.people-intelligence.04",
+      "kind": "registry",
+      "label": "Metrics.Registry",
+      "uri": "repo:vault/90-people-analytics/metrics/metrics.registry.json",
+      "version": "reference-2026-01-31"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.people-intelligence.report.v1",
+      "implementation": "examples.people-intelligence.run.build_report",
+      "name": "Cross-domain metric-engine executive aggregation",
+      "version": "v1"
+    }
+  ]
+}

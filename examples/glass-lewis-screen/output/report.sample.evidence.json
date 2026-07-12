@@ -1,0 +1,278 @@
+{
+  "artifact": {
+    "agent_id": "agent.glass-lewis-screen",
+    "artifact_type": "dashboard",
+    "as_of": "2026-07-02",
+    "id": "artifact.glass-lewis-screen.report",
+    "period": "2026 say-on-pay season",
+    "semantic_hash": "sha256:8e3064c6242b0886ed0f061000d22e74d16633131e8f8e172dc12c4d2ffbced9",
+    "status": "draft",
+    "title": "Acme Corp ISS vs Glass Lewis Say-on-Pay War Room"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.glass-lewis-screen.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.glass-lewis-screen.01",
+        "source.glass-lewis-screen.02",
+        "source.glass-lewis-screen.03"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.glass-lewis-screen.reference-mode",
+      "severity": "warning",
+      "text": "Illustrative ISS and Glass Lewis reconstructions; not advisor output and not a vote forecast."
+    }
+  ],
+  "checks": [
+    {
+      "attestation": "producer",
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.glass-lewis-screen.report-contract",
+      "implementation": "examples.glass-lewis-screen.run.build_report",
+      "name": "Agent report contract",
+      "source_ids": [
+        "source.glass-lewis-screen.01",
+        "source.glass-lewis-screen.02",
+        "source.glass-lewis-screen.03"
+      ],
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.glass-lewis-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.glass-lewis-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.glass-lewis-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "70/100",
+      "id": "claim.glass-lewis-screen.gl-composite",
+      "material": true,
+      "metric_id": null,
+      "period": "2026 say-on-pay season",
+      "source_ids": [
+        "source.glass-lewis-screen.01",
+        "source.glass-lewis-screen.02",
+        "source.glass-lewis-screen.03"
+      ],
+      "statement": "Glass Lewis five-test composite: 70/100.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.glass-lewis-screen.report.v1",
+      "unit": "score",
+      "value": 70.3
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.glass-lewis-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.glass-lewis-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.glass-lewis-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "Low",
+      "id": "claim.glass-lewis-screen.gl-concern",
+      "material": true,
+      "metric_id": null,
+      "period": "2026 say-on-pay season",
+      "source_ids": [
+        "source.glass-lewis-screen.01",
+        "source.glass-lewis-screen.02",
+        "source.glass-lewis-screen.03"
+      ],
+      "statement": "Glass Lewis reconstructed concern: Low.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.glass-lewis-screen.report.v1",
+      "unit": "category",
+      "value": "Low"
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.glass-lewis-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.glass-lewis-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.glass-lewis-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "Medium",
+      "id": "claim.glass-lewis-screen.iss-concern",
+      "material": true,
+      "metric_id": null,
+      "period": "2026 say-on-pay season",
+      "source_ids": [
+        "source.glass-lewis-screen.01",
+        "source.glass-lewis-screen.02",
+        "source.glass-lewis-screen.03"
+      ],
+      "statement": "ISS reconstructed concern: Medium.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.glass-lewis-screen.report.v1",
+      "unit": "category",
+      "value": "Medium"
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.glass-lewis-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.glass-lewis-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.glass-lewis-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "15",
+      "id": "claim.glass-lewis-screen.peer-count",
+      "material": true,
+      "metric_id": null,
+      "period": "2026 say-on-pay season",
+      "source_ids": [
+        "source.glass-lewis-screen.01",
+        "source.glass-lewis-screen.02",
+        "source.glass-lewis-screen.03"
+      ],
+      "statement": "Glass Lewis peer group size: 15.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.glass-lewis-screen.report.v1",
+      "unit": "companies",
+      "value": 15
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.glass-lewis-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.glass-lewis-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.glass-lewis-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "80–92%",
+      "id": "claim.glass-lewis-screen.support-band",
+      "material": true,
+      "metric_id": null,
+      "period": "2026 say-on-pay season",
+      "source_ids": [
+        "source.glass-lewis-screen.01",
+        "source.glass-lewis-screen.02",
+        "source.glass-lewis-screen.03"
+      ],
+      "statement": "Directional say-on-pay support band: 80–92%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.glass-lewis-screen.report.v1",
+      "unit": "percent-range",
+      "value": 80.0
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.glass-lewis-screen.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.glass-lewis-screen.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.glass-lewis-screen.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "ISS-ONLY FLAG",
+      "id": "claim.glass-lewis-screen.verdict",
+      "material": true,
+      "metric_id": null,
+      "period": "2026 say-on-pay season",
+      "source_ids": [
+        "source.glass-lewis-screen.01",
+        "source.glass-lewis-screen.02",
+        "source.glass-lewis-screen.03"
+      ],
+      "statement": "Cross-advisor reconciliation verdict: ISS-ONLY FLAG.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.glass-lewis-screen.report.v1",
+      "unit": "category",
+      "value": "ISS-ONLY FLAG"
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2026-07-02",
+      "classification": "synthetic",
+      "content_hash": "sha256:54f58125b6ffd72b87c8bdd9556f602f3b330c00c0f035f7629e097bcfaa517e",
+      "hash_scope": "file_bytes",
+      "id": "source.glass-lewis-screen.01",
+      "kind": "dataset",
+      "label": "Exec Pay Tsr",
+      "uri": "repo:foundation/data/acme/exec_pay_tsr.csv",
+      "version": "reference-2026-07-02"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "synthetic",
+      "content_hash": "sha256:2dd3bd603444fc98be32531bbd145368193d81c7debddaadb003a72f11912dcf",
+      "hash_scope": "file_bytes",
+      "id": "source.glass-lewis-screen.02",
+      "kind": "dataset",
+      "label": "Iss Universe",
+      "uri": "repo:foundation/data/acme/iss_universe.csv",
+      "version": "reference-2026-07-02"
+    },
+    {
+      "as_of": "2026-07-02",
+      "classification": "synthetic",
+      "content_hash": "sha256:06efd5b54b295a5f289e20d3dd1b8bfe4141cfeb8b23db64bb92a92d086d2ad7",
+      "hash_scope": "file_bytes",
+      "id": "source.glass-lewis-screen.03",
+      "kind": "dataset",
+      "label": "Gl Financials",
+      "uri": "repo:foundation/data/acme/gl_financials.csv",
+      "version": "reference-2026-07-02"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.glass-lewis-screen.report.v1",
+      "implementation": "examples.glass-lewis-screen.run.build_report",
+      "name": "Cross-advisor pay-for-performance reconstruction and reconciliation",
+      "version": "v1"
+    }
+  ]
+}
