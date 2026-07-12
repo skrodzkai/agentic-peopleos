@@ -37,6 +37,7 @@ from core import evidence as ev                            # noqa: E402
 from foundation.compute import sbc_forecast as SBC        # noqa: E402
 from foundation.render import dashboard as dash           # noqa: E402
 from foundation.render import charts as ch                # noqa: E402
+from foundation.render import evidence as er               # noqa: E402
 
 OUT = HERE / "output"
 REPORT = OUT / "report.sample.html"
@@ -135,13 +136,18 @@ def build_report(result):
         raise ReportError("illustrative assumptions out of range")
 
     cards = [
-        {"value": _m(li["backlog_unrecognized_usd"]), "label": "Locked-in SBC backlog"},
-        {"value": f"{li['wavg_remaining_years']:.1f} yr", "label": "Wtd-avg remaining vesting"},
-        {"value": _m(sched[0]["gross_expense"]), "label": f"FY{sched[0]['fy']} locked-in expense"},
+        {"value": _m(li["backlog_unrecognized_usd"]), "label": "Locked-in SBC backlog",
+         "claim_id": "claim.sbc.backlog"},
+        {"value": f"{li['wavg_remaining_years']:.1f} yr", "label": "Wtd-avg remaining vesting",
+         "claim_id": "claim.sbc.remaining-vesting"},
+        {"value": _m(sched[0]["gross_expense"]), "label": f"FY{sched[0]['fy']} locked-in expense",
+         "claim_id": "claim.sbc.first-year-locked"},
         {"value": f"FY{li['runoff_complete_fy']}" if li["runoff_complete_fy"] else "beyond horizon",
-         "label": "Locked-in runoff complete"},
-        {"value": f"{result['context']['backlog_pct_market_cap']:.1f}%", "label": "Backlog · % market cap"},
-        {"value": _m(tf[0]["total"]), "label": f"FY{tf[0]['fy']} total forecast"},
+         "label": "Locked-in runoff complete", "claim_id": "claim.sbc.runoff-complete"},
+        {"value": f"{result['context']['backlog_pct_market_cap']:.1f}%", "label": "Backlog · % market cap",
+         "claim_id": "claim.sbc.backlog-market-cap"},
+        {"value": _m(tf[0]["total"]), "label": f"FY{tf[0]['fy']} total forecast",
+         "claim_id": "claim.sbc.first-year-total"},
     ]
     return {"r": result, "li": li, "tf": tf, "cards": cards, "narrative": _narrative(result)}
 
@@ -290,20 +296,50 @@ def build_evidence(report, artifact_id, artifact_type, semantic_payload):
         assumption_ids=["assumption.sbc.forfeiture-rate", "assumption.sbc.new-grant-run-rate",
                         "assumption.sbc.new-grant-vesting"],
         caveat_ids=["caveat.sbc.forfeiture", "caveat.sbc.new-grants"])
-    builder.claim(
-        "claim.sbc.first-year-revenue-pct", "FY%d total SBC equals %.1f%% of trailing revenue." %
-        (tf[0]["fy"], tf[0]["pct_ttm_revenue"]), tf[0]["pct_ttm_revenue"],
-        "%.1f%%" % tf[0]["pct_ttm_revenue"], "percent", "FY%d" % tf[0]["fy"], result["as_of"],
-        all_sources, "transform.sbc.context.v1", total_checks, status="caveated",
-        assumption_ids=["assumption.sbc.forfeiture-rate", "assumption.sbc.new-grant-run-rate",
-                        "assumption.sbc.new-grant-vesting", "assumption.sbc.flat-revenue"],
-        caveat_ids=["caveat.sbc.forfeiture", "caveat.sbc.new-grants", "caveat.sbc.revenue"])
+    if artifact_type == "dashboard":
+        builder.claim(
+            "claim.sbc.backlog-market-cap", "Unrecognized SBC backlog is %.1f%% of market capitalization." %
+            result["context"]["backlog_pct_market_cap"], result["context"]["backlog_pct_market_cap"],
+            "%.1f%%" % result["context"]["backlog_pct_market_cap"], "percent", "as of fiscal close",
+            result["as_of"], all_sources, "transform.sbc.context.v1", total_checks,
+            status="caveated", assumption_ids=["assumption.sbc.full-vesting"],
+            caveat_ids=["caveat.sbc.full-vesting"])
+        builder.claim(
+            "claim.sbc.first-year-revenue-pct", "FY%d total SBC equals %.1f%% of trailing revenue." %
+            (tf[0]["fy"], tf[0]["pct_ttm_revenue"]), tf[0]["pct_ttm_revenue"],
+            "%.1f%%" % tf[0]["pct_ttm_revenue"], "percent", "FY%d" % tf[0]["fy"], result["as_of"],
+            all_sources, "transform.sbc.context.v1", total_checks, status="caveated",
+            assumption_ids=["assumption.sbc.forfeiture-rate", "assumption.sbc.new-grant-run-rate",
+                            "assumption.sbc.new-grant-vesting", "assumption.sbc.flat-revenue"],
+            caveat_ids=["caveat.sbc.forfeiture", "caveat.sbc.new-grants", "caveat.sbc.revenue"])
+
+    for row in sched:
+        builder.claim(
+            "claim.sbc.runoff.fy%d" % row["fy"],
+            "FY%d gross runoff is %s, forfeiture-adjusted runoff is %s, and cumulative gross is %s." %
+            (row["fy"], _m(row["gross_expense"]), _m(row["forfeiture_adj_expense"]),
+             _m(row["cumulative_gross"])), row["gross_expense"], _m(row["gross_expense"]), "USD",
+            "FY%d" % row["fy"], result["as_of"], locked_sources, "transform.sbc.locked-in.v1",
+            locked_checks, material=False, status="caveated",
+            assumption_ids=["assumption.sbc.full-vesting", "assumption.sbc.forfeiture-rate"],
+            caveat_ids=["caveat.sbc.full-vesting", "caveat.sbc.forfeiture"])
+    for row in tf:
+        builder.claim(
+            "claim.sbc.total.fy%d" % row["fy"],
+            "FY%d locked-in expense is %s, new-grant expense is %s, total SBC is %s, and the revenue ratio is %.1f%%." %
+            (row["fy"], _m(row["locked_in"]), _m(row["new_grants"]), _m(row["total"]),
+             row["pct_ttm_revenue"]), row["total"], _m(row["total"]), "USD", "FY%d" % row["fy"],
+            result["as_of"], all_sources, "transform.sbc.total-forecast.v1", total_checks,
+            material=False, status="caveated",
+            assumption_ids=["assumption.sbc.forfeiture-rate", "assumption.sbc.new-grant-run-rate",
+                            "assumption.sbc.new-grant-vesting", "assumption.sbc.flat-revenue"],
+            caveat_ids=["caveat.sbc.forfeiture", "caveat.sbc.new-grants", "caveat.sbc.revenue"])
     return builder.build()
 
 
 # ---------- rendering ----------
 
-def render_html(report):
+def render_html(report, evidence_manifest=None):
     result, li, tf = report["r"], report["li"], report["tf"]
     sched = li["schedule"]
     a = result["assumptions"]
@@ -319,11 +355,17 @@ def render_html(report):
     # 1) locked-in runoff — the certain part
     body.append(dash.section("Locked-in SBC runoff — amortization of grants already made"))
     mx = max((s["gross_expense"] for s in sched), default=1) or 1
-    body.append(dash.bars([{"label": f"FY{s['fy']}", "value": round(s["gross_expense"] / 1e6, 1), "max": mx / 1e6,
-                            "color": "var(--cyan)"} for s in sched if s["gross_expense"] > 0]))
+    body.append(dash.bars([
+        {"label": er.value(f"FY{s['fy']}", "claim.sbc.runoff.fy%d" % s["fy"]),
+         "value": er.value(round(s["gross_expense"] / 1e6, 1), "claim.sbc.runoff.fy%d" % s["fy"],
+                           raw=round(s["gross_expense"] / 1e6, 1)),
+         "max": mx / 1e6, "color": "var(--cyan)"} for s in sched if s["gross_expense"] > 0]))
     body.append(dash.data_table(
         ["Fiscal year", "Gross expense", "Forfeiture-adj (illus.)", "Cumulative"],
-        [[f"FY{s['fy']}", _m(s["gross_expense"]), _m(s["forfeiture_adj_expense"]), _m(s["cumulative_gross"])]
+        [[er.value(f"FY{s['fy']}", "claim.sbc.runoff.fy%d" % s["fy"]),
+          er.value(_m(s["gross_expense"]), "claim.sbc.runoff.fy%d" % s["fy"]),
+          er.value(_m(s["forfeiture_adj_expense"]), "claim.sbc.runoff.fy%d" % s["fy"]),
+          er.value(_m(s["cumulative_gross"]), "claim.sbc.runoff.fy%d" % s["fy"])]
          for s in sched], center_from=1))
     body.append("<div style='font-size:11.5px;color:var(--soft);line-height:1.55;margin:8px 0 2px'>"
                 f"The gross runoff sums exactly to the {_m(li['backlog_unrecognized_usd'])} unamortized backlog "
@@ -337,13 +379,24 @@ def render_html(report):
     labels = [f"FY{t['fy']}" for t in tf]
     totals = [round(t["total"] / 1e6, 1) for t in tf]
     pcts = [t["pct_ttm_revenue"] for t in tf]
-    body.append(ch.dual_axis_line(labels, totals, pcts,
-                                  left_fmt=lambda v: f"${v}M", right_fmt=lambda v: f"{v}%", uid="sbc_total"))
+    body.append(er.scope(ch.dual_axis_line(labels, totals, pcts,
+                                           left_fmt=lambda v: f"${v}M", right_fmt=lambda v: f"{v}%",
+                                           uid="sbc_total"),
+                         ["claim.sbc.total.fy%d" % t["fy"] for t in tf],
+                         "Open the evidence behind the forecast series"))
+    total_rows = []
+    for i, t in enumerate(tf):
+        support_id = "claim.sbc.total.fy%d" % t["fy"]
+        total_id = "claim.sbc.first-year-total" if i == 0 else support_id
+        pct_id = "claim.sbc.first-year-revenue-pct" if i == 0 else support_id
+        total_rows.append([
+            er.value(f"FY{t['fy']}", support_id), er.value(_m(t["locked_in"]), support_id),
+            er.value(_m(t["new_grants"]), support_id), er.value(_m(t["total"]), total_id),
+            er.value(f"{t['pct_ttm_revenue']:.1f}%", pct_id),
+        ])
     body.append(dash.data_table(
         ["Fiscal year", "Locked-in (forf-adj)", "New grants (illus.)", "Total SBC", "% of TTM rev"],
-        [[f"FY{t['fy']}", _m(t["locked_in"]), _m(t["new_grants"]), _m(t["total"]),
-          f"{t['pct_ttm_revenue']:.1f}%" if t["pct_ttm_revenue"] is not None else "—"] for t in tf],
-        center_from=1))
+        total_rows, center_from=1))
     body.append("<div style='font-size:11.5px;color:var(--soft);line-height:1.55;margin:8px 0 2px'>"
                 f"New-grant layer assumes the company keeps granting at its trailing-12-month run-rate "
                 f"(<b>{_m(a['new_grant_run_rate_usd'])}/yr</b>), each vintage straight-line over "
@@ -363,21 +416,29 @@ def render_html(report):
     body.append("<div style='font-size:11.5px;color:var(--soft);line-height:1.55;margin:8px 0 2px'>"
                 + dash._esc(result["disclaimer"]) + "</div>")
     body.append(dash.governance_footer(AGENT))
-    return dash.page(f"{COMPANY} — SBC Expense Forecast", "".join(body))
+    page = dash.page(f"{COMPANY} — SBC Expense Forecast", "".join(body))
+    return er.decorate_page(page, evidence_manifest) if evidence_manifest is not None else page
 
 
-def render_digest(report):
+def render_digest(report, evidence_manifest=None):
     result, li, tf = report["r"], report["li"], report["tf"]
     sched = li["schedule"]
     a = result["assumptions"]
+    narrative = er.markdown_refs(f"- {report['narrative']}",
+                                 ["claim.sbc.backlog", "claim.sbc.remaining-vesting",
+                                  "claim.sbc.first-year-locked", "claim.sbc.runoff-complete",
+                                  "claim.sbc.first-year-total"])
+    runoff = er.markdown_refs(
+        f"- Locked-in runoff: {' -> '.join(_m(s['gross_expense']) for s in sched if s['gross_expense'] > 0)} "
+        f"(FY{sched[0]['fy']} onward), completing FY{li['runoff_complete_fy']}. Reconciles to the "
+        f"{_m(li['backlog_unrecognized_usd'])} equity-spend backlog.",
+        ["claim.sbc.runoff.fy%d" % s["fy"] for s in sched])
+    total = er.markdown_refs(
+        f"- Total forecast (locked-in + illustrative {_m(a['new_grant_run_rate_usd'])}/yr run-rate, "
+        f"{a['forfeiture_rate_annual_pct']:.0f}% forfeiture): {' -> '.join(_m(t['total']) for t in tf)}.",
+        ["claim.sbc.total.fy%d" % t["fy"] for t in tf])
     lines = [f"# {COMPANY} — SBC forecast digest", f"_As of fiscal close {result['as_of']} · draft for review_",
-             "", f"- {report['narrative']}",
-             f"- Locked-in runoff: {' -> '.join(_m(s['gross_expense']) for s in sched if s['gross_expense'] > 0)} "
-             f"(FY{sched[0]['fy']} onward), completing FY{li['runoff_complete_fy']}. Reconciles to the "
-             f"{_m(li['backlog_unrecognized_usd'])} equity-spend backlog.",
-             f"- Total forecast (locked-in + illustrative {_m(a['new_grant_run_rate_usd'])}/yr run-rate, "
-             f"{a['forfeiture_rate_annual_pct']:.0f}% forfeiture): "
-             f"{' -> '.join(_m(t['total']) for t in tf)}."]
+             "", narrative, runoff, total]
     lines += ["", "_Locked-in gross runoff is pure amortization of grants already made — it assumes continued "
               "service (full vesting) until the separate forfeiture overlay is applied; the forfeiture rate, "
               "new-grant run-rate, and flat revenue are illustrative. Not financial guidance._",
@@ -421,9 +482,14 @@ def main(argv=None) -> int:
     try:
         result = SBC.compute()
         report = build_report(result)
-        html_doc, digest_doc = render_html(report), render_digest(report)
-        report_manifest = build_evidence(report, "artifact.sbc-forecasting.report", "dashboard", html_doc)
-        digest_manifest = build_evidence(report, "artifact.sbc-forecasting.digest", "digest", digest_doc)
+        report_manifest = build_evidence(report, "artifact.sbc-forecasting.report", "dashboard", report)
+        digest_manifest = build_evidence(report, "artifact.sbc-forecasting.digest", "digest", report)
+        html_doc = render_html(report, report_manifest)
+        digest_doc = render_digest(report, digest_manifest)
+        render_violations = er.coverage_violations(html_doc, report_manifest)
+        render_violations += er.coverage_violations(digest_doc, digest_manifest)
+        if render_violations:
+            raise ReportError("evidence render coverage failed: %s" % render_violations[0])
     except (ReportError, SBC.SBCDataError) as exc:
         return _fail_closed(str(exc))
     except Exception as exc:

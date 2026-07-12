@@ -30,10 +30,10 @@ def ok(cond, label):
 
 result = benchmark()
 report = run.build_report(result)
-page = run.render_html(report)
-digest = run.render_digest(report)
-page_evidence = run.build_evidence(report, "artifact.test.benchmark-report", "dashboard", page)
-digest_evidence = run.build_evidence(report, "artifact.test.benchmark-digest", "digest", digest)
+page_evidence = run.build_evidence(report, "artifact.test.benchmark-report", "dashboard", result)
+digest_evidence = run.build_evidence(report, "artifact.test.benchmark-digest", "digest", result)
+page = run.render_html(report, page_evidence)
+digest = run.render_digest(report, digest_evidence)
 
 # ---- presentation-only: every position/percentile/status comes STRAIGHT from the engine ----
 ok(report["positions"] is result["positions"], "the dashboard positions ARE the engine's positions (no agent copy/recompute)")
@@ -46,12 +46,18 @@ ok(run.ev.validate_manifest(page_evidence, root=run.REPO, verify_sources=True) =
    "dashboard evidence validates and committed source bytes reproduce")
 ok(run.ev.validate_manifest(digest_evidence, root=run.REPO, verify_sources=True) == [],
    "digest evidence validates and committed source bytes reproduce")
-ok(run.ev.coverage(page_evidence)["traceable"] == run.ev.coverage(page_evidence)["material"] == 9,
-   "all nine material benchmarking claims are traceable")
+ok(run.ev.coverage(page_evidence)["traceable"] == run.ev.coverage(page_evidence)["material"] == 10,
+   "all ten material benchmarking claims are traceable")
+ok(len(page_evidence["claims"]) == 30 and sum(not c["material"] for c in page_evidence["claims"]) == 20,
+   "every role-element row has one supporting claim in addition to ten material claims")
 ok(len([s for s in page_evidence["sources"] if s["kind"] == "filing"]) == 16,
    "every public-company disclosure is a first-class SEC evidence source")
-ok(page_evidence["artifact"]["semantic_hash"] != digest_evidence["artifact"]["semantic_hash"],
-   "dashboard and digest evidence bind their distinct artifact payloads")
+ok(page_evidence["artifact"]["semantic_hash"] == digest_evidence["artifact"]["semantic_hash"],
+   "dashboard and digest bind the same validated semantic report")
+ok(run.er.coverage_violations(page, page_evidence) == [], "dashboard covers every material claim")
+ok(run.er.coverage_violations(digest, digest_evidence) == [], "digest covers every material claim")
+ok(run.er.embedded_manifest_violations(page, page_evidence) == [],
+   "embedded dashboard graph exactly matches its sidecar")
 
 # ---- the honest story is faithful: below-target is concentrated in EQUITY, cash is competitive ----
 equity_below = [p for p in report["positions"] if p["element"] in ("ltie", "tdc") and p["status"] == "below"]
@@ -99,15 +105,19 @@ ok("chro" in digest.lower() and "suppress" in digest.lower(), "digest names the 
 ok("Compensation Committee" in page and "Compensation Committee" in digest, "the human approver is named")
 
 # ---- determinism: same engine result -> identical bytes ----
-ok(run.render_html(run.build_report(benchmark())) == page, "the dashboard renders deterministically")
-ok(run.render_digest(run.build_report(benchmark())) == digest, "the digest renders deterministically")
+_report2 = run.build_report(benchmark())
+_page_ev2 = run.build_evidence(_report2, "artifact.test.benchmark-report", "dashboard", _report2["result"])
+_digest_ev2 = run.build_evidence(_report2, "artifact.test.benchmark-digest", "digest", _report2["result"])
+ok(run.render_html(_report2, _page_ev2) == page, "the evidence-aware dashboard renders deterministically")
+ok(run.render_digest(_report2, _digest_ev2) == digest, "the evidence-aware digest renders deterministically")
 
 # ---- SVG <defs> ids unique across the document (the hero strip namespaces its own ids) ----
-ids = re.findall(r"id='([^']+)'", page)
+ids = re.findall(r"(?<![-\w])id='([^']+)'", page)  # exclude data-evidence-id attributes
 ok(len(ids) == len(set(ids)), f"no duplicate SVG ids ({len(ids)} ids, all unique)")
 
 # ---- injection / public-safety: no script, no per-person ids, no ticker leakage (this view shows none) ----
-ok("<script" not in page, "the dashboard contains no <script>")
+ok(page.count("<script") == 2 and "id='evidence-runtime'" in page,
+   "the only scripts are the inert graph payload and fixed evidence runtime")
 ok(not re.search(r"\bE-\d{4}\b", page) and not re.search(r"\bC-\d{4}\b", page),
    "no per-person employee/contractor ids appear (aggregate/role-level only)")
 ok(not ({"AAPL", "MSFT", "AMZN", "GOOGL", "NVDA", "META"} & set(re.findall(r"\b[A-Z]{2,5}\b", page))),

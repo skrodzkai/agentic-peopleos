@@ -5,7 +5,7 @@
     "as_of": "2026-07-02",
     "id": "artifact.executive-comp-benchmarking.digest",
     "period": "FY2026 proxy season · real public peers · illustrative snapshot",
-    "semantic_hash": "sha256:0fd084cb93d74c65bf4504f563fb67e0122efc73e3e9f1143e513311114a98e2",
+    "semantic_hash": "sha256:abdd8020361c8a1c5b45178ebca9106bb80c38ef2a7a9ddcdc1011790645badc",
     "status": "draft",
     "title": "Acme Corp Executive Compensation Benchmarking"
   },
@@ -379,6 +379,989 @@
       "transformation_id": "transform.benchmark.counts.v1",
       "unit": "positions",
       "value": 20
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.base",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P57.1",
+      "id": "claim.benchmark.position.ceo.base",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CEO Base salary: subject $675K, percentile P57.1, peer P25 $550K, median $608K, P75 $706K, target P45–P55, status above.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 57.1
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.ltie",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P35.7",
+      "id": "claim.benchmark.position.ceo.ltie",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CEO LTI / equity: subject $6.80M, percentile P35.7, peer P25 $3.32M, median $11.33M, P75 $14.80M, target P50–P65, status below.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 35.7
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.sti",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P64.3",
+      "id": "claim.benchmark.position.ceo.sti",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CEO Annual cash incentive: subject $950K, percentile P64.3, peer P25 $587K, median $769K, P75 $969K, target P50–P60, status above.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 64.3
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.tdc",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P42.9",
+      "id": "claim.benchmark.position.ceo.tdc",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CEO Total direct comp (SCT): subject $8.47M, percentile P42.9, peer P25 $5.60M, median $12.75M, P75 $16.56M, target P50–P65, status below.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 42.9
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.total_cash",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P64.3",
+      "id": "claim.benchmark.position.ceo.total_cash",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CEO Total cash (actual): subject $1.62M, percentile P64.3, peer P25 $1.11M, median $1.35M, P75 $1.70M, target P50–P60, status above.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 64.3
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.base",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P53.8",
+      "id": "claim.benchmark.position.cfo.base",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CFO Base salary: subject $475K, percentile P53.8, peer P25 $440K, median $465K, P75 $507K, target P45–P55, status within.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 53.8
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.ltie",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P30.8",
+      "id": "claim.benchmark.position.cfo.ltie",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CFO LTI / equity: subject $3.60M, percentile P30.8, peer P25 $3.35M, median $5.24M, P75 $5.72M, target P50–P65, status below.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 30.8
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.sti",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P69.2",
+      "id": "claim.benchmark.position.cfo.sti",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CFO Annual cash incentive: subject $520K, percentile P69.2, peer P25 $330K, median $447K, P75 $580K, target P50–P60, status above.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 69.2
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.tdc",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P30.8",
+      "id": "claim.benchmark.position.cfo.tdc",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CFO Total direct comp (SCT): subject $4.62M, percentile P30.8, peer P25 $4.14M, median $6.31M, P75 $6.71M, target P50–P65, status below.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 30.8
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.total_cash",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P69.2",
+      "id": "claim.benchmark.position.cfo.total_cash",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CFO Total cash (actual): subject $995K, percentile P69.2, peer P25 $800K, median $887K, P75 $1.02M, target P50–P60, status above.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 69.2
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.base",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P50.0",
+      "id": "claim.benchmark.position.clo.base",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CLO Base salary: subject $430K, percentile P50.0, peer P25 $397K, median $423K, P75 $459K, target P45–P55, status within.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 50.0
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.ltie",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P25.0",
+      "id": "claim.benchmark.position.clo.ltie",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CLO LTI / equity: subject $1.70M, percentile P25.0, peer P25 $2.00M, median $2.71M, P75 $3.14M, target P50–P65, status below.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 25.0
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.sti",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P75.0",
+      "id": "claim.benchmark.position.clo.sti",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CLO Annual cash incentive: subject $360K, percentile P75.0, peer P25 $236K, median $283K, P75 $336K, target P50–P60, status above.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 75.0
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.tdc",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P25.0",
+      "id": "claim.benchmark.position.clo.tdc",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CLO Total direct comp (SCT): subject $2.51M, percentile P25.0, peer P25 $2.79M, median $3.39M, P75 $3.94M, target P50–P65, status below.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 25.0
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.total_cash",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P75.0",
+      "id": "claim.benchmark.position.clo.total_cash",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "CLO Total cash (actual): subject $790K, percentile P75.0, peer P25 $654K, median $679K, P75 $763K, target P50–P60, status above.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 75.0
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.base",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P50.0",
+      "id": "claim.benchmark.position.coo.base",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "COO Base salary: subject $500K, percentile P50.0, peer P25 $402K, median $478K, P75 $588K, target P45–P55, status within.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 50.0
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.ltie",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P50.0",
+      "id": "claim.benchmark.position.coo.ltie",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "COO LTI / equity: subject $3.90M, percentile P50.0, peer P25 $2.28M, median $5.32M, P75 $8.39M, target P50–P65, status within.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 50.0
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.sti",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P66.7",
+      "id": "claim.benchmark.position.coo.sti",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "COO Annual cash incentive: subject $560K, percentile P66.7, peer P25 $386K, median $476K, P75 $735K, target P50–P60, status above.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 66.7
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.tdc",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P50.0",
+      "id": "claim.benchmark.position.coo.tdc",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "COO Total direct comp (SCT): subject $4.99M, percentile P50.0, peer P25 $3.30M, median $6.18M, P75 $9.26M, target P50–P65, status within.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 50.0
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.band.total_cash",
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [
+        "caveat.benchmark.actual-not-target",
+        "caveat.benchmark.synthetic-subject"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "P66.7",
+      "id": "claim.benchmark.position.coo.total_cash",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "COO Total cash (actual): subject $1.06M, percentile P66.7, peer P25 $815K, median $976K, P75 $1.31M, target P50–P60, status above.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.position.v1",
+      "unit": "percentile",
+      "value": 66.7
+    },
+    {
+      "as_of": "2026-07-02",
+      "assumption_ids": [
+        "assumption.benchmark.incumbent-policy"
+      ],
+      "caveat_ids": [],
+      "change": null,
+      "check_ids": [
+        "check.benchmark.source-provenance",
+        "check.benchmark.position-integrity",
+        "check.benchmark.coverage-integrity"
+      ],
+      "claim_type": "metric",
+      "display_value": "4",
+      "id": "claim.benchmark.role-count",
+      "material": true,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.benchmark.proxy-comp",
+        "source.sec.appfolio-inc",
+        "source.sec.bentley-systems-incorporated",
+        "source.sec.bill-holdings-inc",
+        "source.sec.commvault-systems-inc",
+        "source.sec.gitlab-inc",
+        "source.sec.guidewire-software-inc",
+        "source.sec.klaviyo-inc",
+        "source.sec.manhattan-associates-inc",
+        "source.sec.paylocity-holding-corporation",
+        "source.sec.pegasystems-inc",
+        "source.sec.procore-technologies-inc",
+        "source.sec.q2-holdings-inc",
+        "source.sec.qualys-inc",
+        "source.sec.zeta-global-holdings-corp",
+        "source.benchmark.synthetic-subject"
+      ],
+      "statement": "The dashboard benchmarks 4 executive roles.",
+      "status": "supported",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.benchmark.counts.v1",
+      "unit": "roles",
+      "value": 4
     },
     {
       "as_of": "2026-07-02",

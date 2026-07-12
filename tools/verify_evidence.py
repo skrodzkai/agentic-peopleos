@@ -11,6 +11,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from core.evidence import coverage, evidence_hash, load_manifest, validate_manifest  # noqa: E402
+from foundation.render import evidence as evidence_render  # noqa: E402
 
 
 def main(argv=None):
@@ -18,6 +19,8 @@ def main(argv=None):
     parser.add_argument("paths", nargs="*")
     parser.add_argument("--all", action="store_true", help="validate examples/*/output/*.evidence.json")
     parser.add_argument("--verify-sources", action="store_true")
+    parser.add_argument("--verify-rendered", action="store_true",
+                        help="verify sibling HTML/Markdown claim coverage and embedded graph parity")
     args = parser.parse_args(argv)
 
     paths = [Path(p) for p in args.paths]
@@ -32,6 +35,23 @@ def main(argv=None):
         try:
             manifest = load_manifest(path)
             violations = validate_manifest(manifest, root=REPO, verify_sources=args.verify_sources)
+            render_cov = None
+            if args.verify_rendered and not violations:
+                kind = manifest["artifact"]["artifact_type"]
+                extension = ".html" if kind in ("dashboard", "report") else ".md"
+                suffix = ".evidence.json"
+                if not path.name.endswith(suffix):
+                    violations.append("manifest filename must end in .evidence.json for rendered verification")
+                else:
+                    artifact_path = path.with_name(path.name[:-len(suffix)] + extension)
+                    if not artifact_path.is_file():
+                        violations.append("rendered artifact not found: %s" % artifact_path)
+                    else:
+                        artifact_text = artifact_path.read_text(encoding="utf-8")
+                        violations.extend(evidence_render.coverage_violations(artifact_text, manifest))
+                        if kind in ("dashboard", "report"):
+                            violations.extend(evidence_render.embedded_manifest_violations(artifact_text, manifest))
+                        render_cov = evidence_render.coverage_report(artifact_text, manifest)
         except (OSError, ValueError) as exc:
             violations = [str(exc)]
             manifest = None
@@ -43,8 +63,10 @@ def main(argv=None):
                 print("  - %s" % violation, file=sys.stderr)
         else:
             cov = coverage(manifest)
-            print("OK %s — material %d/%d traceable; %s" %
-                  (rel, cov["traceable"], cov["material"], evidence_hash(manifest)))
+            render_note = ("; rendered %d/%d" % (render_cov["material_referenced"], render_cov["material"])) \
+                if render_cov is not None else ""
+            print("OK %s — material %d/%d traceable%s; %s" %
+                  (rel, cov["traceable"], cov["material"], render_note, evidence_hash(manifest)))
     if failures:
         print("evidence verification FAILED — %d/%d invalid" % (failures, len(paths)), file=sys.stderr)
         return 1

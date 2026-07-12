@@ -5,7 +5,7 @@
     "as_of": "2025-12-31",
     "id": "artifact.sbc-forecasting.digest",
     "period": "FY2026–FY2030",
-    "semantic_hash": "sha256:867c7142155c4c9cf74d939cde91df0c46ab798c6a0abba085e6de9ff81c98fa",
+    "semantic_hash": "sha256:1a18d9b1ace01d2789ef0fc85c7617ddb8e491929d17df9372141ca9751aa325",
     "status": "draft",
     "title": "Acme Corp SBC Expense Forecast"
   },
@@ -192,47 +192,6 @@
       "assumption_ids": [
         "assumption.sbc.forfeiture-rate",
         "assumption.sbc.new-grant-run-rate",
-        "assumption.sbc.new-grant-vesting",
-        "assumption.sbc.flat-revenue"
-      ],
-      "caveat_ids": [
-        "caveat.sbc.forfeiture",
-        "caveat.sbc.new-grants",
-        "caveat.sbc.revenue"
-      ],
-      "change": null,
-      "check_ids": [
-        "check.sbc.backlog-reconciliation",
-        "check.sbc.schedule-integrity",
-        "check.sbc.source-schema",
-        "check.sbc.total-decomposition"
-      ],
-      "claim_type": "metric",
-      "display_value": "13.8%",
-      "id": "claim.sbc.first-year-revenue-pct",
-      "material": true,
-      "metric_id": null,
-      "period": "FY2026",
-      "source_ids": [
-        "source.sbc.equity-grants",
-        "source.sbc.workers",
-        "source.sbc.directors",
-        "source.sbc.equity-plans",
-        "source.sbc.shares",
-        "source.sbc.financials"
-      ],
-      "statement": "FY2026 total SBC equals 13.8% of trailing revenue.",
-      "status": "caveated",
-      "supporting_claim_ids": [],
-      "transformation_id": "transform.sbc.context.v1",
-      "unit": "percent",
-      "value": 13.82
-    },
-    {
-      "as_of": "2025-12-31",
-      "assumption_ids": [
-        "assumption.sbc.forfeiture-rate",
-        "assumption.sbc.new-grant-run-rate",
         "assumption.sbc.new-grant-vesting"
       ],
       "caveat_ids": [
@@ -332,6 +291,386 @@
       "transformation_id": "transform.sbc.locked-in.v1",
       "unit": "fiscal_year",
       "value": 2029
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.sbc.full-vesting",
+        "assumption.sbc.forfeiture-rate"
+      ],
+      "caveat_ids": [
+        "caveat.sbc.full-vesting",
+        "caveat.sbc.forfeiture"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.sbc.backlog-reconciliation",
+        "check.sbc.schedule-integrity",
+        "check.sbc.source-schema"
+      ],
+      "claim_type": "metric",
+      "display_value": "$85.9M",
+      "id": "claim.sbc.runoff.fy2026",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans"
+      ],
+      "statement": "FY2026 gross runoff is $85.9M, forfeiture-adjusted runoff is $85.9M, and cumulative gross is $85.9M.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.sbc.locked-in.v1",
+      "unit": "USD",
+      "value": 85901726.05
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.sbc.full-vesting",
+        "assumption.sbc.forfeiture-rate"
+      ],
+      "caveat_ids": [
+        "caveat.sbc.full-vesting",
+        "caveat.sbc.forfeiture"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.sbc.backlog-reconciliation",
+        "check.sbc.schedule-integrity",
+        "check.sbc.source-schema"
+      ],
+      "claim_type": "metric",
+      "display_value": "$58.3M",
+      "id": "claim.sbc.runoff.fy2027",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2027",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans"
+      ],
+      "statement": "FY2027 gross runoff is $58.3M, forfeiture-adjusted runoff is $54.8M, and cumulative gross is $144.2M.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.sbc.locked-in.v1",
+      "unit": "USD",
+      "value": 58337830.57
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.sbc.full-vesting",
+        "assumption.sbc.forfeiture-rate"
+      ],
+      "caveat_ids": [
+        "caveat.sbc.full-vesting",
+        "caveat.sbc.forfeiture"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.sbc.backlog-reconciliation",
+        "check.sbc.schedule-integrity",
+        "check.sbc.source-schema"
+      ],
+      "claim_type": "metric",
+      "display_value": "$30.8M",
+      "id": "claim.sbc.runoff.fy2028",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2028",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans"
+      ],
+      "statement": "FY2028 gross runoff is $30.8M, forfeiture-adjusted runoff is $27.2M, and cumulative gross is $175.0M.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.sbc.locked-in.v1",
+      "unit": "USD",
+      "value": 30796228.61
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.sbc.full-vesting",
+        "assumption.sbc.forfeiture-rate"
+      ],
+      "caveat_ids": [
+        "caveat.sbc.full-vesting",
+        "caveat.sbc.forfeiture"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.sbc.backlog-reconciliation",
+        "check.sbc.schedule-integrity",
+        "check.sbc.source-schema"
+      ],
+      "claim_type": "metric",
+      "display_value": "$4.8M",
+      "id": "claim.sbc.runoff.fy2029",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2029",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans"
+      ],
+      "statement": "FY2029 gross runoff is $4.8M, forfeiture-adjusted runoff is $4.0M, and cumulative gross is $179.8M.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.sbc.locked-in.v1",
+      "unit": "USD",
+      "value": 4789459.69
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.sbc.full-vesting",
+        "assumption.sbc.forfeiture-rate"
+      ],
+      "caveat_ids": [
+        "caveat.sbc.full-vesting",
+        "caveat.sbc.forfeiture"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.sbc.backlog-reconciliation",
+        "check.sbc.schedule-integrity",
+        "check.sbc.source-schema"
+      ],
+      "claim_type": "metric",
+      "display_value": "$0",
+      "id": "claim.sbc.runoff.fy2030",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2030",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans"
+      ],
+      "statement": "FY2030 gross runoff is $0, forfeiture-adjusted runoff is $0, and cumulative gross is $179.8M.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.sbc.locked-in.v1",
+      "unit": "USD",
+      "value": 0.0
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.sbc.forfeiture-rate",
+        "assumption.sbc.new-grant-run-rate",
+        "assumption.sbc.new-grant-vesting",
+        "assumption.sbc.flat-revenue"
+      ],
+      "caveat_ids": [
+        "caveat.sbc.forfeiture",
+        "caveat.sbc.new-grants",
+        "caveat.sbc.revenue"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.sbc.backlog-reconciliation",
+        "check.sbc.schedule-integrity",
+        "check.sbc.source-schema",
+        "check.sbc.total-decomposition"
+      ],
+      "claim_type": "metric",
+      "display_value": "$117.7M",
+      "id": "claim.sbc.total.fy2026",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2026",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans",
+        "source.sbc.shares",
+        "source.sbc.financials"
+      ],
+      "statement": "FY2026 locked-in expense is $85.9M, new-grant expense is $31.8M, total SBC is $117.7M, and the revenue ratio is 13.8%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.sbc.total-forecast.v1",
+      "unit": "USD",
+      "value": 117696461.72
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.sbc.forfeiture-rate",
+        "assumption.sbc.new-grant-run-rate",
+        "assumption.sbc.new-grant-vesting",
+        "assumption.sbc.flat-revenue"
+      ],
+      "caveat_ids": [
+        "caveat.sbc.forfeiture",
+        "caveat.sbc.new-grants",
+        "caveat.sbc.revenue"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.sbc.backlog-reconciliation",
+        "check.sbc.schedule-integrity",
+        "check.sbc.source-schema",
+        "check.sbc.total-decomposition"
+      ],
+      "claim_type": "metric",
+      "display_value": "$118.4M",
+      "id": "claim.sbc.total.fy2027",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2027",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans",
+        "source.sbc.shares",
+        "source.sbc.financials"
+      ],
+      "statement": "FY2027 locked-in expense is $54.8M, new-grant expense is $63.6M, total SBC is $118.4M, and the revenue ratio is 13.9%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.sbc.total-forecast.v1",
+      "unit": "USD",
+      "value": 118427032.08
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.sbc.forfeiture-rate",
+        "assumption.sbc.new-grant-run-rate",
+        "assumption.sbc.new-grant-vesting",
+        "assumption.sbc.flat-revenue"
+      ],
+      "caveat_ids": [
+        "caveat.sbc.forfeiture",
+        "caveat.sbc.new-grants",
+        "caveat.sbc.revenue"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.sbc.backlog-reconciliation",
+        "check.sbc.schedule-integrity",
+        "check.sbc.source-schema",
+        "check.sbc.total-decomposition"
+      ],
+      "claim_type": "metric",
+      "display_value": "$122.6M",
+      "id": "claim.sbc.total.fy2028",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2028",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans",
+        "source.sbc.shares",
+        "source.sbc.financials"
+      ],
+      "statement": "FY2028 locked-in expense is $27.2M, new-grant expense is $95.4M, total SBC is $122.6M, and the revenue ratio is 14.4%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.sbc.total-forecast.v1",
+      "unit": "USD",
+      "value": 122595754.61
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.sbc.forfeiture-rate",
+        "assumption.sbc.new-grant-run-rate",
+        "assumption.sbc.new-grant-vesting",
+        "assumption.sbc.flat-revenue"
+      ],
+      "caveat_ids": [
+        "caveat.sbc.forfeiture",
+        "caveat.sbc.new-grants",
+        "caveat.sbc.revenue"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.sbc.backlog-reconciliation",
+        "check.sbc.schedule-integrity",
+        "check.sbc.source-schema",
+        "check.sbc.total-decomposition"
+      ],
+      "claim_type": "metric",
+      "display_value": "$131.2M",
+      "id": "claim.sbc.total.fy2029",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2029",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans",
+        "source.sbc.shares",
+        "source.sbc.financials"
+      ],
+      "statement": "FY2029 locked-in expense is $4.0M, new-grant expense is $127.2M, total SBC is $131.2M, and the revenue ratio is 15.4%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.sbc.total-forecast.v1",
+      "unit": "USD",
+      "value": 131156991.27
+    },
+    {
+      "as_of": "2025-12-31",
+      "assumption_ids": [
+        "assumption.sbc.forfeiture-rate",
+        "assumption.sbc.new-grant-run-rate",
+        "assumption.sbc.new-grant-vesting",
+        "assumption.sbc.flat-revenue"
+      ],
+      "caveat_ids": [
+        "caveat.sbc.forfeiture",
+        "caveat.sbc.new-grants",
+        "caveat.sbc.revenue"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.sbc.backlog-reconciliation",
+        "check.sbc.schedule-integrity",
+        "check.sbc.source-schema",
+        "check.sbc.total-decomposition"
+      ],
+      "claim_type": "metric",
+      "display_value": "$127.2M",
+      "id": "claim.sbc.total.fy2030",
+      "material": false,
+      "metric_id": null,
+      "period": "FY2030",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans",
+        "source.sbc.shares",
+        "source.sbc.financials"
+      ],
+      "statement": "FY2030 locked-in expense is $0, new-grant expense is $127.2M, total SBC is $127.2M, and the revenue ratio is 14.9%.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.sbc.total-forecast.v1",
+      "unit": "USD",
+      "value": 127178942.68
     }
   ],
   "decisions": [],

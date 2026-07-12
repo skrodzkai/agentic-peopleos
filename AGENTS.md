@@ -39,6 +39,7 @@ python3 foundation/compute/tests/test_engine.py
 python3 foundation/compute/tests/test_regression.py
 python3 foundation/compute/tests/test_peers.py
 # shared renderer + chart toolkit
+python3 foundation/render/tests/test_evidence.py
 python3 foundation/render/tests/test_dashboard.py
 python3 foundation/render/tests/test_charts.py
 # measurement governance
@@ -53,7 +54,7 @@ python3 tools/render_glossary.py             # then `git diff --exit-code` on va
 # Executive Compensation arm (eval + run, then `git diff --exit-code` on each output/report.sample.html + day1-digest.sample.md)
 (cd examples/executive-comp-peer-builder && python3 evals/test_peer_builder.py && python3 run.py)
 (cd examples/executive-comp-benchmarking && python3 evals/test_benchmarking_agent.py && python3 run.py)
-python3 tools/verify_evidence.py --verify-sources \
+python3 tools/verify_evidence.py --verify-sources --verify-rendered \
   examples/executive-comp-benchmarking/output/report.sample.evidence.json \
   examples/executive-comp-benchmarking/output/day1-digest.sample.evidence.json
 (cd examples/rtsr-psu-valuation && python3 evals/test_rtsr_psu.py && python3 run.py)
@@ -76,7 +77,7 @@ python3 foundation/compute/tests/test_merit_comp.py
 python3 foundation/compute/tests/test_pvp.py
 python3 foundation/compute/tests/test_pay_equity.py
 python3 foundation/compute/tests/test_sbc_forecast.py
-python3 tools/verify_evidence.py --verify-sources \
+python3 tools/verify_evidence.py --verify-sources --verify-rendered \
   examples/sbc-forecasting/output/report.sample.evidence.json \
   examples/sbc-forecasting/output/day1-digest.sample.evidence.json
 # retention-risk model (glass-box hazard + eval + segment layer)

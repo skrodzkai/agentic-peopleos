@@ -14,6 +14,8 @@ from __future__ import annotations
 import html
 import re
 
+from foundation.render import evidence as evidence_render
+
 # Agentic PeopleOS navy-glass design tokens (deep navy, glass panels, cyan accent, system fonts),
 # shared by every dashboard. Hexes EQUAL foundation/render/charts.py constants byte-for-byte.
 _STYLE = """
@@ -104,11 +106,13 @@ def section(title: str) -> str:
 
 
 def kpi_cards(cards: list) -> str:
-    """cards: list of {value, label, tone?}  (tone in neutral|good|warn|bad)."""
+    """cards: list of {value, label, tone?}; value may be an EvidenceValue."""
     out = []
     for c in cards:
         cls = _TONES.get(c.get("tone", "neutral"), "metric")
-        out.append(f"<div class='{cls}'><strong class='mono'>{_esc(c['value'])}</strong>"
+        item = (evidence_render.value(c["value"], c["claim_id"], c.get("evidence_label", ""))
+                if c.get("claim_id") else c["value"])
+        out.append(f"<div class='{cls}'><strong class='mono'>{evidence_render.render_value(item)}</strong>"
                    f"<span>{_esc(c['label'])}</span></div>")
     return f"<div class='meter'>{''.join(out)}</div>"
 
@@ -133,12 +137,15 @@ def bars(rows: list) -> str:
     out = []
     for r in rows:
         mx = r.get("max") or 1
-        pct = round(100 * r["value"] / mx) if mx else 0
+        raw_value = r["value"].raw if isinstance(r["value"], evidence_render.EvidenceValue) else r["value"]
+        if raw_value is None:
+            raise ValueError("an evidence-aware bar value needs raw=<number> for scaling")
+        pct = round(100 * raw_value / mx) if mx else 0
         pct = max(0, min(100, pct))   # clamp: a width can never exceed the track
         color = _safe_color(r.get("color", "var(--cyan)"))   # CSS-context safe (not just HTML-escaped)
-        out.append(f"<div class='row'><div class='lbl'>{_esc(r['label'])}</div>"
+        out.append(f"<div class='row'><div class='lbl'>{evidence_render.render_value(r['label'])}</div>"
                    f"<div class='bar'><div style='width:{pct}%;background:{color};'></div></div>"
-                   f"<div class='val mono'>{_esc(r['value'])}</div></div>")
+                   f"<div class='val mono'>{evidence_render.render_value(r['value'])}</div></div>")
     return "".join(out)
 
 
@@ -148,7 +155,7 @@ def data_table(headers: list, rows: list, center_from: int = 1) -> str:
                    for i, h in enumerate(headers))
     body = []
     for row in rows:
-        cells = "".join(f"<td{' class=c' if i >= center_from else ''}>{_esc(v)}</td>"
+        cells = "".join(f"<td{' class=c' if i >= center_from else ''}>{evidence_render.render_value(v)}</td>"
                         for i, v in enumerate(row))
         body.append(f"<tr>{cells}</tr>")
     return (f"<table class='data'><thead><tr>{head}</tr></thead>"
