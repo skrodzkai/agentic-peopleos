@@ -67,6 +67,11 @@ REQUIRED_OUTPUTS = [
     "examples/retention-risk/output/report.sample.html",
     "examples/retention-risk/output/report.sample.png",
     "examples/retention-risk/output/committee-digest.sample.md",
+    # Evidence Graph v1 reference verticals: dashboard + digest each carry a deterministic sidecar.
+    "examples/executive-comp-benchmarking/output/report.sample.evidence.json",
+    "examples/executive-comp-benchmarking/output/day1-digest.sample.evidence.json",
+    "examples/sbc-forecasting/output/report.sample.evidence.json",
+    "examples/sbc-forecasting/output/day1-digest.sample.evidence.json",
     "examples/merit-comp-planning/output/equity_refresh_grants.sample.csv",   # the equity-handoff artifact
     "examples/operating-review/output/decision.sample.events.jsonl",
     "examples/operating-review/output/decision.sample.events.jsonl.anchor.json",

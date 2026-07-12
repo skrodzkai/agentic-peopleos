@@ -160,7 +160,10 @@ jobs:
         run: |
           python3 evals/test_benchmarking_agent.py
           python3 run.py
+          python3 ../../tools/verify_evidence.py --verify-sources \
+            output/report.sample.evidence.json output/day1-digest.sample.evidence.json
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            output/report.sample.evidence.json output/day1-digest.sample.evidence.json \
             || (echo "::error::executive-comp benchmarking output is stale — run examples/executive-comp-benchmarking/run.py and commit" && exit 1)
 
       - name: Executive comp arm — rTSR PSU valuation eval
@@ -200,7 +203,10 @@ jobs:
         run: |
           python3 evals/test_sbc_forecast_agent.py
           python3 run.py
+          python3 ../../tools/verify_evidence.py --verify-sources \
+            output/report.sample.evidence.json output/day1-digest.sample.evidence.json
           git diff --exit-code -- output/report.sample.html output/day1-digest.sample.md \
+            output/report.sample.evidence.json output/day1-digest.sample.evidence.json \
             || (echo "::error::sbc-forecasting output is stale — run examples/sbc-forecasting/run.py and commit" && exit 1)
 
       - name: Executive comp arm — ISS vs Glass Lewis say-on-pay war room eval

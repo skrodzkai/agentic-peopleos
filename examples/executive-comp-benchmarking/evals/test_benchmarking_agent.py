@@ -32,6 +32,8 @@ result = benchmark()
 report = run.build_report(result)
 page = run.render_html(report)
 digest = run.render_digest(report)
+page_evidence = run.build_evidence(report, "artifact.test.benchmark-report", "dashboard", page)
+digest_evidence = run.build_evidence(report, "artifact.test.benchmark-digest", "digest", digest)
 
 # ---- presentation-only: every position/percentile/status comes STRAIGHT from the engine ----
 ok(report["positions"] is result["positions"], "the dashboard positions ARE the engine's positions (no agent copy/recompute)")
@@ -40,6 +42,16 @@ ok(report["n_below"] == result["n_below_target"] == sum(1 for p in report["posit
 ok({p["role"] for p in report["positions"]} == set(result["roles_benchmarked"]),
    "only engine-benchmarked roles are positioned")
 ok(report["n_peers"] == result["n_peers_total"], "peer count comes from the engine")
+ok(run.ev.validate_manifest(page_evidence, root=run.REPO, verify_sources=True) == [],
+   "dashboard evidence validates and committed source bytes reproduce")
+ok(run.ev.validate_manifest(digest_evidence, root=run.REPO, verify_sources=True) == [],
+   "digest evidence validates and committed source bytes reproduce")
+ok(run.ev.coverage(page_evidence)["traceable"] == run.ev.coverage(page_evidence)["material"] == 9,
+   "all nine material benchmarking claims are traceable")
+ok(len([s for s in page_evidence["sources"] if s["kind"] == "filing"]) == 16,
+   "every public-company disclosure is a first-class SEC evidence source")
+ok(page_evidence["artifact"]["semantic_hash"] != digest_evidence["artifact"]["semantic_hash"],
+   "dashboard and digest evidence bind their distinct artifact payloads")
 
 # ---- the honest story is faithful: below-target is concentrated in EQUITY, cash is competitive ----
 equity_below = [p for p in report["positions"] if p["element"] in ("ltie", "tdc") and p["status"] == "below"]
@@ -193,6 +205,9 @@ def _set_out():
 
 try:
     _set_out(); ok(run.main([]) == 0 and run.REPORT.exists(), "draft run exits 0 and writes the dashboard")
+    ok(all(p.exists() for p in run._evidence_paths()), "draft run writes both evidence sidecars")
+    ok(all(run.ev.validate_manifest(run.ev.load_manifest(p), root=run.REPO, verify_sources=True) == []
+           for p in run._evidence_paths()), "generated evidence sidecars verify against their sources")
     _set_out(); ok(run.main(["--publish"]) == 2 and not run.REPORT.exists(), "publish without an approver exits 2")
     _set_out()
     ok(run.main(["--publish", "--approved-by", "Compensation Committee Chair"]) == 0, "valid approver publishes (exit 0)")
@@ -228,6 +243,8 @@ try:
             rc = run.main([])
         ok(rc == 1 and not run.REPORT.exists() and _stale.exists(),
            "a failure after a success quarantines the prior report to .stale")
+        ok(all(not p.exists() and p.with_name(p.name + ".stale").exists() for p in run._evidence_paths()),
+           "a failure quarantines the evidence sidecars with the stale report")
     finally:
         run._load_benchmark = _real2
     ok(run.main([]) == 0 and run.REPORT.exists() and not _stale.exists(), "a later good run clears the .stale quarantine")

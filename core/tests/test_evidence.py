@@ -209,7 +209,8 @@ ok(set(ev._COLLECTIONS) <= set(schema["properties"]), "JSON Schema declares ever
 # Atomic write round-trips canonical bytes and the CLI validates/inspects without traceback.
 out = ROOT / "artifact.evidence.json"
 ev.write_manifest(out, manifest)
-ok(out.read_text(encoding="utf-8") == ev.canonical(manifest) + "\n", "writer emits canonical JSON")
+ok(out.read_text(encoding="utf-8") == ev.format_manifest(manifest),
+   "writer emits deterministic, review-friendly JSON")
 ok(ev.load_manifest(out) == manifest, "written manifest round-trips")
 ok(ev._main(["validate", str(out), "--root", str(ROOT), "--verify-sources"]) == 0,
    "CLI validates a manifest and its source bytes")

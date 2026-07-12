@@ -24,6 +24,8 @@ result = SBC.compute()
 report = run.build_report(result)
 html = run.render_html(report)
 digest = run.render_digest(report)
+html_evidence = run.build_evidence(report, "artifact.test.sbc-report", "dashboard", html)
+digest_evidence = run.build_evidence(report, "artifact.test.sbc-digest", "digest", digest)
 
 # -- renders + is coherent --
 ok("Stock-Based-Compensation Forecast" in html and "SBC Expense Forecast" in html, "title + kicker render")
@@ -33,6 +35,16 @@ li = result["locked_in"]
 ok(run._m(li["backlog_unrecognized_usd"]) in html, "the locked-in backlog headline number renders")
 ok("FY" + str(li["schedule"][0]["fy"]) in html, "the first forecast fiscal year renders")
 ok("sbc" in digest.lower() and "forecast" in digest.lower(), "the digest names the arm")
+ok(run.ev.validate_manifest(html_evidence, root=run.REPO, verify_sources=True) == [],
+   "dashboard evidence validates and every committed source hash reproduces")
+ok(run.ev.validate_manifest(digest_evidence, root=run.REPO, verify_sources=True) == [],
+   "digest evidence validates and every committed source hash reproduces")
+ok(run.ev.coverage(html_evidence)["traceable"] == run.ev.coverage(html_evidence)["material"] == 6,
+   "all six material SBC claims are traceable")
+ok({c["status"] for c in html_evidence["claims"]} == {"caveated"},
+   "assumption-dependent SBC claims wear their caveats")
+ok(html_evidence["artifact"]["semantic_hash"] != digest_evidence["artifact"]["semantic_hash"],
+   "dashboard and digest evidence bind their distinct artifact payloads")
 
 # -- honest labeling --
 low = (html + digest).lower()

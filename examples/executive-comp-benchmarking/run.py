@@ -42,6 +42,7 @@ REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from core import evidence as ev                            # noqa: E402
 from foundation.render import charts as ch                 # noqa: E402
 
 OUT = HERE / "output"
@@ -304,6 +305,196 @@ def _narrative(report):
             f"{COMPANY}'s CEO total direct comp sits at the <b>{ch.ordinal(round(hero['percentile']))} percentile</b> "
             f"(peer median <b>{_money(hero['peer_median'])}</b>).{supp_line}{fx_clause} "
             f"<span class='warn'>Peer figures are actual SCT-disclosed pay, not target opportunity.</span>")
+
+
+# ---------------------------------------------------------------- machine-readable evidence
+
+def _evidence_paths():
+    """Sidecars follow the active artifact paths, including evals' throwaway output directories."""
+    return REPORT.with_suffix(".evidence.json"), DIGEST.with_suffix(".evidence.json")
+
+
+def _source_slug(value):
+    slug = re.sub(r"[^a-z0-9]+", "-", str(value).lower()).strip("-")
+    return slug[:80] or "filing"
+
+
+def _source_label(value):
+    """Human label without all-caps ticker collisions in the committed dashboard evidence arm."""
+    return re.sub(r"\b[A-Z]{2,5}\b", lambda m: m.group(0).title(), str(value))
+
+
+def _proxy_source_rows():
+    from foundation.compute import benchmarking as benchmark_engine
+    peers, subject = benchmark_engine.load_proxy_comp()
+    return peers, subject
+
+
+def _add_benchmark_sources(builder, peers, subject, evidence_as_of):
+    """Register the committed snapshot plus every underlying SEC disclosure as graph sources."""
+    from foundation.compute import benchmarking as benchmark_engine
+
+    builder.repo_source(benchmark_engine.PROXY_PATH, REPO, "source.benchmark.proxy-comp",
+                        "Mixed public-peer and synthetic-subject proxy compensation snapshot", "dataset",
+                        "proxy-comp-%s" % evidence_as_of, evidence_as_of, "public")
+    builder.repo_source(REPO / "foundation" / "compute" / "benchmarking.py", REPO,
+                        "source.benchmark.policy", "Benchmarking policy, exclusions, and target bands", "model",
+                        "benchmarking-v1", evidence_as_of, "public")
+    builder.source(**ev.canonical_record_snapshot(
+        "source.benchmark.synthetic-subject", "Synthetic Acme executive-pay inputs", "dataset",
+        "urn:synthetic:acme-executive-pay", "generator-seed-30414", evidence_as_of,
+        sorted(subject, key=lambda r: (r["role_bucket"], r["title"])), "synthetic"))
+
+    grouped = {}
+    for row in peers:
+        grouped.setdefault(row["source_url"], []).append(row)
+    used_ids, us_ids, foreign_ids = set(), [], []
+    for url, rows in sorted(grouped.items()):
+        company = rows[0]["company_name"]
+        base_id = "source.sec." + _source_slug(company)
+        source_id, suffix = base_id, 2
+        while source_id in used_ids:
+            source_id = "%s-%d" % (base_id, suffix)
+            suffix += 1
+        used_ids.add(source_id)
+        forms = sorted({r["form"] for r in rows})
+        fiscal_years = sorted({r["fiscal_year"] for r in rows})
+        extraction_date = max(r["extraction_date"] for r in rows)
+        builder.source(**ev.canonical_record_snapshot(
+            source_id, "%s executive-compensation disclosure" % _source_label(company), "filing", url,
+            "%s/%s" % ("+".join(fiscal_years), "+".join(forms)), extraction_date,
+            sorted(rows, key=lambda r: (r["role_bucket"], r["title"], r["total"])), "public"))
+        if all(r["disclosure"] == "def14a" for r in rows):
+            us_ids.append(source_id)
+        else:
+            foreign_ids.append(source_id)
+    return sorted(us_ids), sorted(foreign_ids)
+
+
+def build_evidence(report, artifact_id, artifact_type, semantic_payload):
+    peers, subject = _proxy_source_rows()
+    evidence_as_of = max(r["extraction_date"] for r in peers)
+    builder = ev.EvidenceBuilder(
+        artifact_id=artifact_id,
+        agent_id="agent.executive-comp-benchmarking",
+        title="Acme Corp Executive Compensation Benchmarking",
+        artifact_type=artifact_type,
+        as_of=evidence_as_of,
+        period=PERIOD,
+        semantic_payload=semantic_payload,
+    )
+    us_sources, foreign_sources = _add_benchmark_sources(builder, peers, subject, evidence_as_of)
+    dataset = ["source.benchmark.proxy-comp"]
+    subject_source = ["source.benchmark.synthetic-subject"]
+    distribution_sources = dataset + us_sources
+
+    builder.transformation(
+        "transform.benchmark.position.v1", "Executive-pay percentile positioning", "v1",
+        "foundation.compute.benchmarking.benchmark",
+        "Select one representative incumbent per peer and role, calculate SCT-basis element distributions, and position the synthetic subject")
+    builder.transformation(
+        "transform.benchmark.counts.v1", "Benchmark coverage counts", "v1",
+        "foundation.compute.benchmarking.benchmark",
+        "Count comparable US SCT peers, positioned role-element observations, exclusions, and below-band calls")
+    builder.transformation(
+        "transform.benchmark.suppression.v1", "Thin-role suppression", "v1",
+        "foundation.compute.benchmarking.benchmark",
+        "Suppress a role when comparable peer disclosure falls below the policy floor")
+
+    for element in report["result"]["elements"]:
+        lo, hi = element["band"]
+        builder.assumption("assumption.benchmark.band.%s" % element["key"],
+                           "%s target-percentile band" % element["label"], "P%d–P%d" % (lo, hi),
+                           "percentile_band", "v1", "policy", ["source.benchmark.policy"])
+    builder.assumption("assumption.benchmark.min-peer-n", "Minimum peer observations", _min_n(),
+                       "peers", "v1", "policy", ["source.benchmark.policy"])
+    builder.assumption("assumption.benchmark.incumbent-policy", "Representative incumbent policy",
+                       "one non-former, non-interim incumbent per company and role", "text", "v1", "policy",
+                       ["source.benchmark.policy"])
+
+    builder.check("check.benchmark.source-provenance", "Proxy source provenance", "passed",
+                  "foundation.compute.benchmarking.load_proxy_comp",
+                  "Every public observation has a valid SEC archive URL, disclosure basis, currency, extraction date, and component-total reconciliation")
+    builder.check("check.benchmark.position-integrity", "Position integrity", "passed",
+                  "examples.executive-comp-benchmarking.run.build_report",
+                  "Every percentile, quartile, target band, status, gap, role, and element is finite and internally consistent")
+    builder.check("check.benchmark.coverage-integrity", "Coverage and suppression integrity", "passed",
+                  "examples.executive-comp-benchmarking.run.build_report",
+                  "Counts tie to rendered positions; suppressed roles remain below the peer floor and never receive a percentile")
+
+    builder.caveat("caveat.benchmark.synthetic-subject", "info",
+                   "The subject company and its executive-pay inputs are synthetic")
+    builder.caveat("caveat.benchmark.actual-not-target", "warning",
+                   "Peer figures are actual SCT-disclosed pay rather than target compensation opportunity")
+    builder.caveat("caveat.benchmark.foreign-excluded", "info",
+                   "Foreign private issuers use a different disclosure basis and are excluded from the US SCT distribution")
+    builder.caveat("caveat.benchmark.transition-excluded", "info",
+                   "Partial-year transition officers are excluded when their pay is not representative of a full-year incumbent")
+    builder.caveat("caveat.benchmark.thin-peer-set", "warning",
+                   "The widest shortfall is based on a peer set below the preferred ten-observation comfort threshold")
+
+    checks = ["check.benchmark.source-provenance", "check.benchmark.position-integrity",
+              "check.benchmark.coverage-integrity"]
+    hero = report["hero"]
+    builder.claim(
+        "claim.benchmark.ceo-tdc", "Synthetic CEO SCT Total is %s." % _money(hero["subject_value"]),
+        hero["subject_value"], _money(hero["subject_value"]), "USD", AS_OF, evidence_as_of,
+        dataset + subject_source, "transform.benchmark.position.v1", checks, status="caveated",
+        caveat_ids=["caveat.benchmark.synthetic-subject"])
+    builder.claim(
+        "claim.benchmark.ceo-tdc-percentile", "Synthetic CEO SCT Total is at percentile %.1f." %
+        hero["percentile"], hero["percentile"], "P%.1f" % hero["percentile"], "percentile", AS_OF,
+        evidence_as_of, distribution_sources + subject_source, "transform.benchmark.position.v1", checks,
+        status="caveated", assumption_ids=["assumption.benchmark.band.tdc",
+                                           "assumption.benchmark.incumbent-policy"],
+        caveat_ids=["caveat.benchmark.synthetic-subject", "caveat.benchmark.actual-not-target"])
+    builder.claim(
+        "claim.benchmark.peer-count", "The comparable distribution contains %d US SCT peers." %
+        report["n_peers"], report["n_peers"], str(report["n_peers"]), "peers", AS_OF, evidence_as_of,
+        distribution_sources, "transform.benchmark.counts.v1", checks,
+        assumption_ids=["assumption.benchmark.incumbent-policy"])
+    builder.claim(
+        "claim.benchmark.position-count", "The dashboard contains %d role-element positions." %
+        report["n_positions"], report["n_positions"], str(report["n_positions"]), "positions", AS_OF,
+        evidence_as_of, distribution_sources + subject_source, "transform.benchmark.counts.v1", checks,
+        assumption_ids=["assumption.benchmark.incumbent-policy"])
+    builder.claim(
+        "claim.benchmark.below-target", "%d of %d positions are below the policy band." %
+        (report["n_below"], report["n_positions"]), report["n_below"], str(report["n_below"]),
+        "positions", AS_OF, evidence_as_of, distribution_sources + subject_source,
+        "transform.benchmark.counts.v1", checks, status="caveated",
+        assumption_ids=["assumption.benchmark.band.base", "assumption.benchmark.band.sti",
+                        "assumption.benchmark.band.total_cash", "assumption.benchmark.band.ltie",
+                        "assumption.benchmark.band.tdc"],
+        caveat_ids=["caveat.benchmark.actual-not-target", "caveat.benchmark.synthetic-subject"])
+    widest = report["below_sorted"][0]
+    builder.claim(
+        "claim.benchmark.widest-gap", "%s %s is %.1f percentile points below the target band." %
+        (widest["role"], report["el_label"][widest["element"]], widest["gap"]), widest["gap"],
+        "%.1fpt" % widest["gap"], "percentile_points", AS_OF, evidence_as_of,
+        distribution_sources + subject_source, "transform.benchmark.position.v1", checks,
+        status="caveated", assumption_ids=["assumption.benchmark.band.%s" % widest["element"],
+                                           "assumption.benchmark.incumbent-policy"],
+        caveat_ids=["caveat.benchmark.actual-not-target", "caveat.benchmark.thin-peer-set",
+                    "caveat.benchmark.synthetic-subject"])
+    suppressed = report["suppressed"][0]
+    builder.claim(
+        "claim.benchmark.suppressed-role", "%s is suppressed with %d comparable peer observations." %
+        (suppressed["role"], suppressed["peer_n"]), suppressed["peer_n"], str(suppressed["peer_n"]),
+        "peers", AS_OF, evidence_as_of, distribution_sources, "transform.benchmark.suppression.v1", checks,
+        assumption_ids=["assumption.benchmark.min-peer-n", "assumption.benchmark.incumbent-policy"])
+    builder.claim(
+        "claim.benchmark.foreign-excluded", "%d foreign private issuers are excluded from the US SCT distribution." %
+        len(report["foreign_excluded"]), len(report["foreign_excluded"]), str(len(report["foreign_excluded"])),
+        "issuers", AS_OF, evidence_as_of, dataset + foreign_sources, "transform.benchmark.counts.v1", checks,
+        status="caveated", caveat_ids=["caveat.benchmark.foreign-excluded"])
+    builder.claim(
+        "claim.benchmark.transition-excluded", "%d partial-year transition observations are excluded." %
+        len(report["transition_excluded"]), len(report["transition_excluded"]),
+        str(len(report["transition_excluded"])), "observations", AS_OF, evidence_as_of,
+        distribution_sources, "transform.benchmark.counts.v1", checks, status="caveated",
+        caveat_ids=["caveat.benchmark.transition-excluded"])
+    return builder.build()
 
 
 # ---------------------------------------------------------------- presentation (charts + layout)
@@ -728,7 +919,7 @@ def _fail_closed(message) -> int:
     # output dir itself is unwritable we cannot rename/delete — say so on the one error line instead of
     # pretending it was quarantined.
     stuck = []
-    for p in (REPORT, DIGEST, OUT / "PUBLISHED.json"):
+    for p in (REPORT, DIGEST) + _evidence_paths() + (OUT / "PUBLISHED.json",):
         if not p.exists():
             continue
         try:
@@ -775,12 +966,17 @@ def main(argv=None) -> int:
         result = _load_benchmark()
         report = build_report(result)
         html_doc, digest_doc = render_html(report), render_digest(report)
+        report_manifest = build_evidence(report, "artifact.executive-comp-benchmarking.report",
+                                         "dashboard", html_doc)
+        digest_manifest = build_evidence(report, "artifact.executive-comp-benchmarking.digest",
+                                         "digest", digest_doc)
     except ReportError as exc:
         return _fail_closed(str(exc))
     except Exception as exc:
         return _fail_closed(f"benchmarking data unavailable: {exc}")
 
     pub_path = OUT / "PUBLISHED.json"
+    report_evidence, digest_evidence = _evidence_paths()
     # NOTE on the gate: this records an ILLUSTRATIVE committee sign-off in a synthetic example — it checks a
     # name's SHAPE, not a person's authority. A production deployment binds publication to the approval
     # registry (entitlement + causation + scope), exactly as examples/operating-review already demonstrates.
@@ -791,13 +987,16 @@ def main(argv=None) -> int:
                            indent=2) + "\n")
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST, pub_path):     # clear any prior .stale quarantine for what we (re)write
+        for p in (REPORT, DIGEST, report_evidence, digest_evidence, pub_path):
+            # clear any prior .stale quarantine for what we (re)write
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         # STAGE everything to .tmp first — a write error here aborts before ANY live file is touched.
         rep_tmp = _stage(REPORT, html_doc)
         dig_tmp = _stage(DIGEST, digest_doc)
+        rep_ev_tmp = _stage(report_evidence, ev.format_manifest(report_manifest))
+        dig_ev_tmp = _stage(digest_evidence, ev.format_manifest(digest_manifest))
         pub_tmp = _stage(pub_path, pub_json) if args.publish else None
         # A redrawn DRAFT invalidates any prior approval: remove the stale PUBLISHED.json FIRST, BEFORE the
         # new draft lands, so a crash can never leave a fresh draft carrying a prior run's "published" marker.
@@ -808,10 +1007,12 @@ def main(argv=None) -> int:
         # never a published marker without its report, and never a draft with a stale approval attached.
         os.replace(rep_tmp, REPORT)
         os.replace(dig_tmp, DIGEST)
+        os.replace(rep_ev_tmp, report_evidence)
+        os.replace(dig_ev_tmp, digest_evidence)
         if args.publish:
             os.replace(pub_tmp, pub_path)
     except OSError as exc:
-        for p in (REPORT, DIGEST, pub_path):
+        for p in (REPORT, DIGEST, report_evidence, digest_evidence, pub_path):
             try:
                 p.with_name(p.name + ".tmp").unlink()
             except OSError:
@@ -824,7 +1025,7 @@ def main(argv=None) -> int:
           f"{HERO_ROLE} TDC at ~{ch.ordinal(round(report['hero']['percentile']))} pctile")
     if report["suppressed"]:
         print(f"  suppressed (thin peer disclosure): {', '.join(s['role'] for s in report['suppressed'])}")
-    print("  wrote report.sample.html and day1-digest.sample.md")
+    print("  wrote report.sample.html, day1-digest.sample.md, and evidence sidecars")
     if args.publish:
         print(f"\nIllustrative committee sign-off recorded locally for '{approver}' (demo — checks a name's "
               "shape, not authority; no external send).")

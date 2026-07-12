@@ -58,6 +58,7 @@ python3 run.py --publish --approved-by "Compensation Committee Chair"
 ## Test it
 ```bash
 python3 evals/test_benchmarking_agent.py
+python3 ../../tools/verify_evidence.py --verify-sources output/*.evidence.json
 ```
 
 ## Sample output
@@ -66,6 +67,13 @@ python3 evals/test_benchmarking_agent.py
 
 - [Committee dashboard (HTML)](output/report.sample.html)
 - [Committee digest](output/day1-digest.sample.md)
+- [Dashboard evidence graph](output/report.sample.evidence.json)
+- [Digest evidence graph](output/day1-digest.sample.evidence.json)
+
+Each evidence graph makes nine material committee claims machine-verifiable. The local proxy snapshot,
+synthetic subject, all 16 underlying public-company SEC disclosures, positioning transformation, target-band
+assumptions, exclusions, suppression policy, checks, and caveats are first-class nodes; no network call is
+needed to re-hash the committed inputs.
 
 > The `.html` + `.md` are the **deterministic** artifacts (CI byte-diffs them against a fresh `run.py`).
 > The `.png` is an **illustrative browser render** committed for the README preview — it is not byte-gated
