@@ -27,6 +27,7 @@ python3 -m py_compile core/*.py core/tests/*.py tools/*.py \
 python3 tools/pii_scan.py .                  # whole repo (tests/evals excluded)
 python3 tools/preflight.py                   # CI/doc-linked paths exist + nothing required is untracked
 # core spine
+python3 core/tests/test_evidence.py
 python3 core/tests/test_event_log.py
 python3 core/tests/test_approval_registry.py
 python3 core/tests/test_content.py
