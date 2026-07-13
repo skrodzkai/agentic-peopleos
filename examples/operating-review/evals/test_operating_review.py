@@ -8,6 +8,7 @@ refused; the ledger validates in both outcomes.
 """
 import contextlib
 import io
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -15,8 +16,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import run  # noqa: E402
 from foundation.compute.engine import MetricEngine  # noqa: E402
+from core import evidence_bundle as evidence_bundle_core  # noqa: E402
 
 passed = 0
+AUTH = {
+    "bundle_id": "bundle.operating-review.test",
+    "bundle_hash": "sha256:" + "1" * 64,
+    "artifacts": [{"artifact_id": "artifact.operating-review.test",
+                   "content_hash": "sha256:" + "2" * 64,
+                   "evidence_hash": "sha256:" + "3" * 64}],
+    "material_claim_ids_hash": "sha256:" + "4" * 64,
+}
 
 
 def ok(cond, label):
@@ -45,13 +55,14 @@ ok("Instrumentation coverage" in page and "metrics.registry.json" in page, "cove
 ok(run.render_html(report) == run.render_html(run.build_report(MetricEngine())), "rendering is deterministic")
 
 # ---- FULL ledger gate: entitled approver -> approved + recorded + verified ----
-_orig = (run.OUT, run.REPORT, run.DIGEST, run.LEDGER)
+_orig = (run.OUT, run.REPORT, run.DIGEST, run.LEDGER, run.BUNDLE)
 
 
 def _set_out():
     d = Path(tempfile.mkdtemp()) / "output"
     run.OUT, run.REPORT, run.DIGEST = d, d / "r.html", d / "d.md"
     run.LEDGER = d / "decision.events.jsonl"
+    run.BUNDLE = d / "review.evidence-bundle.json"
 
 
 def _types():
@@ -61,11 +72,16 @@ def _types():
 try:
     _set_out()
     commits = []
-    decision, acted, violations = run.publish_decision("hr.business-partner", lambda: commits.append(1))
+    decision, acted, violations = run.publish_decision(
+        "hr.business-partner", lambda: commits.append(1), AUTH)
     ok(decision == "approved" and acted and violations == [], "entitled approver: approved + ledger verifies clean")
     ok(commits == [1], "the report write (commit) ran exactly once on an entitled publish")
     ok(_types() == ["recommendation", "approval", "action"], "approved ledger is rec -> approval -> action")
-    ok(run.publish_decision("hr.business-partner", lambda: None)[2] == [],
+    auths = [json.loads(line)["authorization"] for line in run.LEDGER.read_text().splitlines()
+             if json.loads(line)["type"] in ("recommendation", "approval", "action")]
+    ok(auths == [AUTH, AUTH, AUTH],
+       "recommendation -> approval -> action carries one exact evidence authorization")
+    ok(run.publish_decision("hr.business-partner", lambda: None, AUTH)[2] == [],
        "ledger re-verifies (deterministic, registry-backed)")
     # the decision ledger ships with a head-count anchor: a suffix-truncated copy fails against it (the same
     # defense visible-handoff ships — a 'ledger-backed governance' example must not be truncatable in silence)
@@ -83,7 +99,8 @@ try:
     _set_out()
     raised = False
     try:
-        run.publish_decision("hr.business-partner", lambda: (_ for _ in ()).throw(OSError("disk full")))
+        run.publish_decision("hr.business-partner",
+                             lambda: (_ for _ in ()).throw(OSError("disk full")), AUTH)
     except OSError:
         raised = True
     ok(raised, "a failing report write propagates (publish is not silently swallowed)")
@@ -91,22 +108,32 @@ try:
        "write failure leaves rec+approval but NO published action (ledger never claims an unwritten publish)")
 
     _set_out()
-    decision, acted, violations = run.publish_decision("obs.engineering", lambda: commits.append(1))
+    decision, acted, violations = run.publish_decision("obs.engineering", lambda: commits.append(1), AUTH)
     ok(decision == "denied" and not acted and violations == [], "non-entitled approver: denied, no action, ledger still valid")
     ok(_types() == ["recommendation", "approval", "escalation"], "denied ledger is rec -> approval -> escalation")
 
     # MED-1: an unknown approver id is still recorded (rec + escalation), never silently dropped.
     _set_out()
-    decision, acted, violations = run.publish_decision("nobody.unknown", lambda: commits.append(1))
+    decision, acted, violations = run.publish_decision("nobody.unknown", lambda: commits.append(1), AUTH)
     ok(decision == "unknown_actor" and not acted and violations == [], "unknown approver rejected, ledger still verifies")
     ok(_types() == ["recommendation", "escalation"], "unknown-actor ledger records the attempt (rec -> escalation)")
 
     # ---- main(): draft, publish (entitled/denied/none/unknown/malformed), fail-closed ----
-    _set_out(); ok(run.main([]) == 0 and run.REPORT.exists(), "draft run exits 0 and writes")
+    _set_out(); ok(run.main([]) == 0 and run.REPORT.exists() and run.BUNDLE.exists(),
+                   "draft run exits 0 and writes the review plus exact evidence bundle")
     _set_out(); ok(run.main(["--publish"]) == 2 and not run.REPORT.exists(), "publish without approver exits 2")
     _set_out()
     ok(run.main(["--publish", "--approved-by", "hr.business-partner"]) == 0, "publish by entitled approver exits 0")
-    ok(run.LEDGER.exists() and run.REPORT.exists(), "published: ledger + report written")
+    ok(run.LEDGER.exists() and run.REPORT.exists() and run.BUNDLE.exists(),
+       "published: ledger + report + evidence bundle written")
+    _published_events = [json.loads(line) for line in run.LEDGER.read_text().splitlines()]
+    _published_auths = [event["authorization"] for event in _published_events
+                        if event["type"] in ("recommendation", "approval", "action")]
+    ok(len(_published_auths) == 3 and _published_auths[0] == _published_auths[1] == _published_auths[2],
+       "published operating review preserves one authorization envelope end to end")
+    ok(evidence_bundle_core.authorization_violations(
+        evidence_bundle_core.load_bundle(run.BUNDLE), _published_auths[0]) == [],
+       "published authorization resolves to the exact committed rendered/evidence bundle")
     _set_out()
     ok(run.main(["--publish", "--approved-by", "obs.engineering"]) == 2, "publish by non-entitled exits 2")
     ok(not run.REPORT.exists(), "refused publish writes no report")
@@ -131,6 +158,6 @@ try:
     finally:
         run._load_engine = _real
 finally:
-    run.OUT, run.REPORT, run.DIGEST, run.LEDGER = _orig
+    run.OUT, run.REPORT, run.DIGEST, run.LEDGER, run.BUNDLE = _orig
 
 print(f"OK — {passed} operating-review checks passed (14 headline metrics, full ledger gate verified).")

@@ -5,12 +5,14 @@
 1. **request** — the coordinator asks for the weekly TA report (in `#people-analytics`).
 2. **recommendation** — the TA-reporting agent computes the report (reusing the
    `ta-reporting` example so the numbers are real) and posts it as a draft **requiring
-   approval**, with cited evidence (`requires_approval: true`, `scope: publish.ta_report`).
+   approval**, with cited evidence (`requires_approval: true`, `scope: publish.ta_report`) and a
+   content-addressed authorization for the exact dashboard, digest, evidence graphs, and claim set.
 3. **approval** — a human reacts ✓. The system adjudicates entitlement via the registry and
    records an `approval` event (`decision`, `entitled`, `by`, `scope`, bound to the
    recommendation by `causation_id`).
 4. **action** — only on an entitled `approved`, the reporter publishes. The `action` event is
-   `gated: true` and bound to the approval by `causation_id` + matching `scope`.
+   `gated: true` and bound to the approval by `causation_id` + matching `scope` + exact
+   `authorization`. The successful action consumes that approval once.
 
 If approval is missing, retracted, or unentitled → an `escalation` event; nothing publishes.
 
@@ -18,7 +20,7 @@ If approval is missing, retracted, or unentitled → an `escalation` event; noth
 
 Each line of `output/events.jsonl` is one event. Caller fields: `ts, actor{id,display,kind,role},
 channel, type, payload`, plus `case_ref, correlation_id, causation_id, idempotency_key,
-requires_approval, scope, gated, approval{...}`. The ledger assigns the integrity fields:
+requires_approval, scope, gated, approval{...}, authorization{...}`. The ledger assigns the integrity fields:
 `schema_version, sequence, event_id` (content-addressed), `prev_hash`, `event_hash`, and an
 optional `hmac`. `type ∈ {request, response, recommendation, approval, action, escalation, fyi}`.
 
@@ -29,7 +31,20 @@ optional `hmac`. `type ∈ {request, response, recommendation, approval, action,
   never trusted (`validate_log(path, registry=...)`).
 - A gated `action` must reference an **entitled** approval via `causation_id` **and** carry the
   **same `scope`** — preventing decision laundering and scope confusion.
+- Every governed recommendation, approval, and action must carry the exact same valid evidence
+  authorization. The first valid action consumes it; substitution and reuse fail replay validation.
 - `idempotency_key` makes reaction processing exactly-once.
+
+## Evidence bundle
+
+`output/evidence-bundle.json` hashes the exact decorated TA dashboard and digest, both canonical
+evidence manifests, and their material-claim ids. It is detached from the artifacts to avoid a circular
+hash. The transcript exposes its short fingerprint; the full authorization lives in the ledger.
+
+```bash
+python3 -m core.evidence_bundle validate output/evidence-bundle.json \
+  --ledger output/events.jsonl --verify-artifacts --root ../..
+```
 
 ## Authority model
 

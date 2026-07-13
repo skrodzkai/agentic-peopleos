@@ -12,7 +12,10 @@ into an audit log:
   wholesale rewrite when a key is held — see the integrity note below),
 - approval re-verification against the approval registry (the logged `entitled`
   flag is never trusted), and binding of action -> approval -> recommendation by
-  causation id AND matching scope (no decision laundering, no scope confusion).
+  causation id, matching scope, AND an exact content-addressed evidence authorization
+  envelope (no decision laundering, scope confusion, or artifact substitution),
+- one-shot approvals: the first valid action consumes its authorization, so replaying
+  the same approval for a second publication fails validation.
 
 Integrity note (be honest in interviews): a bare hash chain proves *internal
 consistency / no in-place edit*. It does NOT prove non-repudiation — an attacker
@@ -37,9 +40,10 @@ import json
 import sys
 from pathlib import Path
 
+from core import evidence_bundle
 from core.pii import scan as pii_scan
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.2"
 GENESIS = "0" * 64
 
 _INPUT_REQUIRED = ("ts", "actor", "channel", "type", "payload")
@@ -66,6 +70,56 @@ def _subset(ev: dict, exclude) -> dict:
     return {k: v for k, v in ev.items() if k not in exclude}
 
 
+def _effective_scope(ev: dict):
+    """Return the policy scope, including an approval object's redundant copy."""
+    approval = ev.get("approval")
+    approval_scope = approval.get("scope") if isinstance(approval, dict) else None
+    return ev.get("scope") or approval_scope
+
+
+def _is_evidence_bound_event(ev: dict) -> bool:
+    """Every governed decision boundary binds exact evidence, regardless of scope spelling."""
+    if ev.get("type") == "recommendation":
+        return ev.get("requires_approval") is True
+    return ev.get("type") in ("approval", "action")
+
+
+def _authorization_problems(ev: dict) -> list:
+    authorization = ev.get("authorization")
+    if authorization is None:
+        return ["governed decision event missing authorization envelope"] \
+            if _is_evidence_bound_event(ev) else []
+    return evidence_bundle.validate_authorization(authorization)
+
+
+def _same_authorization(left, right) -> bool:
+    if left is None or right is None:
+        return left is right
+    try:
+        return canonical(left) == canonical(right)
+    except (TypeError, ValueError):
+        return False
+
+
+def _governance_shape_problems(ev: dict) -> list:
+    problems = []
+    if "scope" in ev and not (isinstance(ev.get("scope"), str) and ev["scope"].strip()):
+        problems.append("scope must be a non-empty string")
+    approval = ev.get("approval")
+    if isinstance(approval, dict) and "scope" in approval and not (
+            isinstance(approval.get("scope"), str) and approval["scope"].strip()):
+        problems.append("approval.scope must be a non-empty string")
+    if "requires_approval" in ev and not isinstance(ev.get("requires_approval"), bool):
+        problems.append("requires_approval must be a boolean")
+    if "gated" in ev and not isinstance(ev.get("gated"), bool):
+        problems.append("gated must be a boolean")
+    if ev.get("type") == "action" or ev.get("type") == "approval" or \
+            (ev.get("type") == "recommendation" and ev.get("requires_approval") is True):
+        if not (isinstance(ev.get("correlation_id"), str) and ev["correlation_id"].strip()):
+            problems.append("governed decision event must carry a non-empty correlation_id")
+    return problems
+
+
 def _no_dup_keys(pairs):
     seen = {}
     for k, v in pairs:
@@ -73,6 +127,10 @@ def _no_dup_keys(pairs):
             raise ValueError(f"duplicate JSON key '{k}'")
         seen[k] = v
     return seen
+
+
+def _reject_constant(value):
+    raise ValueError("non-finite JSON number '%s'" % value)
 
 
 class LedgerError(ValueError):
@@ -88,11 +146,18 @@ class EventLog:
         self._events = []
         self._idempotency = {}
         if self.path.exists():
-            for line in self.path.read_text(encoding="utf-8").splitlines():
+            for line_number, line in enumerate(
+                    self.path.read_text(encoding="utf-8").splitlines(), start=1):
                 line = line.strip()
                 if not line:
                     continue
-                ev = json.loads(line)
+                try:
+                    ev = json.loads(line, object_pairs_hook=_no_dup_keys,
+                                    parse_constant=_reject_constant)
+                except ValueError as exc:
+                    raise LedgerError("ledger line %d is invalid JSON: %s" % (line_number, exc))
+                if not isinstance(ev, dict):
+                    raise LedgerError("ledger line %d must be an object" % line_number)
                 self._events.append(ev)
                 if ev.get("idempotency_key"):
                     self._idempotency[ev["idempotency_key"]] = ev
@@ -147,6 +212,8 @@ class EventLog:
         return write_anchor(self.path, anchor_path=anchor_path, secret=self.secret, allow_rollback=allow_rollback)
 
     def append(self, event: dict) -> dict:
+        if not isinstance(event, dict):
+            raise LedgerError("event must be an object")
         ev = dict(event)
         for field in _INPUT_REQUIRED:
             if field not in ev:
@@ -180,6 +247,12 @@ class EventLog:
         # Every action is consequential — it must declare the scope it exercised.
         if ev["type"] == "action" and not ev.get("scope"):
             raise LedgerError("an action must declare a scope")
+        governance_problems = _governance_shape_problems(ev)
+        if governance_problems:
+            raise LedgerError(governance_problems[0])
+        authorization_problems = _authorization_problems(ev)
+        if authorization_problems:
+            raise LedgerError("invalid governed-decision authorization: %s" % authorization_problems[0])
         # Heuristic PII backstop: the ledger carries pseudonymous, minimized data — refuse to
         # write a direct identifier. A backstop, not a guarantee (see core/pii.py).
         pii = pii_scan(canonical(_subset(ev, _ID_EXCLUDE)))
@@ -200,8 +273,8 @@ class EventLog:
         if self.secret:
             ev["hmac"] = _hmac(self.secret, ev["event_hash"])
 
-        with open(self.path, "a", encoding="utf-8") as fh:
-            fh.write(canonical(ev) + "\n")
+        with open(self.path, "ab") as fh:
+            fh.write((canonical(ev) + "\n").encode("utf-8"))
         self._events.append(ev)
         if key:
             self._idempotency[key] = ev
@@ -234,16 +307,20 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None, min_cou
         if not line:
             continue
         try:
-            ev = json.loads(line, object_pairs_hook=_no_dup_keys)
+            ev = json.loads(line, object_pairs_hook=_no_dup_keys,
+                            parse_constant=_reject_constant)
         except ValueError as exc:
             return [f"line {n}: {exc}"]
+        if not isinstance(ev, dict):
+            return [f"line {n}: event must be an object"]
         if canonical(ev) != line:
             violations.append(f"line {n}: non-canonical encoding (re-serialization differs)")
         events.append(ev)
 
     seen_ids, seen_idem = set(), set()
     prev_hash = GENESIS
-    pending, approved = {}, {}  # correlation_id -> recommendation eid / {eid, scope}
+    pending, approved = {}, {}  # correlation_id -> recommendation / standing one-shot approval
+    consumed_approvals = set()
 
     for i, ev in enumerate(events):
         tag = f"seq {ev.get('sequence', i)} ({ev.get('type', '?')})"
@@ -273,6 +350,12 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None, min_cou
             violations.append(f"{tag}: unknown event type")
         if ev.get("schema_version") != SCHEMA_VERSION:
             violations.append(f"{tag}: schema_version != {SCHEMA_VERSION}")
+        for problem in _governance_shape_problems(ev):
+            violations.append(f"{tag}: {problem}")
+        authorization_problems = _authorization_problems(ev)
+        for problem in authorization_problems:
+            violations.append(f"{tag}: invalid governed-decision authorization — {problem}")
+        authorization_valid = not authorization_problems
         # Heuristic PII backstop on replay too (not just at append) — so an imported/committed
         # ledger that contains a direct identifier fails validation, not just one written here.
         for hit in pii_scan(canonical(_subset(ev, _ID_EXCLUDE))):
@@ -339,7 +422,9 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None, min_cou
                                           f"match the registry '{reg_actor.get(attr)}' (spoofed identity)")
 
         if etype == "recommendation" and ev.get("requires_approval"):
-            pending[corr] = {"eid": eid, "scope": ev.get("scope")}
+            pending[corr] = {"eid": eid, "scope": ev.get("scope"),
+                             "authorization": ev.get("authorization"),
+                             "authorization_valid": authorization_valid}
         elif etype == "approval":
             # EVERY approval event (approved AND denied) is registry-verified — version, entitlement
             # consistency, causation, and scope binding. Only an approved+entitled+bound decision is
@@ -354,12 +439,17 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None, min_cou
                 violations.append(f"{tag}: approval.by '{appr.get('by')}' != event actor '{actor_id}' "
                                   f"(attribution laundering)")
             pend = pending.get(corr)
-            bound = bool(pend) and cause == pend["eid"] and pend["scope"] == scope
+            auth_bound = bool(pend) and pend["authorization_valid"] and authorization_valid and \
+                _same_authorization(pend.get("authorization"), ev.get("authorization"))
+            bound = bool(pend) and cause == pend["eid"] and pend["scope"] == scope and auth_bound
             if not pend or cause != pend["eid"]:
                 violations.append(f"{tag}: approval not bound to its recommendation (causation)")
             elif pend["scope"] != scope:
                 violations.append(f"{tag}: approval scope '{scope}' != recommended scope "
                                   f"'{pend['scope']}' (scope pivot)")
+            elif not auth_bound:
+                violations.append(f"{tag}: approval authorization does not exactly match its recommendation "
+                                  "(artifact substitution)")
             if registry is not None:
                 # Point-in-time: every approval MUST carry the registry version it was evaluated under,
                 # and it must match the version in force now (missing => fail; later change => mismatch).
@@ -377,7 +467,8 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None, min_cou
                     if not entitled:
                         violations.append(f"{tag}: FORGED — approval re-derives as NOT entitled ({actor_id}/{scope})")
                     if entitled and bound:
-                        approved[corr] = {"eid": eid, "scope": scope}
+                        approved[corr] = {"eid": eid, "scope": scope,
+                                          "authorization": ev.get("authorization")}
                 elif decision == "denied":
                     # Latest decision wins: a denial revokes any standing approval on this thread, so a
                     # later "denied" can't be followed by a "published" action that quietly relies on an
@@ -386,7 +477,8 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None, min_cou
             else:
                 if decision == "approved":
                     if appr.get("entitled") and bound:
-                        approved[corr] = {"eid": eid, "scope": scope}
+                        approved[corr] = {"eid": eid, "scope": scope,
+                                          "authorization": ev.get("authorization")}
                     elif not appr.get("entitled"):
                         violations.append(f"{tag}: approved by a non-entitled actor (logged)")
                 elif decision == "denied":
@@ -398,12 +490,28 @@ def validate_log(path, registry=None, secret: bytes = None, anchor=None, min_cou
                 violations.append(f"{tag}: action missing scope (every action must declare a scope)")
             a = approved.get(corr)
             if not a:
-                violations.append(f"{tag}: ungated/laundered action — no entitled, scope-matched approval for this case")
+                if cause in consumed_approvals:
+                    violations.append(f"{tag}: approval already consumed — one-shot authorization replay")
+                else:
+                    violations.append(f"{tag}: ungated/laundered action — no entitled, scope-matched approval for this case")
             else:
+                action_valid = True
                 if cause != a["eid"]:
                     violations.append(f"{tag}: action not bound to its approval (causation)")
+                    action_valid = False
                 if ev.get("scope") != a["scope"]:
                     violations.append(f"{tag}: action scope '{ev.get('scope')}' != approved scope '{a['scope']}'")
+                    action_valid = False
+                if not authorization_valid or not _same_authorization(
+                        a.get("authorization"), ev.get("authorization")):
+                    violations.append(f"{tag}: action authorization does not exactly match its approval "
+                                      "(artifact substitution)")
+                    action_valid = False
+                if action_valid:
+                    # An approval is a one-shot capability, not standing authority. Only a fully valid
+                    # action consumes it; a malformed/substituted attempt cannot grief the real action.
+                    consumed_approvals.add(a["eid"])
+                    approved.pop(corr, None)
 
         prev_hash = ev.get("event_hash")
 
@@ -484,7 +592,7 @@ def write_anchor(log_path, anchor_path=None, secret: bytes = None, allow_rollbac
                 raise LedgerError("refusing to overwrite the anchor at the same count with a different head "
                                   "hash — a head rewrite would be normalized away (pass allow_rollback=True "
                                   "for a deliberate reset).")
-    anchor_path.write_text(json.dumps(anchor, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    anchor_path.write_bytes((json.dumps(anchor, sort_keys=True, indent=2) + "\n").encode("utf-8"))
     return anchor_path
 
 
@@ -495,7 +603,11 @@ def _read_events(path: Path) -> list:
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line:
-            out.append(json.loads(line, object_pairs_hook=_no_dup_keys))
+            event = json.loads(line, object_pairs_hook=_no_dup_keys,
+                               parse_constant=_reject_constant)
+            if not isinstance(event, dict):
+                raise LedgerError("ledger event must be an object")
+            out.append(event)
     return out
 
 

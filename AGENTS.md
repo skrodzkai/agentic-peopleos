@@ -28,6 +28,7 @@ python3 tools/pii_scan.py .                  # whole repo (tests/evals excluded)
 python3 tools/preflight.py                   # CI/doc-linked paths exist + nothing required is untracked
 # core spine
 python3 core/tests/test_evidence.py
+python3 core/tests/test_evidence_bundle.py
 python3 core/tests/test_event_log.py
 python3 core/tests/test_approval_registry.py
 python3 core/tests/test_content.py
@@ -84,6 +85,10 @@ python3 tools/verify_evidence.py --verify-sources --verify-rendered \
   examples/sbc-forecasting/output/day1-digest.sample.evidence.json
 # portfolio completeness: all 18 generated dashboards + all 18 digests must carry valid evidence
 python3 tools/verify_evidence.py --portfolio --verify-sources --verify-rendered
+# exact-review bundle: every publish decision event resolves to the committed rendered/evidence bytes
+python3 -m core.evidence_bundle validate \
+  examples/operating-review/output/review.sample.evidence-bundle.json \
+  --ledger examples/operating-review/output/decision.sample.events.jsonl --verify-artifacts
 # retention-risk model (glass-box hazard + eval + segment layer)
 python3 foundation/compute/tests/test_retention.py
 python3 foundation/compute/retention.py validate   # re-fits + reproduces coefficients/calibration/bands + provenance
@@ -101,6 +106,8 @@ python3 skills/sec-proxy-extractor/scripts/extractor.py --demo >/dev/null
 python3 -m core.event_log validate examples/visible-handoff/output/events.jsonl \
   --registry examples/visible-handoff/approval_registry.json \
   --anchor examples/visible-handoff/output/events.jsonl.anchor.json
+python3 -m core.evidence_bundle validate examples/visible-handoff/output/evidence-bundle.json \
+  --ledger examples/visible-handoff/output/events.jsonl --verify-artifacts
 python3 -m core.event_log validate examples/visible-handoff/output/denied.events.sample.jsonl \
   --registry examples/visible-handoff/approval_registry.json \
   --anchor examples/visible-handoff/output/denied.events.sample.jsonl.anchor.json
@@ -120,7 +127,9 @@ from the same HTML — they are *not* byte-freshness-gated (cross-platform rende
 the HTML/MD is the source of truth and the PNG is a convenience preview. Regenerate a PNG from its
 `report.sample.html` if the underlying data changes.
 
-Standard library only; deterministic; offline; fail-closed. The decision ledger
+Standard library only; deterministic; offline; fail-closed. Evidence Graph v1
+(`core/evidence.py`, `core/evidence_bundle.py`) traces consequential claims and binds publish authority
+to exact artifact/evidence bytes. The decision ledger
 (`core/event_log.py`) is the source of record for decisions/actions/approvals; the HRIS/ATS for
 employee/candidate *data*; chat for the *conversation*. The metric registry
 (`vault/90-people-analytics/metrics/metrics.registry.json`) is the single source of truth for
