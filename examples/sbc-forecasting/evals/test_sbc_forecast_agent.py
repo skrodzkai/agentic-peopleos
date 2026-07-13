@@ -22,10 +22,10 @@ def ok(cond, label):
 
 result = SBC.compute()
 report = run.build_report(result)
-html = run.render_html(report)
-digest = run.render_digest(report)
-html_evidence = run.build_evidence(report, "artifact.test.sbc-report", "dashboard", html)
-digest_evidence = run.build_evidence(report, "artifact.test.sbc-digest", "digest", digest)
+html_evidence = run.build_evidence(report, "artifact.test.sbc-report", "dashboard", report)
+digest_evidence = run.build_evidence(report, "artifact.test.sbc-digest", "digest", report)
+html = run.render_html(report, html_evidence)
+digest = run.render_digest(report, digest_evidence)
 
 # -- renders + is coherent --
 ok("Stock-Based-Compensation Forecast" in html and "SBC Expense Forecast" in html, "title + kicker render")
@@ -39,12 +39,18 @@ ok(run.ev.validate_manifest(html_evidence, root=run.REPO, verify_sources=True) =
    "dashboard evidence validates and every committed source hash reproduces")
 ok(run.ev.validate_manifest(digest_evidence, root=run.REPO, verify_sources=True) == [],
    "digest evidence validates and every committed source hash reproduces")
-ok(run.ev.coverage(html_evidence)["traceable"] == run.ev.coverage(html_evidence)["material"] == 6,
-   "all six material SBC claims are traceable")
+ok(run.ev.coverage(html_evidence)["traceable"] == run.ev.coverage(html_evidence)["material"] == 7,
+   "all seven material dashboard claims are traceable")
+ok(run.ev.coverage(digest_evidence)["traceable"] == run.ev.coverage(digest_evidence)["material"] == 5,
+   "the digest carries exactly its five material claims")
 ok({c["status"] for c in html_evidence["claims"]} == {"caveated"},
    "assumption-dependent SBC claims wear their caveats")
-ok(html_evidence["artifact"]["semantic_hash"] != digest_evidence["artifact"]["semantic_hash"],
-   "dashboard and digest evidence bind their distinct artifact payloads")
+ok(html_evidence["artifact"]["semantic_hash"] == digest_evidence["artifact"]["semantic_hash"],
+   "dashboard and digest bind the same validated semantic report")
+ok(run.er.coverage_violations(html, html_evidence) == [], "dashboard covers every material claim")
+ok(run.er.coverage_violations(digest, digest_evidence) == [], "digest covers every material claim")
+ok(run.er.embedded_manifest_violations(html, html_evidence) == [],
+   "embedded dashboard graph exactly matches its sidecar")
 
 # -- honest labeling --
 low = (html + digest).lower()
@@ -58,7 +64,8 @@ ok("assumes continued service" in low or "assumes full vesting" in low,
 ok(not re.search(r"[\w.]+@[\w.]+\.[a-z]{2,}", html) and "SSN" not in html, "no email/SSN in the dashboard")
 ok(not re.search(r"\bE-\d{4}\b", html) and not re.search(r"\bG-\d{4,}\b", html),
    "no per-employee / per-grant ids appear")
-ok("<script" not in html, "no <script> in the dashboard")
+ok(html.count("<script") == 2 and "id='evidence-runtime'" in html,
+   "the only scripts are the inert graph payload and fixed evidence runtime")
 
 # -- fail-closed: a self-contradictory engine result is refused --
 def _bad(mut, why):
@@ -93,7 +100,9 @@ ok(run.main(["--publish", "--approved-by", "  "]) == 2, "a blank approver is ref
 ok(run.main(["--publish", "--approved-by", "Bad\tName"]) == 2, "a control-char approver is refused (rc 2)")
 
 # -- determinism --
-ok(run.render_html(run.build_report(SBC.compute())) == html, "the dashboard renders deterministically")
+_report2 = run.build_report(SBC.compute())
+_evidence2 = run.build_evidence(_report2, "artifact.test.sbc-report", "dashboard", _report2)
+ok(run.render_html(_report2, _evidence2) == html, "the evidence-aware dashboard renders deterministically")
 
 print(f"OK — {passed} SBC-forecast agent checks passed "
       f"(backlog {run._m(li['backlog_unrecognized_usd'])}; FY{li['schedule'][0]['fy']} "
