@@ -9,6 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from core import evidence as ev  # noqa: E402
+from core import json_schema  # noqa: E402
 
 
 passed = 0
@@ -49,7 +50,8 @@ def valid_builder(reverse=False):
     builder.assumption("assumption.forfeiture.v1", "Forfeiture rate", 5.0, "percent", "v1",
                        "illustrative", ["source.policy"])
     builder.check("check.sbc-reconcile", "SBC reconciliation", "passed",
-                  "foundation.compute.tests.test_sbc_forecast", "Components tie to total")
+                  "foundation.compute.tests.test_sbc_forecast", "Components tie to total",
+                  ["source.sbc-data", "source.policy"])
     builder.caveat("caveat.illustrative", "warning", "The forward grant rate is illustrative")
     builder.claim(
         "claim.sbc-forecast", "FY2026 SBC expense is forecast at $45.2M.", 45_200_000,
@@ -80,6 +82,11 @@ ok(ev.coverage(manifest) == {"claims": 1, "material": 1, "supported": 0, "caveat
                              "blocked": 0, "traceable": 1}, "coverage distinguishes caveated traceability")
 ok(ev.hash_json({"b": 2, "a": 1}) == ev.hash_json({"a": 1, "b": 2}),
    "canonical hashes ignore object insertion order")
+try:
+    ev.hash_json({1: "integer key", "1": "string key"})
+    ok(False, "JSON hashing must reject key coercion")
+except ev.EvidenceError:
+    ok(True, "JSON hashing rejects non-string keys instead of collapsing them")
 ok(ev.canonical(valid_builder().build()) == ev.canonical(valid_builder(reverse=True).build()),
    "builder sorts graph nodes for byte-stable output")
 
@@ -136,6 +143,30 @@ bad["claims"][0]["supporting_claim_ids"] = ["claim.sbc-forecast"]
 ok(any("cannot support itself" in v for v in ev.validate_manifest(bad)),
    "a claim cannot support itself")
 
+# A support graph must be acyclic and terminate at a real source.
+bad = copy.deepcopy(manifest)
+root_claim = bad["claims"][0]
+root_claim["source_ids"] = []
+root_claim["supporting_claim_ids"] = ["claim.support-a"]
+support = copy.deepcopy(root_claim)
+support.update({"id": "claim.support-a", "material": False,
+                "supporting_claim_ids": [root_claim["id"]]})
+bad["claims"].append(support)
+issues = ev.validate_manifest(bad)
+ok(any("supporting-claim cycle" in v for v in issues),
+   "mutually supporting claims are rejected as a cycle")
+ok(any("no source-grounded support path" in v for v in issues),
+   "a circular support graph cannot manufacture traceability")
+bad = copy.deepcopy(manifest)
+root_claim = bad["claims"][0]
+root_claim["source_ids"] = []
+root_claim["supporting_claim_ids"] = ["claim.support-leaf"]
+support = copy.deepcopy(root_claim)
+support.update({"id": "claim.support-leaf", "material": False, "supporting_claim_ids": []})
+bad["claims"].append(support)
+ok(any("no source-grounded support path" in v for v in ev.validate_manifest(bad)),
+   "an acyclic but source-free support chain is not traceable")
+
 # A material claim cannot hide behind a failed/not-run check.
 bad = copy.deepcopy(manifest)
 bad["checks"][0]["status"] = "failed"
@@ -145,6 +176,28 @@ bad = copy.deepcopy(manifest)
 bad["claims"][0]["check_ids"] = []
 ok(any("needs at least one check" in v for v in ev.validate_manifest(bad)),
    "material claim without checks is rejected")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["source_ids"] = ["source.sbc-data"]
+bad["claims"][0]["assumption_ids"] = []
+bad["checks"][0]["source_ids"] = ["source.policy"]
+ok(any("no source in the claim support closure" in v for v in ev.validate_manifest(bad)),
+   "a producer check cannot cite an unrelated hashed source")
+bad = copy.deepcopy(manifest)
+bad["checks"][0]["source_ids"] = []
+ok(any("hashed source reference" in v for v in ev.validate_manifest(bad)),
+   "a passed producer-attested check must bind to hashed inputs")
+bad = copy.deepcopy(manifest)
+bad["checks"][0]["attestation"] = "self-certified"
+ok(any("attestation" in v for v in ev.validate_manifest(bad)),
+   "check assurance level is a closed enum")
+
+# Blocking caveats are executable policy, not inert metadata.
+bad = copy.deepcopy(manifest)
+bad["caveats"].append({"id": "caveat.blocker", "severity": "blocking",
+                       "text": "Independent validation is incomplete"})
+bad["claims"][0]["caveat_ids"].append("caveat.blocker")
+ok(any("blocking caveat" in v and "must be blocked" in v for v in ev.validate_manifest(bad)),
+   "a blocking caveat forces the linked material claim to blocked")
 
 # Change arithmetic and decomposition are verified, not trusted as labels.
 bad = copy.deepcopy(manifest)
@@ -155,6 +208,37 @@ bad = copy.deepcopy(manifest)
 bad["claims"][0]["change"]["drivers"][0]["effect"] = 2_000_000
 ok(any("driver effects do not reconcile" in v for v in ev.validate_manifest(bad)),
    "change drivers must reconcile")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["change"]["prior_value"] = "41800000"
+bad["claims"][0]["change"]["prior_display_value"] = "41800000"
+ok(any("comparable change requires numeric" in v for v in ev.validate_manifest(bad)),
+   "a string prior value cannot bypass comparable change arithmetic")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["change"]["drivers"][0]["unit"] = "usd"
+ok(any("must exactly match" in v for v in ev.validate_manifest(bad)),
+   "driver units cannot disappear from reconciliation through case mismatch")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["change"]["percent"] = 99.0
+ok(any("percent does not equal" in v for v in ev.validate_manifest(bad)),
+   "reported percent change must reconcile")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["change"]["absolute"] = 3_400_000.000001
+ok(any("absolute does not equal" in v for v in ev.validate_manifest(bad)),
+   "change arithmetic is exact and does not admit an isclose epsilon")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["change"]["comparability"] = "not_comparable"
+ok(any("non-comparable change must leave" in v for v in ev.validate_manifest(bad)),
+   "non-comparable changes cannot publish numeric deltas")
+bad = copy.deepcopy(manifest)
+claim = bad["claims"][0]
+claim["value"] = 10
+claim["display_value"] = "10"
+claim["change"].update({"prior_value": 0, "prior_display_value": "0", "absolute": 10,
+                        "percent": 100, "drivers": [
+                            {"type": "business_change", "label": "Launch", "effect": 10, "unit": "USD"}
+                        ]})
+ok(any("percent must be null" in v for v in ev.validate_manifest(bad)),
+   "zero-prior comparisons cannot invent a percent change")
 
 # Approved/published artifacts require an approved review covering every material claim.
 bad = copy.deepcopy(manifest)
@@ -165,7 +249,52 @@ approved = valid_builder()
 approved.artifact["status"] = "approved"
 approved.review("review.comp-committee", "approved", "Compensation Committee Chair",
                 "2026-07-10T18:00:00Z", ["claim.sbc-forecast"], "Reviewed synthetic reference output")
-ok(ev.validate_manifest(approved.build()) == [], "approved review can cover every material claim")
+approved_manifest = approved.build()
+ok(ev.validate_manifest(approved_manifest) == [], "approved review can cover every material claim")
+bad = copy.deepcopy(approved_manifest)
+bad["reviews"].append({"id": "review.comp-committee-recheck", "status": "rejected",
+                       "actor_role": "Compensation Committee Chair",
+                       "reviewed_at": "2026-07-11T18:00:00Z",
+                       "claim_ids": ["claim.sbc-forecast"],
+                       "notes": "Newer review rejected the claim"})
+ok(any("without approved review" in v for v in ev.validate_manifest(bad)),
+   "a newer rejection supersedes a stale approval")
+bad = copy.deepcopy(approved_manifest)
+bad["reviews"].append({"id": "review.conflict", "status": "rejected",
+                       "actor_role": "Independent Reviewer",
+                       "reviewed_at": "2026-07-10T18:00:00Z",
+                       "claim_ids": ["claim.sbc-forecast"], "notes": "Same-time conflict"})
+ok(any("conflicting latest reviews" in v for v in ev.validate_manifest(bad)),
+   "conflicting reviews at the latest timestamp fail closed")
+
+# Shape violations remain ordinary validation results; post-validation graph checks never raise.
+for field in ("source_ids", "assumption_ids", "check_ids", "supporting_claim_ids", "caveat_ids"):
+    bad = copy.deepcopy(manifest)
+    bad["claims"][0][field] = 7
+    ok(any(field in v and "list" in v for v in ev.validate_manifest(bad)),
+       "malformed %s is a controlled violation" % field)
+bad = copy.deepcopy(approved_manifest)
+bad["reviews"][0]["claim_ids"] = 7
+ok(any("claim_ids must be a list" in v for v in ev.validate_manifest(bad)),
+   "malformed review coverage cannot crash approval validation")
+bad = copy.deepcopy(approved_manifest)
+bad["reviews"].append({"id": "review.bad-time", "status": "rejected",
+                       "actor_role": "Independent Reviewer", "reviewed_at": 7,
+                       "claim_ids": ["claim.sbc-forecast"], "notes": "Malformed timestamp"})
+ok(any("UTC timestamp" in v for v in ev.validate_manifest(bad)),
+   "mixed timestamp types cannot crash latest-review selection")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["value"] = 10 ** 10000
+bad["claims"][0]["display_value"] = "1" + ("0" * 10000)
+bad["claims"][0]["change"] = None
+ok(any("display_value" in v for v in ev.validate_manifest(bad)),
+   "arbitrarily large JSON integers produce violations without float overflow")
+try:
+    ev.EvidenceBuilder("artifact.valid", "agent.valid", "Valid", "dashboard", "2026-06-30",
+                       "FY2026", {}).source(id=None)
+    ok(False, "builder must reject a missing node id before sorting")
+except ev.EvidenceError:
+    ok(True, "builder rejects a missing node id with a controlled error")
 
 # Duplicate keys, unknown fields, malformed hashes, and non-finite numbers are controlled errors.
 dup_path = ROOT / "duplicate.json"
@@ -184,6 +313,22 @@ ok(any("content_hash" in v for v in ev.validate_manifest(bad)), "malformed conte
 bad = copy.deepcopy(manifest)
 bad["claims"][0]["value"] = float("inf")
 ok(any("finite JSON scalar" in v for v in ev.validate_manifest(bad)), "non-finite claim value is rejected")
+bad = copy.deepcopy(manifest)
+bad["claims"][0]["display_value"] = "$46.2M"
+ok(any("display_value does not reconcile" in v for v in ev.validate_manifest(bad)),
+   "displayed value cannot drift from the machine value")
+bad = copy.deepcopy(manifest)
+bad["artifact"]["as_of"] = "２０２６-０６-３０"
+ok(any("ISO date" in v for v in ev.validate_manifest(bad)),
+   "Unicode lookalike digits are not accepted as an ISO date")
+bad = copy.deepcopy(manifest)
+bad["artifact"]["as_of"] = "2026-02-30"
+ok(any("real calendar date" in v for v in ev.validate_manifest(bad)),
+   "impossible calendar dates are rejected")
+bad = copy.deepcopy(approved_manifest)
+bad["reviews"][0]["reviewed_at"] = "2026-02-30T18:00:00Z"
+ok(any("real UTC calendar timestamp" in v for v in ev.validate_manifest(bad)),
+   "impossible review timestamps are rejected")
 
 # Malformed web locations and non-UTF-8 Unicode fail as controlled validation errors.
 bad = copy.deepcopy(manifest)
@@ -205,6 +350,11 @@ schema = json.loads((Path(__file__).resolve().parents[2] / "schemas/evidence-man
 ok(schema["properties"]["schema_version"]["const"] == ev.SCHEMA_VERSION,
    "JSON Schema and runtime validator share a version")
 ok(set(ev._COLLECTIONS) <= set(schema["properties"]), "JSON Schema declares every graph collection")
+for definition, valid in (("id", "claim.valid"), ("date", "2026-06-30"),
+                          ("stamp", "2026-06-30T12:00:00Z"),
+                          ("hash", "sha256:" + ("a" * 64))):
+    ok(bool(json_schema.validate(valid + "\n", schema["$defs"][definition])),
+       "schema %s rejects a trailing newline like the runtime" % definition)
 
 # Atomic write round-trips canonical bytes and the CLI validates/inspects without traceback.
 out = ROOT / "artifact.evidence.json"
@@ -216,5 +366,9 @@ ok(ev._main(["validate", str(out), "--root", str(ROOT), "--verify-sources"]) == 
    "CLI validates a manifest and its source bytes")
 ok(ev._main(["inspect", str(out), "--claim", "claim.missing"]) == 1,
    "CLI fails closed on a missing inspected claim")
+invalid_out = ROOT / "invalid.evidence.json"
+invalid_out.write_text(ev.format_manifest({**manifest, "claims": 7}), encoding="utf-8")
+ok(ev._main(["inspect", str(invalid_out), "--claim", "claim.sbc-forecast"]) == 1,
+   "CLI refuses to inspect an invalid graph without a traceback")
 
 print("OK — %d evidence-graph kernel checks passed." % passed)

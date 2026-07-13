@@ -36,6 +36,7 @@ REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 from foundation.compute import glass_lewis_screen as G   # noqa: E402
 from foundation.render import charts as ch                # noqa: E402
 
@@ -365,7 +366,8 @@ _STYLE = """
 .cf-h{color:#8db1ce;font-size:11px;min-height:30px}.cf-v{font-size:19px;font-weight:700;margin:4px 0}.cf-s{color:#8db1ce;font-size:11px}
 .ls-h{color:#b9d0e0;font-size:12px;font-weight:600;margin:12px 0 -6px}
 .foot{color:#8db1ce;font-size:11px;border-top:1px solid #14364a;margin-top:20px;padding-top:12px}
-@media(max-width:820px){.kpis{grid-template-columns:1fr 1fr}.war,.cfs{grid-template-columns:1fr}}
+@media(max-width:820px){.top{flex-wrap:wrap}.kpis{grid-template-columns:1fr 1fr}.war,.cfs{grid-template-columns:1fr}}
+@media(max-width:620px){.status{white-space:normal;max-width:100%}}
 """
 
 
@@ -391,7 +393,7 @@ def _stale_published():
 
 
 def _fail_closed(message):
-    for p in (REPORT, DIGEST, OUT / "PUBLISHED.json"):
+    for p in portfolio_ev.managed_outputs(REPORT, DIGEST) + (OUT / "PUBLISHED.json",):
         if p.exists():
             try:
                 p.rename(p.with_name(p.name + ".stale"))
@@ -406,7 +408,7 @@ def _fail_closed(message):
 
 def _atomic_write(path, text):
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_bytes(text.encode("utf-8"))
     os.replace(tmp, path)
 
 
@@ -426,6 +428,8 @@ def main(argv=None):
     try:
         report = build_report(G.compute())
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            "glass-lewis-screen", report, html_doc, digest_doc, REPO)
     except ReportError as exc:
         return _fail_closed(str(exc))
     except Exception as exc:
@@ -435,12 +439,13 @@ def main(argv=None):
     pub.unlink(missing_ok=True)
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST, pub):
+        for p in portfolio_ev.managed_outputs(REPORT, DIGEST) + (pub,):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         if args.publish:
             _atomic_write(pub, json.dumps({"approved_by": approver, "marker_type": "local_publish_marker", "registry_backed": False, "scope": SCOPE, "as_of": AS_OF,
                                            "verdict": report["syn"]["verdict"]}, indent=2) + "\n")

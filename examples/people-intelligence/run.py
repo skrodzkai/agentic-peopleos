@@ -29,6 +29,7 @@ REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 from foundation.render import charts as ch                 # noqa: E402
 
 OUT = HERE / "output"
@@ -349,7 +350,8 @@ def render_digest(report):
              f"**{v('operating_leverage')}** YoY.",
              f"- Headcount **{r['headcount']['value']}** ({r['net_headcount_growth']['value']:+} / 12mo); "
              f"voluntary attrition **{v('voluntary_attrition')}** (regrettable "
-             f"**{v('regrettable_attrition')}**); avg compa **{v('compa_ratio', '')}**.",
+             f"**{v('regrettable_attrition')}**); avg compa **{v('compa_ratio', '')}**; "
+             f"out-of-band pay **{v('out_of_band_rate')}**.",
              f"- Workforce cost **{v('workforce_cost_ratio')}** of revenue; total turnover "
              f"**{v('total_turnover_rate')}**; 12-month retention **{v('twelve_month_retention')}**.",
              f"- Instrumentation coverage: **{instrumented}/{total}** registry metrics computed (measured vs defined).",
@@ -434,6 +436,7 @@ border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:12p
 .ld{display:flex;flex-direction:column;}.ld span{font-size:22px;font-weight:800;color:#fff;}.ld small{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:9px;text-transform:uppercase;color:var(--soft);}
 .foot{margin-top:22px;padding-top:14px;border-top:1px solid var(--hair);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:10.5px;color:var(--soft);}
 .foot .pills{display:flex;gap:8px;flex-wrap:wrap;}.foot .pill{border:1px solid var(--hair);border-radius:999px;padding:3px 9px;}
+@media(max-width:620px){.kpis{grid-template-columns:1fr}.col-5,.col-6,.col-7{grid-column:span 12}}
 """
 
 
@@ -448,7 +451,7 @@ def _page(body):
 def _fail_closed(message) -> int:
     # Stale the report, the digest, AND any prior approval record — a fail-closed run must never leave
     # a PUBLISHED.json that looks like a current approval for a report we just invalidated.
-    for p in (REPORT, DIGEST, OUT / "PUBLISHED.json"):
+    for p in portfolio_ev.managed_outputs(REPORT, DIGEST) + (OUT / "PUBLISHED.json",):
         if not p.exists():
             continue
         try:
@@ -464,7 +467,7 @@ def _fail_closed(message) -> int:
 
 def _atomic_write(path: Path, text: str):
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_bytes(text.encode("utf-8"))
     os.replace(tmp, path)
 
 
@@ -485,6 +488,8 @@ def main(argv=None) -> int:
         engine = _load_engine()
         report = build_report(engine)
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            AGENT, report, html_doc, digest_doc, REPO)
     except ReportError as exc:
         return _fail_closed(str(exc))
     except Exception as exc:
@@ -495,12 +500,13 @@ def main(argv=None) -> int:
     #                                  # failed run must never inherit a prior run's "published" flag
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST):
+        for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         if args.publish:
             _atomic_write(pub_path,
                           json.dumps({"approved_by": approver, "scope": SCOPE, "as_of": AS_OF}, indent=2) + "\n")

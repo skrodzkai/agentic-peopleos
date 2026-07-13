@@ -1,0 +1,201 @@
+{
+  "artifact": {
+    "agent_id": "agent.comp-reporting",
+    "artifact_type": "digest",
+    "as_of": "2026-01-31",
+    "id": "artifact.comp-reporting.digest",
+    "period": "January 2026 compensation snapshot",
+    "semantic_hash": "sha256:d63a4c91f55b37235c78aeb3db080289b58e9dda1fb26ee9424dafef33cdb0ff",
+    "status": "draft",
+    "title": "Acme Corp Compensation Report"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.comp-reporting.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.comp-reporting.01",
+        "source.comp-reporting.02"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.comp-reporting.reference-mode",
+      "severity": "warning",
+      "text": "Synthetic employee-level inputs; flags require Total Rewards review and never authorize pay changes."
+    }
+  ],
+  "checks": [
+    {
+      "attestation": "producer",
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.comp-reporting.report-contract",
+      "implementation": "examples.comp-reporting.run.build_report",
+      "name": "Agent report contract",
+      "source_ids": [
+        "source.comp-reporting.01",
+        "source.comp-reporting.02"
+      ],
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.comp-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.comp-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.comp-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "0.98",
+      "id": "claim.comp-reporting.average-compa",
+      "material": true,
+      "metric_id": null,
+      "period": "January 2026 compensation snapshot",
+      "source_ids": [
+        "source.comp-reporting.01",
+        "source.comp-reporting.02"
+      ],
+      "statement": "Average compa-ratio: 0.98.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.comp-reporting.report.v1",
+      "unit": "ratio",
+      "value": 0.98
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.comp-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.comp-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.comp-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "2",
+      "id": "claim.comp-reporting.out-of-band",
+      "material": true,
+      "metric_id": null,
+      "period": "January 2026 compensation snapshot",
+      "source_ids": [
+        "source.comp-reporting.01",
+        "source.comp-reporting.02"
+      ],
+      "statement": "Employees outside their salary band: 2.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.comp-reporting.report.v1",
+      "unit": "employees",
+      "value": 2
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.comp-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.comp-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.comp-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "14",
+      "id": "claim.comp-reporting.population",
+      "material": true,
+      "metric_id": null,
+      "period": "January 2026 compensation snapshot",
+      "source_ids": [
+        "source.comp-reporting.01",
+        "source.comp-reporting.02"
+      ],
+      "statement": "Employees analyzed: 14.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.comp-reporting.report.v1",
+      "unit": "employees",
+      "value": 14
+    },
+    {
+      "as_of": "2026-01-31",
+      "assumption_ids": [
+        "assumption.comp-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.comp-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.comp-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "1",
+      "id": "claim.comp-reporting.unexcepted",
+      "material": true,
+      "metric_id": null,
+      "period": "January 2026 compensation snapshot",
+      "source_ids": [
+        "source.comp-reporting.01",
+        "source.comp-reporting.02"
+      ],
+      "statement": "Out-of-band employees without a documented exception: 1.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.comp-reporting.report.v1",
+      "unit": "employees",
+      "value": 1
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:e3587200bc32484f17e5a576d8063b408c45c23bc34b2aa11495d72d10012838",
+      "hash_scope": "file_bytes",
+      "id": "source.comp-reporting.01",
+      "kind": "dataset",
+      "label": "Comp Snapshot.Sample",
+      "uri": "repo:examples/comp-reporting/data/comp_snapshot.sample.csv",
+      "version": "reference-2026-01-31"
+    },
+    {
+      "as_of": "2026-01-31",
+      "classification": "synthetic",
+      "content_hash": "sha256:5ee713a38f925cd4d41d43e30c9eb9eade542d6817509bd99b462c19e4b04791",
+      "hash_scope": "file_bytes",
+      "id": "source.comp-reporting.02",
+      "kind": "registry",
+      "label": "Metrics.Registry",
+      "uri": "repo:vault/90-people-analytics/metrics/metrics.registry.json",
+      "version": "reference-2026-01-31"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.comp-reporting.report.v1",
+      "implementation": "examples.comp-reporting.run.build_report",
+      "name": "Compensation snapshot enrichment and band-position aggregation",
+      "version": "v1"
+    }
+  ]
+}

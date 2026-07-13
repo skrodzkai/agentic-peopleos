@@ -1,0 +1,230 @@
+{
+  "artifact": {
+    "agent_id": "agent.ta-reporting",
+    "artifact_type": "dashboard",
+    "as_of": "2026-01-15",
+    "id": "artifact.ta-reporting.report",
+    "period": "TA snapshot as of 2026-01-15",
+    "semantic_hash": "sha256:8dc5f7557f4f9098b814ce7a8af0a27f8f2a2910fcd16640e7ae648dd32ffbf3",
+    "status": "draft",
+    "title": "Acme Corp Talent Acquisition Report"
+  },
+  "assumptions": [
+    {
+      "id": "assumption.ta-reporting.reference-mode",
+      "name": "Reference data mode",
+      "source_ids": [
+        "source.ta-reporting.01",
+        "source.ta-reporting.02"
+      ],
+      "status": "observed",
+      "unit": "mode",
+      "value": "synthetic",
+      "version": "v1"
+    }
+  ],
+  "caveats": [
+    {
+      "id": "caveat.ta-reporting.reference-mode",
+      "severity": "warning",
+      "text": "Synthetic requisitions; thresholds are reference policy and flags require recruiter review."
+    }
+  ],
+  "checks": [
+    {
+      "attestation": "producer",
+      "details": "The agent completed its schema, finite-value, reconciliation, and domain-specific output guards before evidence generation",
+      "id": "check.ta-reporting.report-contract",
+      "implementation": "examples.ta-reporting.run.build_report",
+      "name": "Agent report contract",
+      "source_ids": [
+        "source.ta-reporting.01",
+        "source.ta-reporting.02"
+      ],
+      "status": "passed"
+    }
+  ],
+  "claims": [
+    {
+      "as_of": "2026-01-15",
+      "assumption_ids": [
+        "assumption.ta-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.ta-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.ta-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "7",
+      "id": "claim.ta-reporting.at-risk",
+      "material": true,
+      "metric_id": null,
+      "period": "TA snapshot as of 2026-01-15",
+      "source_ids": [
+        "source.ta-reporting.01",
+        "source.ta-reporting.02"
+      ],
+      "statement": "At-risk requisitions: 7.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.ta-reporting.report.v1",
+      "unit": "requisitions",
+      "value": 7
+    },
+    {
+      "as_of": "2026-01-15",
+      "assumption_ids": [
+        "assumption.ta-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.ta-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.ta-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "64",
+      "id": "claim.ta-reporting.avg-days-open",
+      "material": true,
+      "metric_id": null,
+      "period": "TA snapshot as of 2026-01-15",
+      "source_ids": [
+        "source.ta-reporting.01",
+        "source.ta-reporting.02"
+      ],
+      "statement": "Average requisition age: 64.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.ta-reporting.report.v1",
+      "unit": "days",
+      "value": 64
+    },
+    {
+      "as_of": "2026-01-15",
+      "assumption_ids": [
+        "assumption.ta-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.ta-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.ta-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "4",
+      "id": "claim.ta-reporting.median-pipeline",
+      "material": true,
+      "metric_id": null,
+      "period": "TA snapshot as of 2026-01-15",
+      "source_ids": [
+        "source.ta-reporting.01",
+        "source.ta-reporting.02"
+      ],
+      "statement": "Median active pipeline: 4.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.ta-reporting.report.v1",
+      "unit": "candidates",
+      "value": 4
+    },
+    {
+      "as_of": "2026-01-15",
+      "assumption_ids": [
+        "assumption.ta-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.ta-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.ta-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "1",
+      "id": "claim.ta-reporting.on-hold",
+      "material": true,
+      "metric_id": null,
+      "period": "TA snapshot as of 2026-01-15",
+      "source_ids": [
+        "source.ta-reporting.01",
+        "source.ta-reporting.02"
+      ],
+      "statement": "Requisitions on hold: 1.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.ta-reporting.report.v1",
+      "unit": "requisitions",
+      "value": 1
+    },
+    {
+      "as_of": "2026-01-15",
+      "assumption_ids": [
+        "assumption.ta-reporting.reference-mode"
+      ],
+      "caveat_ids": [
+        "caveat.ta-reporting.reference-mode"
+      ],
+      "change": null,
+      "check_ids": [
+        "check.ta-reporting.report-contract"
+      ],
+      "claim_type": "metric",
+      "display_value": "17",
+      "id": "claim.ta-reporting.total-open",
+      "material": true,
+      "metric_id": null,
+      "period": "TA snapshot as of 2026-01-15",
+      "source_ids": [
+        "source.ta-reporting.01",
+        "source.ta-reporting.02"
+      ],
+      "statement": "Open requisitions: 17.",
+      "status": "caveated",
+      "supporting_claim_ids": [],
+      "transformation_id": "transform.ta-reporting.report.v1",
+      "unit": "requisitions",
+      "value": 17
+    }
+  ],
+  "decisions": [],
+  "reviews": [],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "as_of": "2026-01-15",
+      "classification": "synthetic",
+      "content_hash": "sha256:fb8486908f25d708ee75d42b3c64f662da838456155dafa2a44e4f6e57dd50a8",
+      "hash_scope": "file_bytes",
+      "id": "source.ta-reporting.01",
+      "kind": "dataset",
+      "label": "Requisitions.Sample",
+      "uri": "repo:examples/ta-reporting/data/requisitions.sample.csv",
+      "version": "reference-2026-01-15"
+    },
+    {
+      "as_of": "2026-01-15",
+      "classification": "synthetic",
+      "content_hash": "sha256:5ee713a38f925cd4d41d43e30c9eb9eade542d6817509bd99b462c19e4b04791",
+      "hash_scope": "file_bytes",
+      "id": "source.ta-reporting.02",
+      "kind": "registry",
+      "label": "Metrics.Registry",
+      "uri": "repo:vault/90-people-analytics/metrics/metrics.registry.json",
+      "version": "reference-2026-01-15"
+    }
+  ],
+  "transformations": [
+    {
+      "description": "Read validated source data, enforce the agent's fail-closed report contract, and produce the semantic report model",
+      "id": "transform.ta-reporting.report.v1",
+      "implementation": "examples.ta-reporting.run.build_report",
+      "name": "Requisition aging, pipeline, and risk-flag aggregation",
+      "version": "v1"
+    }
+  ]
+}

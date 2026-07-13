@@ -5,7 +5,7 @@
     "as_of": "2025-12-31",
     "id": "artifact.sbc-forecasting.digest",
     "period": "FY2026–FY2030",
-    "semantic_hash": "sha256:1a18d9b1ace01d2789ef0fc85c7617ddb8e491929d17df9372141ca9751aa325",
+    "semantic_hash": "sha256:a32d27fa7903eae7df74205ee70f1fb49ac60238b78297cfc11ca5a1a35ee7e0",
     "status": "draft",
     "title": "Acme Corp SBC Expense Forecast"
   },
@@ -92,31 +92,60 @@
   ],
   "checks": [
     {
+      "attestation": "producer",
       "details": "Displayed gross runoff ties exactly to the backlog and cross-checks the equity-spend arm",
       "id": "check.sbc.backlog-reconciliation",
       "implementation": "examples.sbc-forecasting.run.build_report",
       "name": "Backlog reconciliation",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans",
+        "source.sbc.policy"
+      ],
       "status": "passed"
     },
     {
+      "attestation": "producer",
       "details": "Every displayed amount is finite; cumulative expense is monotonic and equals the running sum",
       "id": "check.sbc.schedule-integrity",
       "implementation": "examples.sbc-forecasting.run.build_report",
       "name": "Runoff schedule integrity",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.policy"
+      ],
       "status": "passed"
     },
     {
+      "attestation": "producer",
       "details": "Headers, dates, recipients, plans, awards, period spines, and economics validate fail closed",
       "id": "check.sbc.source-schema",
       "implementation": "foundation.compute.sbc_forecast._load",
       "name": "Source schema and referential integrity",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.workers",
+        "source.sbc.directors",
+        "source.sbc.equity-plans",
+        "source.sbc.shares",
+        "source.sbc.financials",
+        "source.sbc.policy"
+      ],
       "status": "passed"
     },
     {
+      "attestation": "producer",
       "details": "Every total equals forfeiture-adjusted locked-in expense plus the new-grant overlay",
       "id": "check.sbc.total-decomposition",
       "implementation": "examples.sbc-forecasting.run.build_report",
       "name": "Forecast decomposition",
+      "source_ids": [
+        "source.sbc.equity-grants",
+        "source.sbc.financials",
+        "source.sbc.policy"
+      ],
       "status": "passed"
     }
   ],

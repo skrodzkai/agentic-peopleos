@@ -35,6 +35,7 @@ REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 from foundation.compute import pay_equity as PE          # noqa: E402
 from foundation.render import dashboard as dash           # noqa: E402
 from foundation.render import charts as ch                # noqa: E402
@@ -271,11 +272,11 @@ def render_digest(report):
              f"R²={gender['adjusted']['r2']:.2f}, n={gender['adjusted']['n']})."]
     if eu["potential_joint_assessment"]:
         flagged = ", ".join(c["category"] for c in eu["categories"] if c.get("exceeds_threshold"))
-        lines.append(f"- **EU 5% screen flags** {eu['n_flagged']} category ({flagged}) — the screen indicates a "
-                     f"potential joint-pay-assessment obligation, pending objective-factor justification / legal "
+        lines.append(f"- **EU 5% screen flags** {eu['n_flagged']} category ({flagged}) — **Indicated potential "
+                     f"joint-pay-assessment obligation**, pending objective-factor justification / legal "
                      f"review (Article 10 allows six months).")
     else:
-        lines.append("- No EU 5% category trigger on the mean.")
+        lines.append("- **None: no EU 5% category trigger** on the mean.")
     lines += ["", "_Numbers computed by foundation/compute/pay_equity.py on synthetic, pseudonymised data; "
               "base pay only; observable controls only. Illustrative — not legal advice._",
               "", "_Publish gate: a human (People/Total Rewards) must approve before distribution._"]
@@ -285,7 +286,7 @@ def render_digest(report):
 # ---------- fail-closed + entrypoint ----------
 
 def _fail_closed(message) -> int:
-    for p in (REPORT, DIGEST):
+    for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
         try:
             if p.exists():
                 p.rename(p.with_name(p.name + ".stale"))
@@ -298,7 +299,7 @@ def _fail_closed(message) -> int:
 
 def _atomic_write(path: Path, text: str):
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_bytes(text.encode("utf-8"))
     os.replace(tmp, path)
 
 
@@ -319,6 +320,8 @@ def main(argv=None) -> int:
         result = PE.compute()
         report = build_report(result)
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            AGENT, report, html_doc, digest_doc, REPO)
     except (ReportError, PE.PayEquityDataError) as exc:
         return _fail_closed(str(exc))
     except Exception as exc:
@@ -328,12 +331,13 @@ def main(argv=None) -> int:
     pub_path.unlink(missing_ok=True)
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST):
+        for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         if args.publish:
             _atomic_write(pub_path,
                           json.dumps({"approved_by": approver, "scope": SCOPE, "as_of": AS_OF}, indent=2) + "\n")

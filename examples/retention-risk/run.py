@@ -37,6 +37,7 @@ REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from foundation import evidence_portfolio as portfolio_ev  # noqa: E402
 from foundation.render import charts as ch                 # noqa: E402
 from foundation.compute import retention as R              # noqa: E402
 
@@ -501,7 +502,7 @@ def _ledger(report):
     return (f"<div class='tile'><div class='t-head'><div><h3>Segment ledger — the audit surface</h3>"
             f"<div class='t-sub'>All rendered segments across 6 dimensions · region is broad-only, never country</div></div>"
             "<span class='t-scope'>Reconciliation</span></div>"
-            f"<table class='ledger'>{head}{''.join(trs)}</table>"
+            f"<div class='table-scroll'><table class='ledger'>{head}{''.join(trs)}</table></div>"
             f"<div class='ledger-foot'>{_e(foot)}</div>"
             f"<div class='foot-note'>{_e(cap)}</div></div>")
 
@@ -857,6 +858,7 @@ border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:12p
 .ledger tr:hover{background:rgba(27,167,255,.04);}
 .ledger .gap-hi{color:var(--red);font-weight:700;}.ledger .gap-lo{color:var(--amber);font-weight:700;}
 .ledger .flagchip{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:9px;font-weight:800;color:var(--red);background:rgba(255,77,79,.14);border-radius:5px;padding:1px 6px;}
+.table-scroll{max-width:100%;overflow-x:auto}
 .ledger-foot{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:10px;color:var(--soft);margin-top:8px;}
 .mini{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:6px;}
 .mini th{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;}
@@ -882,6 +884,7 @@ border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:12p
 .checklist .done{color:var(--green);}.checklist .todo{color:var(--amber);}.checklist .hdr{color:var(--soft);letter-spacing:.05em;}
 .foot{margin-top:22px;padding-top:14px;border-top:1px solid var(--hair);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:10.5px;color:var(--soft);}
 .foot .pills{display:flex;gap:8px;flex-wrap:wrap;}.foot .pill{border:1px solid var(--hair);border-radius:999px;padding:3px 9px;}
+@media(max-width:620px){.kpis,.levers{grid-template-columns:1fr}.col-5,.col-6,.col-7{grid-column:span 12}.checklist{white-space:pre-wrap;overflow-wrap:anywhere}}
 """
 
 
@@ -894,7 +897,7 @@ def _page(body):
 
 # ---------------------------------------------------------------- fail-closed + entrypoint
 def _fail_closed(message):
-    for p in (REPORT, DIGEST, OUT / "PUBLISHED.json"):
+    for p in portfolio_ev.managed_outputs(REPORT, DIGEST) + (OUT / "PUBLISHED.json",):
         if not p.exists():
             continue
         try:
@@ -910,7 +913,7 @@ def _fail_closed(message):
 
 def _atomic_write(path, text):
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_bytes(text.encode("utf-8"))
     os.replace(tmp, path)
 
 
@@ -932,6 +935,8 @@ def main(argv=None):
     try:
         report = build_report()
         html_doc, digest_doc = render_html(report), render_digest(report)
+        html_doc, digest_doc, report_evidence, digest_evidence = portfolio_ev.prepare_pair(
+            AGENT, report, html_doc, digest_doc, REPO)
         # PUBLISHING is a distribution act: require the committed manifest to REPRODUCE (a fresh re-fit within
         # tolerance) before we write the approval, so a report whose model no longer matches its published
         # weights can never be blessed. (A plain draft skips this — the reproducibility gate is CI's job there.)
@@ -946,12 +951,13 @@ def main(argv=None):
     pub_path.unlink(missing_ok=True)
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST):
+        for p in portfolio_ev.managed_outputs(REPORT, DIGEST):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        portfolio_ev.write_sidecars(REPORT, DIGEST, report_evidence, digest_evidence)
         if args.publish:
             _atomic_write(pub_path,
                           json.dumps({"approved_by": approver, "scope": SCOPE, "as_of": AS_OF}, indent=2) + "\n")

@@ -19,6 +19,7 @@ CLI:
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import hashlib
 import json
 import math
@@ -26,6 +27,7 @@ import os
 import re
 import sys
 import tempfile
+from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -39,6 +41,7 @@ CLASSIFICATIONS = {"synthetic", "public", "internal", "confidential", "restricte
 HASH_SCOPES = {"file_bytes", "canonical_record", "source_version"}
 ASSUMPTION_STATUSES = {"illustrative", "approved", "policy", "observed"}
 CHECK_STATUSES = {"passed", "failed", "not_run"}
+CHECK_ATTESTATIONS = {"producer", "independent"}
 CLAIM_TYPES = {"metric", "narrative", "disclosure"}
 CLAIM_STATUSES = {"supported", "caveated", "blocked"}
 CAVEAT_SEVERITIES = {"info", "warning", "blocking"}
@@ -52,8 +55,12 @@ _COLLECTIONS = ("sources", "transformations", "assumptions", "checks", "caveats"
                 "claims", "reviews", "decisions")
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9._:@/-]{0,159}$")
 _SHA_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_STAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+_DATE_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+_STAMP_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
+_DISPLAY_NUMBER_RE = re.compile(
+    r"([+-]?(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.[0-9]+)?)([KMB])?",
+    re.IGNORECASE,
+)
 
 
 class EvidenceError(ValueError):
@@ -86,7 +93,13 @@ def _utf8_text(value):
 
 
 def _assert_json_value(value, path="$"):
-    """Reject values whose canonical JSON encoding would be lossy or non-portable."""
+    """Reject values whose JSON encoding is lossy or runtime-dependent.
+
+    ``json.dumps`` silently coerces non-string object keys (for example ``1`` and
+    ``"1"``) to the same JSON name. Evidence hashes must never collapse distinct
+    Python objects, and lone surrogates cannot be represented in UTF-8, so canonical
+    evidence accepts only the portable JSON data model.
+    """
     if value is None or isinstance(value, (bool, int)):
         return
     if isinstance(value, str):
@@ -125,7 +138,12 @@ def canonical(value):
 
 def format_manifest(value):
     """Deterministic, review-friendly JSON; hashes still use compact canonical JSON."""
-    return json.dumps(value, sort_keys=True, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+    _assert_json_value(value)
+    try:
+        return json.dumps(value, sort_keys=True, indent=2, ensure_ascii=False,
+                          allow_nan=False) + "\n"
+    except (TypeError, ValueError) as exc:
+        raise EvidenceError("value cannot be encoded as review JSON: %s" % exc)
 
 
 def hash_bytes(value):
@@ -214,15 +232,19 @@ def _json_scalar(value):
 
 
 def _finite_number(value):
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    return isinstance(value, float) and math.isfinite(value)
 
 
 def _keys(obj, required, allowed, tag, violations):
     if not isinstance(obj, dict):
         violations.append("%s must be an object" % tag)
         return False
-    missing = sorted(set(required) - set(obj))
-    extra = sorted(set(obj) - set(allowed))
+    missing = sorted(set(required) - set(obj), key=str)
+    extra = sorted(set(obj) - set(allowed), key=str)
     for key in missing:
         violations.append("%s missing field '%s'" % (tag, key))
     for key in extra:
@@ -243,11 +265,76 @@ def _enum(value, allowed, tag, violations):
 def _date(value, tag, violations):
     if not isinstance(value, str) or not _DATE_RE.fullmatch(value):
         violations.append("%s must be an ISO date (YYYY-MM-DD)" % tag)
+        return
+    try:
+        dt.date.fromisoformat(value)
+    except ValueError:
+        violations.append("%s must be a real calendar date" % tag)
 
 
 def _stamp(value, tag, violations):
     if not isinstance(value, str) or not _STAMP_RE.fullmatch(value):
         violations.append("%s must be a UTC timestamp (YYYY-MM-DDTHH:MM:SSZ)" % tag)
+        return
+    try:
+        dt.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        violations.append("%s must be a real UTC calendar timestamp" % tag)
+
+
+def _decimal_number(value):
+    if not _finite_number(value):
+        return None
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _display_matches_value(value, display):
+    """Return whether a display is an honest rounded rendering of its scalar value.
+
+    Numeric displays may use commas, currency prefixes, P/FY prefixes, K/M/B
+    scaling, percentages, ordinals, ratios, or unit suffixes. The first displayed
+    number must round back to the raw value at the precision it advertises.
+    """
+    if not isinstance(display, str):
+        return False
+    if isinstance(value, str):
+        return display == value
+    if isinstance(value, bool):
+        return display.casefold() == str(value).casefold()
+    if value is None:
+        return display.casefold() in {"none", "null", "n/a", "not available"}
+    raw = _decimal_number(value)
+    if raw is None:
+        return False
+    match = _DISPLAY_NUMBER_RE.search(display)
+    if not match:
+        return False
+    token = match.group(1).replace(",", "")
+    scale = {None: Decimal(1), "K": Decimal(1000), "M": Decimal(1000000),
+             "B": Decimal(1000000000)}[match.group(2).upper() if match.group(2) else None]
+    shown = Decimal(token) * scale
+    decimals = len(token.partition(".")[2])
+    quantum = Decimal(1).scaleb(-decimals) * scale
+    return abs(raw - shown) <= quantum / 2
+
+
+def _rounded_decimal_matches(reported, expected):
+    """Compare a reported decimal at exactly its serialized precision."""
+    if not _finite_number(reported):
+        return False
+    try:
+        text = str(reported).lower()
+        actual = Decimal(text)
+    except (InvalidOperation, ValueError):
+        return False
+    if "e" in text:
+        quantum = Decimal(1).scaleb(int(text.split("e", 1)[1]))
+    else:
+        quantum = Decimal(1).scaleb(-len(text.partition(".")[2]))
+    return expected.quantize(quantum, rounding=ROUND_HALF_EVEN) == actual
 
 
 def _id_list(value, tag, violations, allow_empty=True):
@@ -265,6 +352,11 @@ def _id_list(value, tag, violations, allow_empty=True):
     if len(out) != len(set(out)):
         violations.append("%s contains duplicate ids" % tag)
     return out
+
+
+def _as_list(value):
+    """Return list-shaped data for post-shape checks without raising on malformed input."""
+    return value if isinstance(value, list) else []
 
 
 def _validate_artifact(obj, violations):
@@ -352,7 +444,7 @@ def _validate_assumption(obj, tag, violations):
 
 
 def _validate_check(obj, tag, violations):
-    required = {"id", "name", "status", "implementation", "details"}
+    required = {"id", "name", "status", "implementation", "details", "attestation", "source_ids"}
     if not _keys(obj, required, required, tag, violations):
         return
     _id(obj.get("id"), tag, violations)
@@ -360,6 +452,10 @@ def _validate_check(obj, tag, violations):
         if not _one_line(obj.get(field), limit):
             violations.append("%s.%s must be a non-empty one-line string" % (tag, field))
     _enum(obj.get("status"), CHECK_STATUSES, tag + ".status", violations)
+    _enum(obj.get("attestation"), CHECK_ATTESTATIONS, tag + ".attestation", violations)
+    source_ids = _id_list(obj.get("source_ids"), tag + ".source_ids", violations)
+    if obj.get("status") == "passed" and not source_ids:
+        violations.append("%s passed check needs at least one hashed source reference" % tag)
 
 
 def _validate_caveat(obj, tag, violations):
@@ -383,6 +479,8 @@ def _validate_change(obj, tag, current_value, unit, violations):
         violations.append("%s.prior_value must be a JSON scalar" % tag)
     if not _one_line(obj.get("prior_display_value"), 120):
         violations.append("%s.prior_display_value must be a non-empty one-line string" % tag)
+    elif not _display_matches_value(obj.get("prior_value"), obj.get("prior_display_value")):
+        violations.append("%s.prior_display_value does not reconcile to prior_value" % tag)
     for field in ("absolute", "percent"):
         value = obj.get(field)
         if value is not None and not _finite_number(value):
@@ -393,6 +491,7 @@ def _validate_change(obj, tag, current_value, unit, violations):
         violations.append("%s.drivers must be a list" % tag)
         drivers = []
     effects = []
+    comparable = obj.get("comparability") == "comparable"
     for i, driver in enumerate(drivers):
         dtag = "%s.drivers[%d]" % (tag, i)
         dreq = {"type", "label", "effect", "unit"}
@@ -405,15 +504,39 @@ def _validate_change(obj, tag, current_value, unit, violations):
             violations.append("%s.effect must be null or a finite number" % dtag)
         if not _one_line(driver.get("unit"), 80):
             violations.append("%s.unit must be a non-empty one-line string" % dtag)
+        if driver.get("effect") is not None and driver.get("unit") != unit:
+            violations.append("%s.unit must exactly match the claim unit '%s'" % (dtag, unit))
         if _finite_number(driver.get("effect")) and driver.get("unit") == unit:
-            effects.append(float(driver["effect"]))
-    if (obj.get("comparability") == "comparable" and _finite_number(current_value)
-            and _finite_number(obj.get("prior_value")) and _finite_number(obj.get("absolute"))):
-        expected = float(current_value) - float(obj["prior_value"])
-        if not math.isclose(float(obj["absolute"]), expected, rel_tol=1e-9, abs_tol=1e-9):
-            violations.append("%s.absolute does not equal current minus prior" % tag)
-        if effects and not math.isclose(sum(effects), float(obj["absolute"]), rel_tol=1e-9, abs_tol=1e-9):
-            violations.append("%s driver effects do not reconcile to absolute change" % tag)
+            effects.append(_decimal_number(driver["effect"]))
+    current = _decimal_number(current_value)
+    prior = _decimal_number(obj.get("prior_value"))
+    absolute = _decimal_number(obj.get("absolute"))
+    if comparable:
+        if current is None or prior is None:
+            violations.append("%s comparable change requires numeric current_value and prior_value" % tag)
+        if absolute is None:
+            violations.append("%s comparable change requires a numeric absolute change" % tag)
+        if current is not None and prior is not None and absolute is not None:
+            expected = current - prior
+            if absolute != expected:
+                violations.append("%s.absolute does not equal current minus prior" % tag)
+            percent = obj.get("percent")
+            if prior == 0:
+                if percent is not None:
+                    violations.append("%s.percent must be null when prior_value is zero" % tag)
+            elif not _finite_number(percent):
+                violations.append("%s comparable nonzero change requires a numeric percent" % tag)
+            else:
+                expected_percent = expected / abs(prior) * Decimal(100)
+                if not _rounded_decimal_matches(percent, expected_percent):
+                    violations.append("%s.percent does not equal absolute divided by prior" % tag)
+            if drivers:
+                if len(effects) != len(drivers):
+                    violations.append("%s every comparable driver needs a numeric effect in the claim unit" % tag)
+                elif sum(effects, Decimal(0)) != absolute:
+                    violations.append("%s driver effects do not reconcile to absolute change" % tag)
+    elif obj.get("absolute") is not None or obj.get("percent") is not None:
+        violations.append("%s non-comparable change must leave absolute and percent null" % tag)
 
 
 def _validate_claim(obj, tag, violations):
@@ -433,6 +556,8 @@ def _validate_claim(obj, tag, violations):
         violations.append("%s.value must be a finite JSON scalar" % tag)
     if not _one_line(obj.get("display_value"), 120):
         violations.append("%s.display_value must be a non-empty one-line string" % tag)
+    elif not _display_matches_value(value, obj.get("display_value")):
+        violations.append("%s.display_value does not reconcile to value" % tag)
     if not _one_line(obj.get("unit"), 80):
         violations.append("%s.unit must be a non-empty one-line string" % tag)
     if not _one_line(obj.get("period"), 240):
@@ -578,6 +703,8 @@ def validate_manifest(data, root=None, verify_sources=False, require_material=Tr
 
     for assumption in indexes["assumptions"].values():
         refs("assumption '%s'.source_ids" % assumption["id"], assumption.get("source_ids"), "sources")
+    for check in indexes["checks"].values():
+        refs("check '%s'.source_ids" % check["id"], check.get("source_ids"), "sources")
 
     for claim in indexes["claims"].values():
         cid = claim["id"]
@@ -589,14 +716,89 @@ def validate_manifest(data, root=None, verify_sources=False, require_material=Tr
         transform = claim.get("transformation_id")
         if isinstance(transform, str) and transform not in indexes["transformations"]:
             violations.append("claim '%s' references missing transformation '%s'" % (cid, transform))
-        if cid in (claim.get("supporting_claim_ids") or []):
+        if cid in _as_list(claim.get("supporting_claim_ids")):
             violations.append("claim '%s' cannot support itself" % cid)
         if claim.get("material") and claim.get("status") in ("supported", "caveated"):
-            for check_id in claim.get("check_ids") or []:
+            for check_id in _as_list(claim.get("check_ids")):
                 check = indexes["checks"].get(check_id)
                 if check and check.get("status") != "passed":
                     violations.append("claim '%s' relies on check '%s' with status '%s'" %
                                       (cid, check_id, check.get("status")))
+
+    # Supporting claims form a directed acyclic graph and every material claim must
+    # terminate at an actual source. A<->B with no source is not provenance.
+    visit_state = {}
+    grounded_cache = {}
+
+    def grounded(claim_id, trail=()):
+        state = visit_state.get(claim_id, 0)
+        if state == 1:
+            cycle = " -> ".join(trail + (claim_id,))
+            violations.append("supporting-claim cycle detected: %s" % cycle)
+            return False
+        if state == 2:
+            return grounded_cache.get(claim_id, False)
+        visit_state[claim_id] = 1
+        claim = indexes["claims"].get(claim_id, {})
+        result = bool(claim.get("source_ids"))
+        for supporting_id in _as_list(claim.get("supporting_claim_ids")):
+            if supporting_id in indexes["claims"]:
+                result = grounded(supporting_id, trail + (claim_id,)) or result
+        visit_state[claim_id] = 2
+        grounded_cache[claim_id] = result
+        return result
+
+    for claim_id in indexes["claims"]:
+        grounded(claim_id)
+
+    # A check must overlap evidence that is actually in the claim's support closure:
+    # direct claim sources, sources behind its assumptions, or recursively supported
+    # claims. A portfolio-wide check may cover additional inputs, but merely hashing
+    # an entirely unrelated file must never make a producer assertion look source-bound.
+    source_cache = {}
+
+    def claim_source_closure(claim_id, trail=frozenset()):
+        if claim_id in source_cache:
+            return source_cache[claim_id]
+        if claim_id in trail:
+            return set()
+        claim = indexes["claims"].get(claim_id, {})
+        sources = {source_id for source_id in _as_list(claim.get("source_ids"))
+                   if source_id in indexes["sources"]}
+        for assumption_id in _as_list(claim.get("assumption_ids")):
+            assumption = indexes["assumptions"].get(assumption_id, {})
+            sources.update(source_id for source_id in _as_list(assumption.get("source_ids"))
+                           if source_id in indexes["sources"])
+        next_trail = trail | {claim_id}
+        for supporting_id in _as_list(claim.get("supporting_claim_ids")):
+            if supporting_id in indexes["claims"]:
+                sources.update(claim_source_closure(supporting_id, next_trail))
+        source_cache[claim_id] = sources
+        return sources
+
+    for claim in indexes["claims"].values():
+        if claim.get("material") and not grounded_cache.get(claim["id"], False):
+            violations.append("material claim '%s' has no source-grounded support path" % claim["id"])
+
+        if claim.get("material") and claim.get("status") in ("supported", "caveated"):
+            claim_sources = claim_source_closure(claim["id"])
+            for check_id in _as_list(claim.get("check_ids")):
+                check = indexes["checks"].get(check_id)
+                if not check:
+                    continue
+                check_sources = {source_id for source_id in _as_list(check.get("source_ids"))
+                                 if source_id in indexes["sources"]}
+                if check_sources and not check_sources.intersection(claim_sources):
+                    violations.append("claim '%s' check '%s' has no source in the claim support closure" %
+                                      (claim["id"], check_id))
+
+        linked_caveats = [indexes["caveats"].get(cid)
+                          for cid in _as_list(claim.get("caveat_ids"))]
+        has_blocking = any(caveat and caveat.get("severity") == "blocking" for caveat in linked_caveats)
+        if claim.get("material") and has_blocking and claim.get("status") != "blocked":
+            violations.append("material claim '%s' has a blocking caveat and must be blocked" % claim["id"])
+        if claim.get("status") == "blocked" and not has_blocking:
+            violations.append("blocked claim '%s' needs a blocking caveat" % claim["id"])
 
     artifact = data.get("artifact") if isinstance(data.get("artifact"), dict) else {}
     artifact_id = artifact.get("id")
@@ -616,9 +818,23 @@ def validate_manifest(data, root=None, verify_sources=False, require_material=Tr
         if blocked:
             violations.append("approved/published artifact contains blocked material claims: %s" % blocked)
         approved_ids = set()
-        for review in indexes["reviews"].values():
-            if review.get("status") == "approved":
-                approved_ids.update(review.get("claim_ids") or [])
+        for claim_id in material_ids:
+            reviews = [review for review in indexes["reviews"].values()
+                       if claim_id in _as_list(review.get("claim_ids"))]
+            if not reviews:
+                continue
+            valid_review_times = [review.get("reviewed_at") for review in reviews
+                                  if isinstance(review.get("reviewed_at"), str)]
+            if not valid_review_times:
+                continue
+            latest_at = max(valid_review_times)
+            latest = [review for review in reviews if review.get("reviewed_at") == latest_at]
+            latest_statuses = {review.get("status") for review in latest}
+            if len(latest_statuses) > 1:
+                violations.append("claim '%s' has conflicting latest reviews at %s" %
+                                  (claim_id, latest_at))
+            elif latest_statuses == {"approved"}:
+                approved_ids.add(claim_id)
         missing_review = sorted(material_ids - approved_ids)
         if missing_review:
             violations.append("approved/published artifact has material claims without approved review: %s" %
@@ -642,8 +858,26 @@ def coverage(manifest):
         "caveated": sum(c.get("status") == "caveated" for c in material),
         "blocked": sum(c.get("status") == "blocked" for c in material),
         "traceable": sum(bool(c.get("transformation_id")) and bool(c.get("check_ids"))
-                         and bool(c.get("source_ids") or c.get("supporting_claim_ids")) for c in material),
+                         and _claim_has_grounded_source(c, claims) for c in material),
     }
+
+
+def _claim_has_grounded_source(claim, claims):
+    index = {item.get("id"): item for item in claims if isinstance(item, dict) and item.get("id")}
+    seen = set()
+
+    def walk(item):
+        claim_id = item.get("id")
+        if claim_id in seen:
+            return False
+        seen.add(claim_id)
+        if item.get("source_ids"):
+            return True
+        return any(walk(index[support_id])
+                   for support_id in _as_list(item.get("supporting_claim_ids"))
+                   if support_id in index)
+
+    return walk(claim)
 
 
 def inspect_claim(manifest, claim_id):
@@ -655,7 +889,8 @@ def inspect_claim(manifest, claim_id):
         raise EvidenceError("claim not found: %s" % claim_id)
 
     def select(collection, ids):
-        return [indexes[collection][node_id] for node_id in ids if node_id in indexes[collection]]
+        return [indexes[collection][node_id] for node_id in _as_list(ids)
+                if node_id in indexes[collection]]
 
     reviews = [r for r in manifest.get("reviews", []) if claim_id in (r.get("claim_ids") or [])]
     decisions = [d for d in manifest.get("decisions", []) if claim_id in (d.get("claim_ids") or [])]
@@ -693,6 +928,8 @@ class EvidenceBuilder:
 
     def _add(self, collection, node):
         node_id = node.get("id") if isinstance(node, dict) else None
+        if not isinstance(node_id, str):
+            raise EvidenceError("%s id must be a string" % collection[:-1])
         if node_id in self.nodes[collection]:
             raise EvidenceError("duplicate %s id '%s'" % (collection[:-1], node_id))
         self.nodes[collection][node_id] = dict(node)
@@ -718,10 +955,12 @@ class EvidenceBuilder:
             "version": version, "status": status, "source_ids": list(source_ids or []),
         })
 
-    def check(self, check_id, name, status, implementation, details):
+    def check(self, check_id, name, status, implementation, details, source_ids=None,
+              attestation="producer"):
         return self._add("checks", {
             "id": check_id, "name": name, "status": status,
             "implementation": implementation, "details": details,
+            "attestation": attestation, "source_ids": list(source_ids or []),
         })
 
     def caveat(self, caveat_id, severity, text):
@@ -775,8 +1014,8 @@ def write_manifest(path, manifest):
     target.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(prefix=target.name + ".", dir=str(target.parent))
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(format_manifest(manifest))
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(format_manifest(manifest).encode("utf-8"))
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp_name, target)
@@ -815,6 +1054,9 @@ def _main(argv=None):
                   (cov["claims"], cov["traceable"], cov["material"], evidence_hash(manifest)))
             return 0
         if args.command == "inspect":
+            violations = validate_manifest(manifest)
+            if violations:
+                raise EvidenceError("cannot inspect invalid evidence manifest: " + violations[0])
             print(json.dumps(inspect_claim(manifest, args.claim), indent=2, sort_keys=True,
                              ensure_ascii=False, allow_nan=False))
             return 0
