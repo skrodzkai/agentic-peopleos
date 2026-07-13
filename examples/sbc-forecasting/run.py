@@ -33,6 +33,7 @@ REPO = HERE.parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from core import evidence as ev                            # noqa: E402
 from foundation.compute import sbc_forecast as SBC        # noqa: E402
 from foundation.render import dashboard as dash           # noqa: E402
 from foundation.render import charts as ch                # noqa: E402
@@ -163,6 +164,143 @@ def _narrative(result):
     return " ".join(parts)
 
 
+# ---------- machine-readable evidence ----------
+
+def _evidence_paths():
+    """Sidecars follow the active artifact paths, including evals' throwaway output directories."""
+    return REPORT.with_suffix(".evidence.json"), DIGEST.with_suffix(".evidence.json")
+
+
+def build_evidence(report, artifact_id, artifact_type, semantic_payload):
+    """Build the complete claim graph shared by the HTML and digest artifacts."""
+    result, li, tf = report["r"], report["li"], report["tf"]
+    sched, assumptions = li["schedule"], result["assumptions"]
+    builder = ev.EvidenceBuilder(
+        artifact_id=artifact_id,
+        agent_id="agent.sbc-forecasting",
+        title="Acme Corp SBC Expense Forecast",
+        artifact_type=artifact_type,
+        as_of=result["as_of"],
+        period="FY%d–FY%d" % (tf[0]["fy"], tf[-1]["fy"]),
+        semantic_payload=semantic_payload,
+    )
+
+    data_dir = REPO / "foundation" / "data" / "acme"
+    source_specs = (
+        ("source.sbc.equity-grants", "equity_grants.csv", "Synthetic equity grant ledger"),
+        ("source.sbc.workers", "workers.csv", "Synthetic worker status and term dates"),
+        ("source.sbc.directors", "directors.csv", "Synthetic director roster"),
+        ("source.sbc.equity-plans", "equity_plans.csv", "Synthetic equity-plan terms"),
+        ("source.sbc.shares", "shares_outstanding.csv", "Synthetic shares and market context"),
+        ("source.sbc.financials", "financials.csv", "Synthetic quarterly revenue"),
+    )
+    for source_id, filename, label in source_specs:
+        builder.repo_source(data_dir / filename, REPO, source_id, label, "dataset",
+                            "generator-seed-30414", result["as_of"], "synthetic")
+    builder.repo_source(REPO / "foundation" / "compute" / "sbc_forecast.py", REPO,
+                        "source.sbc.policy", "SBC forecast methodology and assumption policy", "model",
+                        "sbc-forecast-v1", result["as_of"], "public")
+
+    builder.transformation(
+        "transform.sbc.locked-in.v1", "Locked-in SBC runoff", "v1",
+        "foundation.compute.sbc_forecast.compute",
+        "Straight-line remaining grant-date fair value by fiscal year with service-condition treatment")
+    builder.transformation(
+        "transform.sbc.total-forecast.v1", "Total go-forward SBC forecast", "v1",
+        "foundation.compute.sbc_forecast.compute",
+        "Forfeiture-adjusted locked-in runoff plus the explicitly illustrative new-grant overlay")
+    builder.transformation(
+        "transform.sbc.context.v1", "SBC context ratio", "v1",
+        "foundation.compute.sbc_forecast.compute",
+        "Compare forecast or backlog with the committed market-cap and trailing-revenue context")
+
+    builder.assumption("assumption.sbc.full-vesting", "Continued service for gross runoff", True,
+                       "boolean", "v1", "illustrative", ["source.sbc.policy"])
+    builder.assumption("assumption.sbc.forfeiture-rate", "Estimated annual forfeiture rate",
+                       assumptions["forfeiture_rate_annual_pct"], "percent", "v1", "illustrative",
+                       ["source.sbc.policy"])
+    builder.assumption("assumption.sbc.new-grant-run-rate", "Annual new-grant run rate",
+                       assumptions["new_grant_run_rate_usd"], "USD/year", "v1", "illustrative",
+                       ["source.sbc.equity-grants", "source.sbc.policy"])
+    builder.assumption("assumption.sbc.new-grant-vesting", "New-grant vesting period",
+                       assumptions["new_grant_vest_months"], "months", "v1", "illustrative",
+                       ["source.sbc.policy"])
+    builder.assumption("assumption.sbc.flat-revenue", "Revenue basis",
+                       assumptions["revenue_basis"], "text", "v1", "illustrative",
+                       ["source.sbc.financials", "source.sbc.policy"])
+
+    builder.check("check.sbc.backlog-reconciliation", "Backlog reconciliation", "passed",
+                  "examples.sbc-forecasting.run.build_report",
+                  "Displayed gross runoff ties exactly to the backlog and cross-checks the equity-spend arm")
+    builder.check("check.sbc.schedule-integrity", "Runoff schedule integrity", "passed",
+                  "examples.sbc-forecasting.run.build_report",
+                  "Every displayed amount is finite; cumulative expense is monotonic and equals the running sum")
+    builder.check("check.sbc.total-decomposition", "Forecast decomposition", "passed",
+                  "examples.sbc-forecasting.run.build_report",
+                  "Every total equals forfeiture-adjusted locked-in expense plus the new-grant overlay")
+    builder.check("check.sbc.source-schema", "Source schema and referential integrity", "passed",
+                  "foundation.compute.sbc_forecast._load",
+                  "Headers, dates, recipients, plans, awards, period spines, and economics validate fail closed")
+
+    builder.caveat("caveat.sbc.full-vesting", "warning",
+                   "Gross locked-in runoff assumes continued service until the separate forfeiture overlay")
+    builder.caveat("caveat.sbc.forfeiture", "warning",
+                   "The future forfeiture rate is illustrative rather than company guidance")
+    builder.caveat("caveat.sbc.new-grants", "warning",
+                   "The new-grant run rate and attribution pattern are illustrative rather than company guidance")
+    builder.caveat("caveat.sbc.revenue", "warning",
+                   "The percentage-of-revenue context holds trailing revenue flat")
+
+    locked_sources = ["source.sbc.equity-grants", "source.sbc.workers", "source.sbc.directors",
+                      "source.sbc.equity-plans"]
+    all_sources = locked_sources + ["source.sbc.shares", "source.sbc.financials"]
+    locked_checks = ["check.sbc.backlog-reconciliation", "check.sbc.schedule-integrity",
+                     "check.sbc.source-schema"]
+    total_checks = locked_checks + ["check.sbc.total-decomposition"]
+
+    builder.claim(
+        "claim.sbc.backlog", "Unrecognized SBC backlog is %s." % _m(li["backlog_unrecognized_usd"]),
+        li["backlog_unrecognized_usd"], _m(li["backlog_unrecognized_usd"]), "USD", "as of fiscal close",
+        result["as_of"], locked_sources, "transform.sbc.locked-in.v1", locked_checks,
+        status="caveated", assumption_ids=["assumption.sbc.full-vesting"],
+        caveat_ids=["caveat.sbc.full-vesting"])
+    builder.claim(
+        "claim.sbc.remaining-vesting", "Weighted-average remaining vesting is %.1f years." %
+        li["wavg_remaining_years"], li["wavg_remaining_years"], "%.1f yr" % li["wavg_remaining_years"],
+        "years", "as of fiscal close", result["as_of"], locked_sources,
+        "transform.sbc.locked-in.v1", locked_checks, status="caveated",
+        assumption_ids=["assumption.sbc.full-vesting"], caveat_ids=["caveat.sbc.full-vesting"])
+    builder.claim(
+        "claim.sbc.first-year-locked", "FY%d locked-in gross expense is %s." %
+        (sched[0]["fy"], _m(sched[0]["gross_expense"])), sched[0]["gross_expense"],
+        _m(sched[0]["gross_expense"]), "USD", "FY%d" % sched[0]["fy"], result["as_of"],
+        locked_sources, "transform.sbc.locked-in.v1", locked_checks, status="caveated",
+        assumption_ids=["assumption.sbc.full-vesting"], caveat_ids=["caveat.sbc.full-vesting"])
+    builder.claim(
+        "claim.sbc.runoff-complete", "Locked-in runoff completes in FY%d." % li["runoff_complete_fy"],
+        li["runoff_complete_fy"], "FY%d" % li["runoff_complete_fy"], "fiscal_year", "forecast horizon",
+        result["as_of"], locked_sources, "transform.sbc.locked-in.v1", locked_checks,
+        status="caveated", assumption_ids=["assumption.sbc.full-vesting"],
+        caveat_ids=["caveat.sbc.full-vesting"])
+    builder.claim(
+        "claim.sbc.first-year-total", "FY%d total SBC forecast is %s." %
+        (tf[0]["fy"], _m(tf[0]["total"])), tf[0]["total"], _m(tf[0]["total"]), "USD",
+        "FY%d" % tf[0]["fy"], result["as_of"], all_sources, "transform.sbc.total-forecast.v1",
+        total_checks, status="caveated",
+        assumption_ids=["assumption.sbc.forfeiture-rate", "assumption.sbc.new-grant-run-rate",
+                        "assumption.sbc.new-grant-vesting"],
+        caveat_ids=["caveat.sbc.forfeiture", "caveat.sbc.new-grants"])
+    builder.claim(
+        "claim.sbc.first-year-revenue-pct", "FY%d total SBC equals %.1f%% of trailing revenue." %
+        (tf[0]["fy"], tf[0]["pct_ttm_revenue"]), tf[0]["pct_ttm_revenue"],
+        "%.1f%%" % tf[0]["pct_ttm_revenue"], "percent", "FY%d" % tf[0]["fy"], result["as_of"],
+        all_sources, "transform.sbc.context.v1", total_checks, status="caveated",
+        assumption_ids=["assumption.sbc.forfeiture-rate", "assumption.sbc.new-grant-run-rate",
+                        "assumption.sbc.new-grant-vesting", "assumption.sbc.flat-revenue"],
+        caveat_ids=["caveat.sbc.forfeiture", "caveat.sbc.new-grants", "caveat.sbc.revenue"])
+    return builder.build()
+
+
 # ---------- rendering ----------
 
 def render_html(report):
@@ -250,7 +388,7 @@ def render_digest(report):
 # ---------- fail-closed + entrypoint ----------
 
 def _fail_closed(message) -> int:
-    for p in (REPORT, DIGEST):
+    for p in (REPORT, DIGEST) + _evidence_paths():
         try:
             if p.exists():
                 p.rename(p.with_name(p.name + ".stale"))
@@ -284,6 +422,8 @@ def main(argv=None) -> int:
         result = SBC.compute()
         report = build_report(result)
         html_doc, digest_doc = render_html(report), render_digest(report)
+        report_manifest = build_evidence(report, "artifact.sbc-forecasting.report", "dashboard", html_doc)
+        digest_manifest = build_evidence(report, "artifact.sbc-forecasting.digest", "digest", digest_doc)
     except (ReportError, SBC.SBCDataError) as exc:
         return _fail_closed(str(exc))
     except Exception as exc:
@@ -291,20 +431,23 @@ def main(argv=None) -> int:
 
     pub_path = OUT / "PUBLISHED.json"
     pub_path.unlink(missing_ok=True)
+    report_evidence, digest_evidence = _evidence_paths()
     try:
         OUT.mkdir(exist_ok=True)
-        for p in (REPORT, DIGEST):
+        for p in (REPORT, DIGEST, report_evidence, digest_evidence):
             stale = p.with_name(p.name + ".stale")
             if stale.exists():
                 stale.unlink()
         _atomic_write(REPORT, html_doc)
         _atomic_write(DIGEST, digest_doc)
+        _atomic_write(report_evidence, ev.format_manifest(report_manifest))
+        _atomic_write(digest_evidence, ev.format_manifest(digest_manifest))
         if args.publish:
             _atomic_write(pub_path,
                           json.dumps({"approved_by": approver, "scope": SCOPE, "as_of": result["as_of"]},
                                      indent=2) + "\n")
     except OSError as exc:
-        for p in (REPORT, DIGEST, pub_path):
+        for p in (REPORT, DIGEST, report_evidence, digest_evidence, pub_path):
             try:
                 p.with_name(p.name + ".tmp").unlink()
             except OSError:
@@ -315,7 +458,7 @@ def main(argv=None) -> int:
     print(f"{COMPANY} SBC forecast — as of {result['as_of']}")
     print(f"  locked-in backlog {_m(li['backlog_unrecognized_usd'])} | FY{li['schedule'][0]['fy']} "
           f"{_m(li['schedule'][0]['gross_expense'])} -> runoff complete FY{li['runoff_complete_fy']}")
-    print("  wrote report.sample.html and day1-digest.sample.md")
+    print("  wrote report.sample.html, day1-digest.sample.md, and evidence sidecars")
     if args.publish:
         print(f"\nPublish approved by {approver}. Recorded locally (no external send).")
     else:

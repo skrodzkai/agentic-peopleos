@@ -53,6 +53,9 @@ python3 tools/render_glossary.py             # then `git diff --exit-code` on va
 # Executive Compensation arm (eval + run, then `git diff --exit-code` on each output/report.sample.html + day1-digest.sample.md)
 (cd examples/executive-comp-peer-builder && python3 evals/test_peer_builder.py && python3 run.py)
 (cd examples/executive-comp-benchmarking && python3 evals/test_benchmarking_agent.py && python3 run.py)
+python3 tools/verify_evidence.py --verify-sources \
+  examples/executive-comp-benchmarking/output/report.sample.evidence.json \
+  examples/executive-comp-benchmarking/output/day1-digest.sample.evidence.json
 (cd examples/rtsr-psu-valuation && python3 evals/test_rtsr_psu.py && python3 run.py)
 (cd examples/iss-pay-screen && python3 evals/test_iss_pay_screen.py && python3 run.py)
 (cd examples/equity-spend && python3 evals/test_equity_spend_agent.py && python3 run.py)
@@ -73,6 +76,9 @@ python3 foundation/compute/tests/test_merit_comp.py
 python3 foundation/compute/tests/test_pvp.py
 python3 foundation/compute/tests/test_pay_equity.py
 python3 foundation/compute/tests/test_sbc_forecast.py
+python3 tools/verify_evidence.py --verify-sources \
+  examples/sbc-forecasting/output/report.sample.evidence.json \
+  examples/sbc-forecasting/output/day1-digest.sample.evidence.json
 # retention-risk model (glass-box hazard + eval + segment layer)
 python3 foundation/compute/tests/test_retention.py
 python3 foundation/compute/retention.py validate   # re-fits + reproduces coefficients/calibration/bands + provenance
